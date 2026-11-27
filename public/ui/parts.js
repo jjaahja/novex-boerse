@@ -22,6 +22,7 @@ export function whyText(x) {
   if (x.why && x.why.t >= today - (E.M.isOpen ? 0 : 3 * DAY) && Math.abs(c) > 0.002) return x.why.txt;
   const ix = E.M.inst.WELTIX, mc = chg(ix);
   if (Math.abs(c) < 0.003) return 'Kaum bewegt heute.';
+  const pl = (x.ts || []).filter(t => t[4] && t[0] >= today); if (pl.length && Math.abs(c) > 0.02) { const net = pl.reduce((s, t) => s + t[3] * t[2], 0); if (Math.sign(net) === Math.sign(c)) return `${pctS(c, 1)} – große ${c > 0 ? 'Käufe' : 'Verkäufe'} von Spielern bewegen den Kurs (Marktwirkung).`; }
   if (x.cls === 'stock') {
     const peers = E.byCls('stock').filter(y => y.sector === x.sector && y.id !== x.id), pc = peers.length ? peers.reduce((s, y) => s + chg(y), 0) / peers.length : 0;
     if (Math.abs(pc) > 0.008 && Math.sign(pc) === Math.sign(c)) return `${pctS(c, 1)} – die ganze Branche ${SECTORS[x.sector]} bewegt sich (im Schnitt ${pctS(pc, 1)}).`;
@@ -32,12 +33,12 @@ export function whyText(x) {
   if (x.cls === 'fx') return `${pctS(c, 2)} – Devisen schwanken mit Zinsunterschieden und Nachrichten.`;
   return `${pctS(c, 1)} heute.`;
 }
-export const CAT = { earn: 'Quartalszahlen', macro: 'Makro & Zentralbank', sector: 'Sektoren', company: 'Unternehmen', rumor: 'Gerücht' };
+export const CAT = { earn: 'Quartalszahlen', macro: 'Makro & Zentralbank', politics: 'Politik & Zölle', ma: 'M&A & Übernahmen', sector: 'Rohstoffe', company: 'Unternehmen', rumor: 'Gerücht' };
 export function newsItem(n) {
   const ids = (n.ids || (n.id ? [n.id] : [])).filter(id => E.M.inst[id]);
   const d = dayStart(n.t) === dayStart(E.M.t) ? fTime(n.t) : fDate(n.t).slice(0, 6) + ' ' + fTime(n.t);
   const eff = n.eff !== null && n.eff !== undefined && isFinite(n.eff) && Math.abs(n.eff) >= 0.001 ? `<span class="eff ${sc(n.eff)}">${pctS(n.eff, 1)}</span>` : '';
-  return `<article class="news"><div class="meta"><span>${d}</span><span>·</span><span>${CAT[n.cat] || 'Unternehmen'}</span>${n.rumor ? `<span class="rumor">Gerücht · unbestätigt</span>${info('rumor')}` : ''}</div>
+  return `<article class="news"><div class="meta"><span>${d}</span><span>·</span><span>${CAT[n.cat] || 'Unternehmen'}</span>${n.rumor ? `<span class="rumor">${n.p ? `unbestätigt · ${Math.round(n.p * 100)} % Wahrscheinlichkeit` : 'Gerücht · unbestätigt'}</span>${info(n.p ? 'polprob' : 'rumor')}` : ''}</div>
     <h3>${esc(n.txt)}</h3>${n.sub ? `<p>${esc(n.sub)}</p>` : ''}
     ${ids.length || eff ? `<div class="tags">${ids.map(id => `<button class="tag" data-go="i-${id}">${esc(E.M.inst[id].cls === 'fx' ? E.M.inst[id].name : id)}</button>`).join('')}${eff}</div>` : ''}</article>`;
 }
@@ -51,7 +52,12 @@ export function upcoming(days = 21, onlyMine = false) {
   }
   if (M.cb && M.cb.next <= until) { const p = M.cb.p || {}, k = p.up >= p.hold && p.up >= p.down ? 'Erhöhung' : p.down >= p.hold ? 'Senkung' : 'keine Änderung'; out.push({ t: M.cb.next, kind: 'Zentralbank', txt: `Zinsentscheid (aktuell ${fmt(M.lz * 100, 2)} %)`, sub: `Markt erwartet ${k} (${Math.round(Math.max(p.up || 0, p.hold || 0, p.down || 0) * 100)} %)`, mine: true }); }
   if (M.cpi && M.cpi.next <= until) out.push({ t: M.cpi.next, kind: 'Inflation', txt: 'Inflationsdaten', sub: `Erwartet: ${fmt(M.cpi.exp, 1)} % (zuletzt ${fmt(M.infl, 1)} %)`, mine: true });
-  for (const ev of M.events || []) if (!ev.done && ev.t <= until) out.push({ t: ev.t, kind: 'Sektor', txt: ev.title, sub: `Betrifft ${SECTORS[ev.sector]}`, mine: E.byCls('stock').some(x => x.sector === ev.sector && mine.has(x.id)) });
+  for (const ev of M.events || []) if (!ev.done && ev.t <= until) {
+    if (ev.kind === 'policy') out.push({ t: ev.t, kind: 'Politik', txt: ev.title, sub: `Markt-Einschätzung: ${Math.round((ev.p || 0) * 100)} % · ${ev.stage ? 'Gesetzentwurf liegt vor' : 'bisher nur Gerüchte'}`, mine: (ev.ids || []).some(id => mine.has(id)), pol: true });
+    else out.push({ t: ev.t, kind: 'Sektor', txt: ev.title, sub: `Betrifft ${SECTORS[ev.sector]}`, mine: E.byCls('stock').some(x => x.sector === ev.sector && mine.has(x.id)) });
+  }
+  for (const b of (M.ma && M.ma.bids) || []) { const x = M.inst[b.id]; if (x) out.push({ t: b.until, kind: 'Übernahme', id: b.id, txt: `Annahmefrist: Angebot für ${x.name}`, sub: `${E.fmt(b.P, 2)} € je Aktie von ${b.name}`, mine: mine.has(b.id) || b.uid === S.ME.uid }); }
+  for (const co of A.pe || []) if (co.next <= until) out.push({ t: co.next + 8 * 60 * 60000, kind: 'Quartal', txt: `${co.name}: Quartalsabschluss`, sub: 'Dein Unternehmen', mine: true });
   for (const d of A.deps || []) if (d.end <= until) out.push({ t: d.end, kind: 'Festgeld', txt: `Festgeld über ${E.fmtE(d.amt)} wird fällig`, sub: '', mine: true });
   out.sort((a, b) => a.t - b.t);
   return onlyMine ? out.filter(e => e.mine) : out;

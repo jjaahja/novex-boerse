@@ -90,7 +90,7 @@ export class Exchange extends DurableObject {
     if (m) {
       if (m._usage && m._usage.day === utcDay()) this.usage = m._usage;
       delete m._usage;
-      for (const id of m.ids) { const x = m.inst[id]; x.c1 = []; x.cD = []; x.ts = []; }
+      for (const id in m.inst) { const x = m.inst[id]; x.c1 = []; x.cD = []; x.ts = []; } // auch von der Börse genommene Werte
       for (const r of s.exec("SELECT v FROM blob WHERE k LIKE 'cc:%'").toArray()) { try { const o = JSON.parse(r.v); for (const id in o) if (m.inst[id]) Object.assign(m.inst[id], o[id]); } catch { } }
       for (const r of s.exec("SELECT k, v FROM blob WHERE k LIKE 'c:%'").toArray()) { // ältere Speicherform: eine Zeile je Wertpapier
         this.legacy = true; const id = r.k.slice(2); if (m.inst[id] && !m.inst[id].c1.length) { try { Object.assign(m.inst[id], JSON.parse(r.v)); } catch { } }
@@ -175,10 +175,12 @@ export class Exchange extends DurableObject {
       d[id] = o;
     }
     const msg = { type: 'tick', t: M.t, isOpen: M.isOpen, lv: M.lv, r: M.r, slope: M.slope, U: M.U, week: M.week, lastClose: M.lastClose, eqMark: M.eqMark, news: M.news.slice(0, 15), d, resync: this.resync, bank: this.publicBank(), tickMs: this.tickMs(),
-      lz: M.lz, infl: M.infl, reg: M.reg, rp: M.rp, cb: M.cb, cpi: M.cpi, events: M.events };
+      lz: M.lz, infl: M.infl, reg: M.reg, rp: M.rp, cb: M.cb, cpi: M.cpi, events: M.events, mac: this.macMsg(), fr: M.fr, pol: M.pol, ma: M.ma, idsV: M.idsV };
     this.resync = false;
     return msg;
   }
+  // Makrodaten: Verlauf nur einmal je Handelstag mitschicken (spart Datenvolumen)
+  macMsg() { const m = E.M.mac; if (!m) return undefined; const { h, ...rest } = m; if (this.sentMacDay !== m.day) { this.sentMacDay = m.day; rest.h = h; } return rest; }
   marketForClient() {
     const M = E.M, inst = {};
     for (const id in M.inst) { const x = M.inst[id]; inst[id] = Object.assign({}, x, { c1: x.c1.slice(-600), cD: x.cD.slice(-260), ts: x.ts.slice(0, 8) }); }
@@ -243,7 +245,7 @@ export class Exchange extends DurableObject {
     if (type === 'fund') this.award(A, 'fund');
     if (type === 'tier') { const t = E.TIERS[data.tier]; if (t) { this.note(A, `Aufgestiegen: ${t.name}! Neu freigeschaltet: ${t.perks.join(', ')}`, 'tier'); const r = E.TIER_REWARD[data.tier] || 0; if (r) this.credit(A, r, `Aufstieg zum ${t.name}`); } }
     if (type === 'ath') this.note(A, 'Neues Allzeithoch deines Portfolios', 'ath');
-    if (['crisis', 'tenbagger', 'owner', 'passive100', 'drip'].includes(type)) this.award(A, type);
+    if (['crisis', 'tenbagger', 'owner', 'passive100', 'drip', 'takeover', 'ipo'].includes(type)) this.award(A, type);
     if (type === 'plan' && (A.stats.plans || 0) >= 5) this.award(A, 'plan');
     if (type === 'fx') this.award(A, 'fx');
     if (type === 'equity') { // nur Verlaufspunkt: später gesammelt speichern; Faktor-Zertifikate ändern ihren Wert laufend → Konto mitschicken
@@ -418,8 +420,15 @@ export class Exchange extends DurableObject {
       else if (t === 'unplan') err = E.delPlan(A, n(b.id));
       else if (t === 'deposit') err = E.openDeposit(A, n(b.months), n(b.amt));
       else if (t === 'exchange') err = E.exchange(A, String(b.from), String(b.to), n(b.amt));
+      else if (t === 'loan') err = E.drawLoan(A, n(b.amt));
+      else if (t === 'repay') err = E.repayLoan(A, n(b.id), n(b.amt));
+      else if (t === 'breakdep') err = E.breakDeposit(A, n(b.id));
+      else if (t === 'bid') err = E.placeBid(A, { id: String(b.id), prem: n(b.prem), lbo: n(b.lbo) || 0 });
+      else if (t === 'vote') err = E.vote(A, String(b.id), String(b.v));
+      else if (t === 'strat') err = E.setStrategy(A, String(b.co), String(b.k));
+      else if (t === 'ipo') err = E.ipo(A, String(b.co), n(b.frac));
       else err = this.economy(A, b);
-      const trade = ['order', 'cancel', 'deriv', 'close', 'exchange'].includes(t), online = this.ctx.getWebSockets().length > 0;
+      const trade = ['order', 'cancel', 'deriv', 'close', 'exchange', 'bid', 'ipo', 'vote'].includes(t), online = this.ctx.getWebSockets().length > 0;
       if (trade && !err) { this.hotDirty = true; this.candlesDirty = true; this.touched = true; } // Kursimpakt sofort sichern
       const notes = this.inbox.get(A.uid) || []; this.inbox.delete(A.uid);
       if (this.dirty.has(A.uid) || !err) { this.saveAcct(A); this.dirty.delete(A.uid); }

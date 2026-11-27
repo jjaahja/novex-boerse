@@ -14,18 +14,18 @@
 :root{
   /* Neobroker-Layout: ruhige weiße Fläche, eine Schrift, 1px-Linien, Farbe nur für Kursbewegungen */
   --bg:#ffffff; --bg2:#f4f4f5; --fg:#0d0d0f; --fg2:#55555d; --mute:#8b8b94; --line:#ececee; --line2:#dcdce0;
-  --up:#0b8a4c; --dn:#d1293d; --upbg:rgba(11,138,76,.09); --dnbg:rgba(209,41,61,.08);
+  --up:#0b8a4c; --dn:#d1293d; --upbg:rgba(11,138,76,.09); --dnbg:rgba(209,41,61,.08); --warn:#b26a00; --warnbg:rgba(178,106,0,.1);
   --btn:#0d0d0f; --btnfg:#ffffff; --scrim:rgba(13,13,15,.32); --pop:0 10px 30px rgba(13,13,15,.08);
   --f:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   color-scheme:light;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#0b0b0c; --bg2:#18181b; --fg:#f2f2f4; --fg2:#b4b4bc; --mute:#7a7a84; --line:#212125; --line2:#303036;
-  --up:#33c27a; --dn:#ff5d5d; --upbg:rgba(51,194,122,.12); --dnbg:rgba(255,93,93,.11);
+  --up:#33c27a; --dn:#ff5d5d; --upbg:rgba(51,194,122,.12); --dnbg:rgba(255,93,93,.11); --warn:#f0a63a; --warnbg:rgba(240,166,58,.13);
   --btn:#f2f2f4; --btnfg:#0b0b0c; --scrim:rgba(0,0,0,.55); --pop:0 10px 30px rgba(0,0,0,.5); color-scheme:dark; } }
 :root[data-theme="dark"]{
   --bg:#0b0b0c; --bg2:#18181b; --fg:#f2f2f4; --fg2:#b4b4bc; --mute:#7a7a84; --line:#212125; --line2:#303036;
-  --up:#33c27a; --dn:#ff5d5d; --upbg:rgba(51,194,122,.12); --dnbg:rgba(255,93,93,.11);
+  --up:#33c27a; --dn:#ff5d5d; --upbg:rgba(51,194,122,.12); --dnbg:rgba(255,93,93,.11); --warn:#f0a63a; --warnbg:rgba(240,166,58,.13);
   --btn:#f2f2f4; --btnfg:#0b0b0c; --scrim:rgba(0,0,0,.55); --pop:0 10px 30px rgba(0,0,0,.5); color-scheme:dark; }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -75,6 +75,11 @@ main{padding-block:28px 110px}
 .sh .sp{flex:1}
 .grid2{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(0,1fr);gap:56px;align-items:start}
 @media (max-width:980px){.grid2{grid-template-columns:minmax(0,1fr);gap:0}}
+.only-wide{display:none}
+@media (min-width:981px){.only-wide{display:block}.only-narrow{display:none}.side-sticky{position:sticky;top:84px;max-height:calc(100vh - 100px);overflow:auto;scrollbar-width:thin}}
+.pos .pos-top{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.pos .big2{font-size:28px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+#d-pos .pos{margin-top:22px}
 .stack{display:flex;flex-direction:column;gap:12px;min-width:0}
 .hero{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
 .delta{font-size:15px;font-weight:500}
@@ -141,7 +146,8 @@ details.more>summary::-webkit-details-marker{display:none}
 .figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
 .figs>div{padding:14px 16px 14px 0;display:flex;flex-direction:column;gap:4px;min-width:0}
 .figs>div+div{padding-left:16px;border-left:1px solid var(--line)}
-.figs b{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.figs b{font-size:18px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (min-width:981px) and (max-width:1300px){.figs b{font-size:16px}}
 @media (max-width:560px){.figs{grid-template-columns:1fr 1fr}.figs>div:nth-child(3){padding-left:0;border-left:0}.figs>div:nth-child(n+3){border-top:1px solid var(--line)}}
 .lines>div{display:flex;justify-content:space-between;gap:16px;padding:7px 0}
 .lines span{color:var(--fg2);display:flex;align-items:center;gap:6px}
@@ -263,6 +269,30 @@ canvas.bars{width:100%;height:180px;display:block}
 .tierrow .n{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--line2);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--fg2)}
 .tierrow.got .n{background:var(--fg);border-color:var(--fg);color:var(--bg)}
 .tierrow ul{margin:4px 0 0;padding-left:18px;color:var(--fg2);font-size:13px}
+
+/* Kredit-Risiko, Makro, Unternehmen (Bernstein nur für Risiko und Marktstatus) */
+.amb{color:var(--warn)}
+.meter.big{height:10px}
+.meter i.ok{background:var(--up)} .meter i.warn{background:var(--warn)} .meter i.crit{background:var(--dn)}
+.meter{position:relative}
+.meter .mark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--fg2);border-radius:1px}
+.alert{border:1px solid var(--dn);border-radius:12px;padding:14px 16px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;background:var(--dnbg)}
+.alert.amb{border-color:var(--warn);background:var(--warnbg);color:inherit}
+.alert b{display:block;margin-bottom:2px}
+.alert .t{flex:1;min-width:220px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.pill.ok{color:var(--up);background:var(--upbg)} .pill.warn{color:var(--warn);background:var(--warnbg)} .pill.crit{color:var(--dn);background:var(--dnbg)} .pill.n{color:var(--fg2);background:var(--bg2)}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));border-top:1px solid var(--line)}
+.mgrid>div{padding:16px 16px 16px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px;min-width:0}
+.mgrid b.v{font-size:24px;font-weight:600;letter-spacing:-.02em}
+.mgrid svg{margin-top:6px;max-width:100%}
+.ladder{display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-top:1px solid var(--line)}
+.ladder>div{padding:12px 10px 12px 0;border-bottom:1px solid var(--line);font-size:13px;color:var(--mute)}
+.ladder>div.on{color:var(--fg)}
+.ladder>div b{display:block;font-size:15px}
+@media (max-width:560px){.ladder{grid-template-columns:1fr 1fr}}
+input[type=range]{width:100%;accent-color:var(--fg)}
+.stage{font-size:12px;color:var(--fg2)}
 </style>
 </head>
 <body>
