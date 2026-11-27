@@ -15,13 +15,14 @@ export function render(id) {
     <div class="chart-wrap"><canvas id="d-chart" class="chart" aria-label="Kursverlauf"></canvas></div>
     <div class="ranges">${RANGES.map(r => `<button data-a="drange" data-v="${r[0]}" class="${U.range === r[0] ? 'on' : ''}">${r[1]}</button>`).join('')}<span class="sp"></span><button data-a="dcandle" class="${U.candle ? 'on' : ''}" aria-pressed="${U.candle}">Kerzen</button></div>
     <div class="btns" style="margin:22px 0 8px" id="d-act">${actionsHTML(x)}</div>
-    <div id="d-pos"></div>
+    <div id="d-pos" class="only-narrow"></div>
     <div id="d-hint"></div>
     <section class="sec" style="margin-top:16px"><h2>Über ${esc(x.cls === 'stock' ? 'das Unternehmen' : x.cls === 'bond' ? 'die Anleihe' : x.cls === 'fx' ? 'das Währungspaar' : x.cls === 'cmd' ? 'den Rohstoff' : 'das Produkt')}</h2>
       ${STORY[x.id] || x.desc ? `<p class="lead" style="margin:0 0 16px">${esc(STORY[x.id] || '')} ${STORY[x.id] ? '' : esc(x.desc || '')}</p>` : ''}<div class="kv" id="d-kv"></div></section>
     ${x.cls === 'stock' ? `<section class="sec"><h2>Quartalszahlen <span class="sp"></span><span class="seg"><button data-a="dearn" data-v="eps" class="${U.earn === 'eps' ? 'on' : ''}">Gewinn je Aktie</button><button data-a="dearn" data-v="rev" class="${U.earn === 'rev' ? 'on' : ''}">Umsatz</button></span></h2><div id="d-earn"></div></section>` : ''}
     ${x.comp ? `<section class="sec"><h2>Größte Bestandteile</h2><div class="rows" id="d-comp"></div></section>` : ''}
-  </div><aside class="stack">
+  </div><aside class="stack side-sticky">
+    <div id="d-pos2" class="only-wide"></div>
     <section class="sec"><h2>Nachrichten</h2><div id="d-news"></div></section>
     ${isBook(x) || x.cls === 'etf' ? `<details class="more"><summary>Für Profis: Orderbuch & Umsätze</summary><div class="stack" style="padding-bottom:16px"><p class="note">Jede Order läuft durch dieses Buch. Große Orders kaufen sich durch mehrere Preisstufen ${info('impact')}</p><div id="d-book"></div><h2 class="sh" style="margin-top:12px">Letzte Umsätze</h2><div id="d-ts"></div></div></details>` : ''}
   </aside></div>`;
@@ -48,13 +49,9 @@ export function update(id) {
   { const d = x.price - x.pc, abs = x.cls === 'bond' ? fmt(Math.abs(d), 2) + ' Pkt.' : fmtPx(x, Math.abs(d)); $('#d-ch').innerHTML = `<span class="${sc(c)}">${d > 0 ? '+' : d < 0 ? '−' : ''}${abs} (${pctS(c)})</span> <span class="fg2">heute ${info('today')}</span>`; }
   $('#d-why').innerHTML = `<b>Warum?</b><span>${esc(whyText(x))}</span>`;
   drawChart($('#d-chart'), bars(x, U.range), { candle: U.candle, digits: dig(x), daily: U.range !== '1T', ref: U.range === '1T' ? x.pc : undefined, fmtV: v => fmtPx(x, v) });
-  // Position
-  const p = A.pos[x.id];
-  if (p) {
-    const v = posValue(x.id, p), g = v - p.cost, share = x.cls === 'stock' ? p.qty / x.shares : 0, lv = ownerLevel(share), next = OWNER.find(o => o.min > share);
-    $('#d-pos').innerHTML = `<section class="sec"><h2>Deine Position</h2><div class="figs"><div><span class="label">Wert</span><b>${fmtE(v)}</b></div><div><span class="label">Gesamt</span><b class="${sc(g)}">${signE(g)}</b><span class="small ${sc(g)}">${pctS(p.cost ? g / p.cost : 0)}</span></div><div><span class="label">Menge</span><b>${fmtQty(x, p.qty)}</b></div><div><span class="label">Einstand Ø</span><b>${x.cls === 'bond' ? fmt(p.cost / p.qty * 100, 2) + ' %' : fmtE(p.cost / p.qty)}</b></div></div>
-      ${x.cls === 'stock' ? `<p class="note" style="margin-top:10px">${share < 1e-6 ? `Dein Anteil an ${esc(x.name)} liegt unter 0,0001 %` : `Du besitzt ${fmt(share * 100, share < 1e-4 ? 4 : 2)} % von ${esc(x.name)}`}${lv ? ` – <b>${esc(lv.name)}</b>: ${esc(lv.perk)}` : ''}.${next ? ` Ab ${fmt(next.min * 100, 0)} %: ${esc(next.perk)} (${fmtE(next.min * x.shares * x.price, 0)}).` : ''} ${info('owner')}</p>` : ''}</section>`;
-  } else $('#d-pos').innerHTML = '';
+  // Position (schmal: unter den Buttons, breit: oben in der Seitenleiste)
+  const ph = posHTML(x); $('#d-pos').innerHTML = ph; $('#d-pos2').innerHTML = ph;
+  const act = $('#d-act'), ah = actionsHTML(x); if (act.dataset.h !== ah) { act.innerHTML = ah; act.dataset.h = ah; }
   const h = S.ins.hints.find(h => h.id === x.id);
   $('#d-hint').innerHTML = h ? `<div class="celebrate" style="margin:16px 0 0"><span class="av">${h.dir > 0 ? '↑' : h.dir < 0 ? '↓' : '→'}</span><span><b>${esc(h.src)}: Die Zahlen am ${fDate(h.date, true).slice(0, 9)} werden ${h.dir > 0 ? 'eher besser' : h.dir < 0 ? 'eher schlechter' : 'eher im Rahmen'} als erwartet ausfallen.</b><br><span class="small fg2">Trefferquote etwa ${fmt(h.acc * 100, 0)} % – keine Garantie.</span></span></div>` : '';
   $('#d-kv').innerHTML = kv(x);
@@ -63,6 +60,28 @@ export function update(id) {
   const news = E.M.news.filter(n => (n.ids || [n.id]).includes(x.id)).slice(0, 6);
   $('#d-news').innerHTML = news.length ? news.map(newsItem).join('') : '<p class="empty">Zuletzt keine Meldungen.</p>';
   if ($('#d-book') && $('details.more[open]')) { $('#d-book').innerHTML = bookHTML(x); $('#d-ts').innerHTML = tsHTML(x); }
+}
+function posHTML(x) {
+  const A = S.A, p = A.pos[x.id]; if (!p || !(p.qty > 0)) return '';
+  const v = posValue(x.id, p), g = v - p.cost, T = E.totals(A), inc = p.inc || 0, rz = p.rz || 0;
+  const prevV = x.cls === 'bond' ? p.qty * (x.pc + x.acc) / 100 : x.pc > 0 && x.price > 0 ? v * x.pc / x.price : null;
+  const today = prevV !== null && isFinite(prevV) && p.t0 && p.t0 < dayStart(E.M.t) ? v - prevV : null;
+  const share = x.cls === 'stock' ? p.qty / x.shares : 0, lv = ownerLevel(share), next = OWNER.find(o => o.min > share);
+  const line = (a, b, k) => `<div><span>${a}${k ? ' ' + info(k) : ''}</span><b>${b}</b></div>`;
+  return `<section class="sec pos"><h2>Deine Position</h2>
+    <div class="pos-top"><span class="label">Aktueller Wert</span><span class="big2">${fmtE(v)}</span><span class="${sc(g)}">${signE(g)} (${pctS(p.cost ? g / p.cost : 0)}) seit Kauf</span></div>
+    <div class="lines">
+      ${line('Menge', fmtQty(x, p.qty))}
+      ${line('Einstand Ø', x.cls === 'bond' ? fmt(p.cost / p.qty * 100, 2) + ' %' : fmtE(p.cost / p.qty), 'avgcost')}
+      ${line('Investiert', fmtE(p.cost))}
+      ${today !== null ? line('Heute', `<span class="${sc(today)}">${signE(today)}</span>`) : ''}
+      ${line(x.cls === 'bond' ? 'Erhaltene Kupons' : 'Erhaltene Dividenden', inc ? `<span class="up">+${fmtE(inc)}</span>` : fmtE(0))}
+      ${rz ? line('Realisiert (Teilverkäufe)', `<span class="${sc(rz)}">${signE(rz)}</span>`) : ''}
+      ${line('Anteil an deinem Vermögen', fmt(T.total > 0 ? v / T.total * 100 : 0, 1) + ' %')}
+      ${p.t0 ? line('Im Depot seit', fDate(p.t0)) : ''}
+    </div>
+    ${x.cls === 'stock' ? `<p class="note" style="margin-top:10px">${share < 1e-6 ? `Dein Anteil an ${esc(x.name)} liegt unter 0,0001 %` : `Du besitzt ${fmt(share * 100, share < 1e-4 ? 4 : 2)} % von ${esc(x.name)}`}${lv ? ` – <b>${esc(lv.name)}</b>: ${esc(lv.perk)}` : ''}.${next ? ` Ab ${fmt(next.min * 100, 0)} %: ${esc(next.perk)} (${fmtE(next.min * x.shares * x.price, 0)}).` : ''} ${info('owner')}</p>` : ''}
+    <div class="btns" style="margin-top:14px"><button class="btn sm" data-a="dbuy" data-v="${x.id}">Nachkaufen</button>${E.isTradable(x) || x.cls === 'fund' ? `<button class="btn sm ghost" data-a="dsell" data-v="${x.id}">Verkaufen</button>` : ''}</div></section>`;
 }
 function kv(x) {
   const r = (a, b, k) => `<div><span>${a} ${k ? info(k) : ''}</span><b>${b}</b></div>`, cd = x.cD.slice(-252), hi = Math.max(x.hi, ...cd.map(k => k[2])), lo = Math.min(x.lo, ...cd.map(k => k[3]));

@@ -158,7 +158,7 @@ function payDividend(x, dps, q) {
   for (const A of ENV.accounts()) {
     const p = A.pos[x.id]; if (!p || !(p.qty > 0)) continue;
     const lv = ownerLevel(p.qty / x.shares), bonus = lv ? lv.div : 0, amt = r2(p.qty * dps * (1 + bonus)); if (!(amt >= 0.01)) continue;
-    A.cash += amt; book(A, 'div', amt, `${x.name} ${q}`);
+    A.cash += amt; p.inc = r2((p.inc || 0) + amt); book(A, 'div', amt, `${x.name} ${q}`);
     logHist(A, { t: M.t, id: x.id, nm: x.name, side: 'Dividende', q: p.qty, px: dps, amt, fee: 0, pnl: amt });
     ENV.note(A, `Dividende von ${x.name}: +${fmtE(amt)}${bonus ? ` inkl. ${Math.round(bonus * 100)} % Sonderdividende` : ''}`, 'div'); ENV.event(A, 'div', { amt });
     if (A.drip && isTradable(x)) {

@@ -2,6 +2,7 @@
 import { esc } from './store.js';
 
 export const G = {
+  avgcost: { t: 'Einstand Ø', d: 'Was du im Schnitt pro Stück bezahlt hast, inklusive Gebühren. Liegt der Kurs darüber, bist du im Plus.' },
   networth: { t: 'Gesamtvermögen', d: 'Alles, was dir gehört: Guthaben, Wertpapiere zum aktuellen Kurs, Festgeld, Fremdwährungen und Luxusgüter zum Rückkaufwert. Ein Wertpapierkredit wird abgezogen.', so: 'Das ist die Zahl für die Rangliste und deine Vermögensstufe.' },
   cash: { t: 'Verrechnungskonto', d: 'Dein Bargeld bei der Börse. Von hier bezahlst du Käufe, hierhin fließen Verkäufe, Dividenden und Zinsen.', so: 'Nicht investiertes Geld bekommt Zinsen in Höhe des Leitzinses (bis 100.000 €).' },
   invested: { t: 'Investiert', d: 'Der aktuelle Wert aller Wertpapiere und Hebelprodukte in deinem Depot.', so: 'Dieser Teil schwankt mit dem Markt – nach oben wie nach unten.' },

@@ -444,7 +444,7 @@ function bondEvents() {
       b.tri *= (b.dirty + b.cpn) / b.dirty;
       for (const A of ENV.accounts()) {
         const p = A.pos[b.id]; if (!p || p.qty <= 0 || !(b.cpn > 0)) continue;
-        const c = r2(p.qty * b.cpn / 100); A.cash += c; A.realized += c; book(A, 'cpn', c, b.name);
+        const c = r2(p.qty * b.cpn / 100); A.cash += c; A.realized += c; p.inc = r2((p.inc || 0) + c); book(A, 'cpn', c, b.name);
         logHist(A, { t: M.t, id: b.id, nm: b.name, side: 'Kupon', q: p.qty, px: b.cpn, amt: c, fee: 0, pnl: c });
         ENV.note(A, `Kuponzahlung ${b.name}: ${fmtE(c)}`, 'up'); ENV.event(A, 'coupon'); ENV.dirty(A);
       }
@@ -578,8 +578,8 @@ export function executeMarket(A, x, side, qty, o = {}) {
   const dir = side === 'buy' ? 1 : -1;
   applyTrade(x, dir, e.Q, true);
   let pnl = null;
-  if (dir > 0) { A.cash -= e.total; const p = A.pos[x.id] || (A.pos[x.id] = { qty: 0, cost: 0 }); p.qty += e.q; p.cost += e.total; }
-  else { const p = A.pos[x.id], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty -= e.q; p.cost -= c; A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[x.id]; }
+  if (dir > 0) { A.cash -= e.total; const p = A.pos[x.id] || (A.pos[x.id] = { qty: 0, cost: 0, t0: M.t }); p.qty += e.q; p.cost += e.total; }
+  else { const p = A.pos[x.id], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty -= e.q; p.cost -= c; p.rz = r2((p.rz || 0) + pnl); A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[x.id]; }
   if (e.fee) { ENV.fee(e.fee); book(A, 'fee', -e.fee, x.name); }
   logHist(A, { t: M.t, id: x.id, nm: x.name, side: o.label || (dir > 0 ? 'Kauf' : 'Verkauf'), q: e.q, px: e.px, amt: e.amount, fee: e.fee, pnl });
   ENV.dirty(A); return e;
@@ -599,7 +599,7 @@ function fillOrder(A, o) {
   const dir = o.side === 'buy' ? 1 : -1, pre = x.price;
   applyTrade(x, dir, e.Q, true);
   let pnl = 0;
-  if (dir > 0) { A.cash -= e.total; const p = A.pos[o.iid] || (A.pos[o.iid] = { qty: 0, cost: 0 }); p.qty += e.q; p.cost += e.total; }
+  if (dir > 0) { A.cash -= e.total; const p = A.pos[o.iid] || (A.pos[o.iid] = { qty: 0, cost: 0, t0: M.t }); p.qty += e.q; p.cost += e.total; }
   else { const p = A.pos[o.iid], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty -= e.q; p.cost -= c; A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[o.iid]; }
   ENV.fee(e.fee); book(A, 'fee', -e.fee, x.name);
   o.avg = (o.avg * o.filled + e.px * e.q) / (o.filled + e.q); o.filled += e.q; o.status = o.filled >= o.qty ? 'ausgeführt' : 'teilausgeführt';
@@ -681,7 +681,7 @@ function processFundOrders() {
     if (o.side === 'buy') {
       const net = o.amount / (1 + x.aa), ratio = avgRatio(x, 1, net), px = x.nav * ratio, units = net / px;
       applyTrade(x, 1, net, false); ENV.fee(o.amount - net); book(A, 'fee', -(o.amount - net), x.name + ' Ausgabeaufschlag');
-      const p = A.pos[x.id] || (A.pos[x.id] = { qty: 0, cost: 0 }); p.qty += units; p.cost += o.amount;
+      const p = A.pos[x.id] || (A.pos[x.id] = { qty: 0, cost: 0, t0: M.t }); p.qty += units; p.cost += o.amount;
       o.filled = units; o.qty = units; o.avg = px; o.status = 'ausgeführt'; o.note = `NAV ${fmt(x.nav, 2)} · Swing ${pct(ratio - 1, 3)} · Aufschlag ${fmtE(o.amount - net)}`;
       logHist(A, { t: M.t, id: x.id, nm: x.name, side: 'Kauf', q: units, px, amt: o.amount, fee: o.amount - net, pnl: null });
       ENV.note(A, `Fondskauf abgerechnet: ${fmt(units, 3)} Anteile ${x.name}`, 'up');
