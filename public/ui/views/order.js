@@ -55,7 +55,9 @@ function renderOrder() {
         <div><span>Menge</span><b>${fmtQty(x, s.qty)}</b></div>
         ${e && e.q ? `<div><span>Kurs ca.</span><b>${fmtPx(x, e.px)}</b></div><div><span>Gebühr ${info('fee')}</span><b>${fmtE(e.fee)}</b></div><div class="tot"><span>${buy ? 'Gesamt' : 'Erlös'}</span><b>${fmtE(e.total)}</b></div>` : '<div><span>Ausführung</span><b>sobald der Kurs erreicht ist</b></div>'}
         <div><span>Danach verfügbar</span><b>${fmtE(after)}</b></div>
+        ${buy && e && A.cash - e.total < 0 ? `<div><span>Davon auf Kredit ${info('credit')}</span><b class="amb">${fmtE(Math.min(e.total, e.total - Math.max(0, A.cash)))}</b></div>` : ''}
       </div>
+      ${buy && e && A.cash - e.total < 0 ? (() => { const debt = e.total - A.cash, lv = E.lombardValue(A) + e.total * E.ltvOf(x), u = lv > 0 ? debt / lv : 9; return `<p class="note">${u >= 0.75 ? '<b class="amb">Achtung:</b> ' : ''}Kredit-Auslastung danach etwa ${fmt(u * 100, 0)} %. ${u >= 0.75 ? 'Schon ein kleiner Kursrückgang kann einen Margin Call auslösen.' : 'Zinsen: Leitzins + Bankmarge.'}</p>`; })() : ''}
       ${o.type === 'market' ? '<p class="note">Market-Orders werden sofort zum besten verfügbaren Kurs ausgeführt. Der endgültige Kurs kann minimal abweichen.</p>' : ''}
       <div class="btns"><button class="btn ghost" data-a="sheetback">Zurück</button><button class="btn" data-a="oconfirm">${buy ? 'Jetzt kaufen' : 'Jetzt verkaufen'}</button></div>`);
   } else frame(doneHTML(o.ok, o.ok ? (buy ? 'Gekauft' : 'Verkauft') : 'Nicht ausgeführt', o.msg));

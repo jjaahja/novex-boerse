@@ -1,6 +1,6 @@
 // NOVEX Börse – Vermögensaufbau: Zinsen, Festgeld, Sparpläne, Währungskonten, Wertpapierkredit, Stufen, Analyse.
-import { M, hook, ENV, I, byCls, CCYS, ccyEur, totals, book, unitNav, executeMarket, maxBuyQty, roundQty, posValue, creditLimit, availCash, placeFundOrder, applyTrade, avgRatio, isTradable, fmtE, fmt, fDate, r2, dayStart, DAY, YR, rateOf, derivValue, derivLev } from './engine.js';
-import { TIERS, DEPOSIT_PREMIUM, CASH_RATE_CAP, LOMBARD } from './data.js';
+import { M, hook, ENV, I, byCls, CCYS, ccyEur, totals, book, unitNav, executeMarket, maxBuyQty, posValue, availCash, placeFundOrder, applyTrade, avgRatio, isTradable, fmtE, fmt, fDate, r2, dayStart, DAY, YR, rateOf, derivValue, derivLev, creditRate } from './engine.js';
+import { TIERS, DEPOSIT_PREMIUM, CASH_RATE_CAP } from './data.js';
 import { ownerLevel, nextTradingDay } from './events.js';
 
 const monthKey = t => { const d = new Date(t); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
@@ -16,7 +16,8 @@ hook('open', days => {
     // Guthabenzinsen (täglich berechnet, monatlich gutgeschrieben) und Kreditzinsen
     if (A.cash > 0) A.intAcc += Math.min(A.cash, CASH_RATE_CAP) * Math.max(0, lz) * days / 365;
     for (const c of CCYS) if (A.fxc[c] > 0) A.fxAcc[c] += A.fxc[c] * ccyEur(c) * Math.max(0, rateOf(c)) * days / 365;
-    if (A.cash < 0) { const k = r2(-A.cash * (lz + 0.03) * days / 365); if (k > 0) { A.cash -= k; ENV.collect(k); book(A, 'debt', -k, 'Kreditzinsen'); ENV.dirty(A); } }
+    if (A.cash < 0) { const k = r2(-A.cash * creditRate(A) * days / 365); if (k > 0) { A.cash -= k; ENV.collect(k); book(A, 'debt', -k, 'Zinsen Wertpapierkredit'); ENV.dirty(A); } }
+    for (const l of A.loans || []) { const k = r2(l.amt * (lz + l.spread) * days / 365); if (k > 0) { A.cash -= k; ENV.collect(k); book(A, 'debt', -k, 'Zinsen Unternehmenskredit'); ENV.dirty(A); } }
     const mk = monthKey(M.t);
     if (A.intMonth && A.intMonth !== mk) {
       const eur = r2(A.intAcc), fx = r2(CCYS.reduce((s, c) => s + A.fxAcc[c], 0));
@@ -51,23 +52,6 @@ export function nextPlanDate(pl, from) {
   return nextTradingDay(d);
 }
 
-/* ---------- Kreditlinie: Zwangsverkauf, wenn der Rahmen überschritten wird ---------- */
-hook('step', () => {
-  for (const A of ENV.accounts()) {
-    if (!(A.cash < 0)) continue;
-    let guard = 0;
-    while (A.cash < 0 && -A.cash > creditLimit(A) + 1 && guard++ < 20) {
-      const lim = creditLimit(A), f = (TIERS[A.tier || 0] || TIERS[0]).credit;
-      const cand = Object.keys(A.pos).map(id => I(id)).filter(x => isTradable(x)).sort((a, b) => posValue(b.id, A.pos[b.id]) - posValue(a.id, A.pos[a.id]))[0];
-      if (!cand) break;
-      const need = (-A.cash - 0.9 * lim) / Math.max(0.2, 1 - (LOMBARD[cand.cls] || 0) * f), unit = posValue(cand.id, { qty: 1 });
-      const q = Math.min(A.pos[cand.id].qty, roundQty(cand, need / unit * 1.02 + (cand.cls === 'bond' ? 1000 : 0)));
-      const e = q > 0 ? executeMarket(A, cand, 'sell', q, { label: 'Zwangsverkauf' }) : null; if (!e) break;
-      ENV.note(A, `Kreditrahmen überschritten: ${cand.name} für ${fmtE(e.total)} zwangsverkauft`, 'dn');
-    }
-  }
-});
-
 /* ---------- Meilensteine bei jedem Vermögens-Schnappschuss ---------- */
 hook('mark', (A, T) => {
   if (!A.agg) return;
@@ -86,11 +70,6 @@ hook('mark', (A, T) => {
 
 /* ---------- Aktionen ---------- */
 export function setDrip(A, on) { A.drip = !!on; ENV.dirty(A); return null; }
-export function setCredit(A, on) {
-  if (on && !(TIERS[A.tier || 0].credit > 0)) return 'Der Wertpapierkredit wird ab der Stufe „Aktiver Trader“ (25.000 € Vermögen) freigeschaltet.';
-  if (!on && A.cash < 0) return 'Zahle zuerst den Kredit zurück (Verrechnungskonto ins Plus bringen).';
-  A.credit = !!on; ENV.dirty(A); return null;
-}
 export function addPlan(A, b) {
   const x = M.inst[b.iid];
   if (!x || !((isTradable(x) && x.cls !== 'bond') || x.cls === 'fund')) return 'Sparpläne gibt es für Aktien, ETFs und Fonds.';
@@ -149,7 +128,7 @@ function riskOf(x) {
   return { beta: 1, vol: 0.2, ccy: 'EUR', sector: 'mixed' };
 }
 export function analyze(A) {
-  const T = totals(A), total = Math.max(T.total, 1e-9), rows = [];
+  const T = totals(A), total = Math.max(T.gross, 1e-9), rows = [];
   for (const id in A.pos) { const x = I(id); if (!x) continue; rows.push({ id, x, v: posValue(id, A.pos[id]), ...riskOf(x) }); }
   let lev = 0; for (const p of A.derivs) { const u = I(p.und), v = derivValue(p), L = derivLev(p); lev += isFinite(L) ? v * L : 0; rows.push({ id: p.pid, x: u, v, beta: (u.cls === 'stock' ? u.beta : u.cls === 'index' ? 1 : 0.2) * (isFinite(L) ? L : 1), vol: (u.vol || u.volA || 0.2) * (isFinite(L) ? L : 1), ccy: u.cls === 'fx' || u.cls === 'cmd' ? 'USD' : 'EUR', sector: 'lever', lev: true }); }
   const sec = rows.filter(r => !r.lev), secTot = sec.reduce((s, r) => s + r.v, 0);
@@ -164,6 +143,7 @@ export function analyze(A) {
   if (T.dep > 0) alloc.push({ k: 'dep', label: 'Festgeld', v: T.dep, w: T.dep / total });
   if (T.fxv > 0) alloc.push({ k: 'fx', label: 'Fremdwährung', v: T.fxv, w: T.fxv / total });
   if (T.lux > 0) alloc.push({ k: 'lux', label: 'Luxusgüter', v: T.lux, w: T.lux / total });
+  if (T.pe > 0) alloc.push({ k: 'pe', label: 'Eigene Unternehmen', v: T.pe, w: T.pe / total });
   alloc.sort((a, b) => b.v - a.v);
   const ccy = group(r => r.ccy, k => k); const eurCash = Math.max(0, T.cash) + T.dep; if (eurCash > 0) { const e = ccy.find(c => c.k === 'EUR'); if (e) { e.v += eurCash; e.w = e.v / total; } else ccy.push({ k: 'EUR', label: 'EUR', v: eurCash, w: eurCash / total }); }
   for (const c of CCYS) if (A.fxc[c] > 0) { const v = A.fxc[c] * ccyEur(c), e = ccy.find(z => z.k === c); if (e) { e.v += v; e.w = e.v / total; } else ccy.push({ k: c, label: c, v, w: v / total }); }

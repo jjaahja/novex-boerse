@@ -9,18 +9,26 @@ import * as News from './ui/views/news.js';
 import * as Account from './ui/views/account.js';
 import * as Progress from './ui/views/progress.js';
 import * as Order from './ui/views/order.js';
+import * as Macro from './ui/views/macro.js';
+import * as Companies from './ui/views/companies.js';
 const { fDate, fTime, dayStart, nextOpenFrom, MIN } = E;
 
 S.toast = toast; S.berlin = berlinNow;
-const VIEWS = { home: Home, markt: Markets, news: News, konto: Account, fortschritt: Progress };
+const More = {
+  render: () => `<div class="stack" style="gap:16px"><h1 class="h1">Mehr</h1><div class="rows">${[['makro', 'Makro', 'Konjunktur, Inflation, Zinsen, Zölle und Politik'], ['firmen', 'Unternehmen', 'Beteiligungen, Übernahmen und eigene Firmen'], ['fortschritt', 'Fortschritt', 'Stufen, Erfolge, Rangliste, Lizenzen']].map(([k, l, d]) => `<button class="r noav" data-go="${k}"><span><span class="nm" style="display:block">${l}</span><span class="sub" style="display:block">${d}</span></span><span></span><span class="val">›</span></button>`).join('')}</div></div>`,
+  update() { }
+};
+const VIEWS = { home: Home, markt: Markets, makro: Macro, news: News, konto: Account, firmen: Companies, fortschritt: Progress, mehr: More };
 const ICON = {
   home: '<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
   markt: '<path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/>',
   news: '<path d="M5 5h11v14H6a1 1 0 0 1-1-1z"/><path d="M16 9h3v9a1 1 0 0 1-1 1h-2M8 9h5M8 12h5M8 15h3"/>',
   konto: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
-  fortschritt: '<path d="M6 20V10M12 20V4M18 20v-7"/>'
+  fortschritt: '<path d="M6 20V10M12 20V4M18 20v-7"/>',
+  mehr: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>'
 };
-const NAV = [['home', 'Übersicht'], ['markt', 'Markt'], ['news', 'News'], ['konto', 'Konto'], ['fortschritt', 'Fortschritt']];
+const NAV = [['home', 'Übersicht'], ['markt', 'Markt'], ['makro', 'Makro'], ['news', 'News'], ['konto', 'Konto'], ['firmen', 'Unternehmen'], ['fortschritt', 'Fortschritt']];
+const BNAV = [['home', 'Übersicht'], ['markt', 'Markt'], ['news', 'News'], ['konto', 'Konto'], ['mehr', 'Mehr']];
 let WS = null, wsRetry = 1000, hideTimer = null, loading = false;
 
 /* ---------- Navigation ---------- */
@@ -36,8 +44,9 @@ export function go(route) {
 }
 S.go = go;
 function navHTML(bottom) {
-  const r = S.UI.route, active = r.startsWith('i-') ? S.UI.back : r, badge = S.A && S.A.bonus.day !== dayStart(berlinNow());
-  return NAV.map(([k, l]) => `<button data-go="${k}" class="${active === k ? 'on' : ''}" ${active === k ? 'aria-current="page"' : ''}>${bottom ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>` : ''}${l}${k === 'fortschritt' && badge ? '<span class="badge" aria-label="Tagesbonus verfügbar"></span>' : ''}</button>`).join('');
+  const r = S.UI.route, act0 = r.startsWith('i-') ? S.UI.back : r, badge = S.A && S.A.bonus.day !== dayStart(berlinNow());
+  const active = bottom && ['makro', 'firmen', 'fortschritt'].includes(act0) ? 'mehr' : act0;
+  return (bottom ? BNAV : NAV).map(([k, l]) => `<button data-go="${k}" class="${active === k ? 'on' : ''}" ${active === k ? 'aria-current="page"' : ''}>${bottom ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>` : ''}${l}${(k === 'fortschritt' || (bottom && k === 'mehr')) && badge ? '<span class="badge" aria-label="Tagesbonus verfügbar"></span>' : ''}</button>`).join('');
 }
 function buildNav() { $('#tabs').innerHTML = navHTML(false); $('#bnav').innerHTML = navHTML(true); }
 function buildView() {
@@ -95,7 +104,9 @@ async function applyTick(m) {
   const M = E.M; if (!M) return;
   if (m.resync || (M.isOpen && m.t - M.t > 3 * MIN)) { await loadState(); update(); return; }
   Object.assign(M, { t: m.t, isOpen: m.isOpen, lv: m.lv, r: m.r, slope: m.slope, U: m.U, week: m.week, lastClose: m.lastClose, eqMark: m.eqMark });
-  for (const k of ['lz', 'infl', 'reg', 'rp', 'cb', 'cpi', 'events']) if (m[k] !== undefined) M[k] = m[k];
+  if (m.idsV !== undefined && M.idsV !== undefined && m.idsV !== M.idsV) { await loadState(); update(); return; } // Börsengang oder Delisting
+  for (const k of ['lz', 'infl', 'reg', 'rp', 'cb', 'cpi', 'events', 'fr', 'pol', 'ma']) if (m[k] !== undefined) M[k] = m[k];
+  if (m.mac) M.mac = m.mac.h ? m.mac : Object.assign({}, m.mac, { h: (M.mac && M.mac.h) || [] });
   for (const id in m.d) {
     const x = M.inst[id], o = m.d[id]; if (!x) continue;
     x.price = o.p; x.lc = o.lc; x.do = o.do; x.pc = o.pc; x.hi = o.hi; x.lo = o.lo; x.dv = o.dv; x.dt = o.dt; x.liq = o.lq; x.ts = o.ts;

@@ -22,6 +22,15 @@ Ein gemeinsamer, in Echtzeit laufender Markt mit erfundenen Unternehmen (Mvidia,
 - **Geld-System:** Verrechnungskonto mit Zinsen zum Leitzins (täglich berechnet, monatlich gutgeschrieben, bis 100.000 €), Festgeld, Fremdwährungskonten (USD, CHF, GBP) mit schwankenden Kursen, Sparpläne, automatische Dividenden-Wiederanlage, Wertpapierkredit mit Risikoanzeige und Zwangsverkauf bei Unterdeckung. Jede Buchung steht im Geldfluss.
 - **Stufen:** Kleinanleger → Aktiver Trader → Fondsmanager → Investor → Finanz-Tycoon. Jede Stufe schaltet Werkzeuge, Festgeld-Laufzeiten, Kreditrahmen und niedrigere Gebühren frei.
 - **Großaktionär:** Ab 1 %, 5 % und 25 % eines Unternehmens gibt es Vorteile (Analystentendenz, Dividendenbonus).
+- **Makro-Dashboard:** BIP, Arbeitslosigkeit, Konsumklima, Geldmenge, Ölpreis, Inflationstrend, Staatsschulden. Alles hängt kausal zusammen und wirkt über Branchen-Sensitivitäten (Zins, Inflation, Konjunktur, Zölle) auf die Kurse. Die Zentralbank folgt der Taylor-Regel, Devisen reagieren auf Zinsdifferenzen und Zölle.
+- **Politik & Zölle:** Strafzölle und Gegenzölle, Handelsabkommen, Konjunkturpakete, Steuerreform, Deregulierung, Kartellverfahren, Exportverbote, Verteidigungsetats. Jede Maßnahme kündigt sich vorher an (Gerücht → Gesetzentwurf → Entscheidung) und zeigt eine Markt-Wahrscheinlichkeit. Zölle drücken die Margen in den nächsten Quartalszahlen.
+- **Wertpapierkredit:** Beleihungsquote je Anlage (Staatsanleihen 85 %, breite ETFs 70 %, Blue Chips 55 %, Nebenwerte 0–25 %). Dazu ein Live-Monitor mit Auslastung und Puffer. Beim Margin Call bleiben 4 Handelsstunden Frist, danach folgt eine Teil-Liquidation. Den Unternehmenskredit gibt es nach Bonität.
+- **Übernahmen:**
+  - Ab 5 % kannst du ein Übernahmeangebot mit Prämie abgeben, finanziert aus Cash, Wertpapierkredit und LBO-Kredit.
+  - Bei über 50 % wird das Unternehmen von der Börse genommen.
+  - Unter „Unternehmen“ führst du es mit Strategien (Kosten senken, F&E-Offensive, Preise erhöhen, Sonderdividende).
+  - Später bringst du es per Börsengang zurück an die Börse.
+  - Vier kleine Nebenwerte sind realistische erste Ziele.
 - **Depot-Analyse:** Aufteilung, Währungen, Streuung, Beta, Schwankung und Vergleich mit dem WELTIX (zeitgewichtete Rendite).
 
 Neue Produkte, die nach dem ersten Start hinzukommen, werden beim nächsten Deploy automatisch in den laufenden Markt eingefügt. Konten und Kurse bleiben dabei erhalten.
@@ -102,7 +111,7 @@ Geld ist knapp. Neues Geld entsteht nur auf diesen Wegen:
 
 1. **Startkapital** beim Eröffnen des Kontos. Die Anzahl der Konten ist begrenzt (`MAX_USERS`), und man braucht den Einladungscode.
 2. **Tagesbonus**: einmal pro Kalendertag abholen. Eine Serie an Folgetagen steigert ihn bis zum 1,9-Fachen ab Tag 7. Ein verpasster Tag setzt die Serie zurück.
-3. **Erfolge**: 17 einmalige Prämien von 500 € bis 10.000 €, z. B. erste Kuponzahlung, Hebelgewinn über 50 %, Millionär.
+3. **Erfolge**: 19 einmalige Prämien von 500 € bis 10.000 €, z. B. erste Kuponzahlung, Hebelgewinn über 50 %, Millionär.
 4. **Wochenliga**: Jeden Montag um 0:00 Uhr bekommen die drei besten Wochenrenditen 50/30/20 % des Topfs. Teilnahme ab 3 Trades, Preisgeld nur bei positiver Rendite. Boni und Ausgaben zählen nicht zur Rendite.
 5. **Insolvenzhilfe**: unter 1.000 € Vermögen und ohne offene Hebelpositionen, höchstens einmal pro Woche.
 6. **Handeln**: Gewinne am Markt. Das ist der einzige unbegrenzte Weg, aber er braucht Können und birgt Risiko.
@@ -151,7 +160,12 @@ Dazu kommen pro Spieler einige Dutzend Anfragen für Anmelden, Orders und Seiten
 - `public/data.js`: Stammdaten (Unternehmen, Anleihen, Fonds, Stufen, Marktphasen, Erfolge).
 - `public/engine.js`: Marktmodell, Orderbuch, Preisbildung, Derivate und Kontologik.
 - `public/events.js`: Marktphasen, Zentralbank, Inflation, Quartalszahlen, Dividenden, Gerüchte.
-- `public/wealth.js`: Zinsen, Festgeld, Sparpläne, Devisentausch, Kredit, Stufen, Depot-Analyse.
+- `public/wealth.js`: Zinsen, Festgeld, Sparpläne, Devisentausch, Stufen, Depot-Analyse.
+- `public/macro.js`: Volkswirtschaft (BIP, Arbeitsmarkt, Konsumklima, Inflationstrend, Devisen).
+- `public/politics.js`: Politik-Storylines, Zölle, Steuern, Regulierung.
+- `public/credit.js`: Wertpapierkredit, Margin Call, Unternehmenskredit.
+- `public/ma.js`: Beteiligungen, Übernahmen, eigene Unternehmen, Börsengang.
+- `docs/ARCHITEKTUR.md`: Architektur und Umsetzungsplan.
 - Diese Module laufen im Browser (Vorschauen) und im Worker (verbindliche Ausführung) identisch.
 - `public/app.js`, `public/ui/`: Oberfläche (eine Datei je Ansicht), `public/index.html`: Gestaltung.
 - `src/worker.js`: Worker und Durable Object `Exchange`. Es enthält Konten, Sitzungen, Zentralbank, Wochenliga und Echtzeit-Verteilung per WebSocket (alle 5 Sekunden, nur solange jemand online ist).

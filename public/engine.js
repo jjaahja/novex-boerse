@@ -86,7 +86,7 @@ export const all = () => M.ids.map(I);
 export const byCls = c => M.ids.map(I).filter(x => x.cls === c);
 export const isBook = x => x.cls === 'stock' || x.cls === 'bond' || x.cls === 'fx' || x.cls === 'cmd';
 export const q2e = u => u.cls === 'fx' ? M.U[u.quote] / M.U.EUR : u.cls === 'cmd' ? M.U.USD / M.U.EUR : 1;
-export const rateOf = c => c === 'EUR' ? M.r : RATES[c];
+export const rateOf = c => c === 'EUR' ? M.r : (M.fr && M.fr[c] !== undefined ? M.fr[c] : RATES[c]);
 const bpx = m => m.cls === 'bond' ? m.tri : m.cls === 'cmd' ? m.price * q2e(m) : m.price;
 export const chg = x => x.pc ? x.price / x.pc - 1 : 0;
 export const isTradable = x => (x.cls === 'stock' || x.cls === 'etf' || x.cls === 'bond') && !x.matured;
@@ -317,7 +317,7 @@ function genHistory(N, lastDay, ids) {
 // cat: earn (Quartalszahlen) · macro (Makro & Zentralbank) · sector (Sektoren) · company (Unternehmen) · rumor (Gerücht)
 export function addNews(txt, tone, ids, o = {}) {
   ids = ids ? (Array.isArray(ids) ? ids : [ids]) : [];
-  M.news.unshift({ n: M.nseq++, t: M.t, txt, sub: o.sub || '', tone, ids, id: ids[0] || null, cat: o.cat || (ids.length ? 'company' : 'macro'), eff: o.eff === undefined ? null : o.eff, rumor: !!o.rumor });
+  M.news.unshift({ n: M.nseq++, t: M.t, txt, sub: o.sub || '', tone, ids, id: ids[0] || null, cat: o.cat || (ids.length ? 'company' : 'macro'), eff: o.eff === undefined ? null : o.eff, rumor: !!o.rumor, p: o.p === undefined ? null : o.p });
   if (M.news.length > 200) M.news.length = 200;
 }
 // Grund für die heutige Kursbewegung merken („Warum bewegt sich der Kurs?“)
@@ -325,7 +325,7 @@ export function setWhy(x, txt, eff) { x.why = { t: M.t, txt, eff }; }
 function cmdNews(x) {
   const pos = Math.random() < 0.5, mag = (0.01 + Math.abs(gauss()) * 0.025) * (x.vol / 0.3), t = CMDNEWS[x.id], j = pos ? mag : -mag;
   const txt = t ? pick(t[pos ? 0 : 1]) : `${x.name}: ${pos ? 'Preissprung' : 'Preisrutsch'}`;
-  addNews(txt, pos ? 1 : -1, x.id, { cat: 'sector', eff: j, sub: `${x.name} reagiert mit etwa ${pct(j, 1)}.` }); setWhy(x, `${pct(j, 1)} – ${txt}`, j);
+  addNews(txt, pos ? 1 : -1, x.id, { cat: 'macro', eff: j, sub: `${x.name} reagiert mit etwa ${pct(j, 1)}.` }); setWhy(x, `${pct(j, 1)} – ${txt}`, j);
   return j;
 }
 export const bumpCmd = (id, f) => { const x = M.inst[id]; if (x) x.f *= f; };
@@ -340,9 +340,8 @@ function macroNews(sec) {
     () => { for (const c of ['EUR', 'GBP', 'CHF', 'JPY', 'AUD']) M.U[c] *= 0.997; addNews('Starke US-Arbeitsmarktdaten – Dollar gefragt', 0, ['EURUSD'], { cat: 'macro', eff: 0.002, sub: 'Der Dollar legt gegenüber allen Währungen zu. Euro-Anleger mit US-Werten profitieren.' }); return 0.002; },
     () => { M.lv += 0.45; M.U.CHF *= 1.006; M.U.JPY *= 1.008; bumpCmd('GOLD', 1.02); bumpCmd('BRNT', 1.03); addNews('Geopolitische Spannungen: Anleger flüchten in sichere Häfen', -1, ['GOLD', 'EURCHF'], { cat: 'macro', eff: -0.011, sub: 'Aktien geben nach, Gold, Franken und Yen sind gefragt. Die Schwankungen nehmen zu.' }); return -0.011; },
     () => { addNews('Einkaufsmanagerindizes deuten auf Abschwung hin', -1, [], { cat: 'macro', eff: -0.005, sub: 'Unternehmen bestellen weniger. Zyklische Werte wie Autos und Industrie leiden zuerst.' }); return -0.005; },
-    () => { M.lv -= 0.2; addNews('Einigung im Handelsstreit: Zölle fallen weg', 1, [], { cat: 'macro', eff: 0.012, sub: 'Erleichterung an den Märkten, Exporteure und Halbleiter sind gefragt.' }); return 0.012; },
     () => { addNews('Konjunkturdaten überraschen positiv', 1, [], { cat: 'macro', eff: 0.006, sub: 'Die Wirtschaft läuft besser als gedacht – gut für Gewinne, aber mehr Zinsdruck.' }); return 0.006; },
-    () => { sec.energy += 0.03; bumpCmd('BRNT', 1.06); bumpCmd('NGAS', 1.03); addNews('Ölpreis springt nach Förderkürzung um 6 %', 0, ['BRNT', 'EXXF', 'SHLL'], { cat: 'sector', eff: 0.06, sub: 'Ölkonzerne profitieren, Fluglinien und Chemie leiden unter höheren Kosten.' }); return -0.003; }
+    () => { sec.energy += 0.03; bumpCmd('BRNT', 1.06); bumpCmd('NGAS', 1.03); addNews('Ölpreis springt nach Förderkürzung um 6 %', 0, ['BRNT', 'EXXF', 'SHLL'], { cat: 'macro', eff: 0.06, sub: 'Ölkonzerne profitieren, Fluglinien und Chemie leiden unter höheren Kosten.' }); return -0.003; }
   ])();
 }
 
@@ -402,7 +401,7 @@ function step(dtMs) {
   const idd = Math.pow(ID_BASE, dm);
   for (const b of byCls('bond')) {
     if (b.matured) continue;
-    b.z = clamp(b.z - 0.5 * b.z * dy + 0.25 * sq * gauss() - 1.5 * (b.linked ? sret[b.linked] : 0), -1.5, 2.5);
+    b.z = clamp(b.z - 0.5 * b.z * dy + 0.25 * sq * gauss() - 1.5 * (b.linked ? (sret[b.linked] || 0) : 0), -1.5, 2.5);
     b.spr = b.sprBase * Math.exp(b.z); b.idio *= idd; b.liq += (1 - b.liq) * lq;
     const od = b.dirty; reprice(b); b.tri *= b.dirty / od;
   }
@@ -506,7 +505,7 @@ export function normalizeAccount(A) {
   d('agg', { div: 0, int: 0, cpn: 0, prize: 0, fee: 0, pnl: 0, fx: 0, debt: 0 }); d('flows', []);
   d('drip', false); d('credit', false); d('plans', []); d('deps', []); d('intAcc', 0); d('intMonth', 0);
   d('tier', 0); d('tierMax', 0); d('stats', { trades: 0, limitFills: 0 }); if (A.stats.plans === undefined) A.stats.plans = 0;
-  d('ath', 0);
+  d('ath', 0); d('pe', []); d('loans', []); d('mc', null); d('votes', {});
   if (!A.tw || !(A.tw.u > 0)) { let T = A.cash; for (const id in A.pos) if (M && M.inst[id]) T += posValue(id, A.pos[id]); A.tw = { u: Math.max(T, 1) / 100 }; }
   return A;
 }
@@ -533,9 +532,32 @@ export function reservedCash(A, exceptId) {
   return r;
 }
 export function reservedUnits(A, iid, exceptId) { let r = 0; for (const o of A.orders) if (isOpen(o) && o.id !== exceptId && o.side === 'sell' && o.iid === iid) r += o.type === 'fund' ? o.qty : o.qty - o.filled; return r; }
-// Wertpapierkredit: Beleihungswert × Faktor der Vermögensstufe (nur wenn freigeschaltet und aktiviert)
-export function lombardValue(A) { let v = 0; for (const id in A.pos) { const x = M.inst[id]; if (x) v += posValue(id, A.pos[id]) * (LOMBARD[x.cls] || 0); } return v; }
-export const creditLimit = A => (A.credit ? lombardValue(A) * (TIERS[A.tier || 0] ? TIERS[A.tier || 0].credit : 0) : 0);
+// Beleihungsquote (Loan-to-Value) je Wertpapier: sichere Anlagen hoch, schwankende niedrig
+export function ltvOf(x) {
+  if (!x || x.delisted) return 0;
+  if (x.cls === 'bond') {
+    if (x.matured) return 0; const r = x.rating || '', ig = /^A/.test(r), bbb = /^BBB/.test(r);
+    if (!x.linked) return r === 'AAA' ? 0.85 : ig ? 0.8 : bbb ? 0.65 : 0.4; // Staatsanleihen
+    return ig ? 0.7 : bbb ? 0.6 : 0.35;                                  // Unternehmensanleihen
+  }
+  if (x.cls === 'etf') { const c = x.comp.map(k => M.inst[k.id]).filter(Boolean); if (c.length && c.every(k => k.cls === 'bond')) return 0.8; if (c.length && c.every(k => k.cls === 'cmd')) return 0.5; return c.length >= 8 ? 0.7 : 0.6; }
+  if (x.cls === 'fund') return x.type === 'Rentenfonds' ? 0.75 : x.type === 'Mischfonds' ? 0.65 : x.type === 'Rohstofffonds' ? 0.45 : 0.6;
+  if (x.cls === 'stock') { const mcap = x.shares * x.price; if (x.vol >= 0.9) return 0; if (x.vol >= 0.6 || mcap < 1e9) return mcap < 5e8 ? 0.15 : 0.25; if (x.core && mcap >= 5e10 && x.vol <= 0.4) return 0.55; return 0.45; }
+  return 0;
+}
+export const LTV_FX = 0.9, LTV_DEP = 0.95;
+// Beleihungswert: Summe aus Wert × Beleihungsquote (Wertpapiere, Fremdwährung, Festgeld)
+export function lombardValue(A) {
+  let v = 0; for (const id in A.pos) { const x = M.inst[id]; if (x) v += posValue(id, A.pos[id]) * ltvOf(x); }
+  return v + fxValue(A) * LTV_FX + depValue(A) * LTV_DEP;
+}
+export const creditLimit = A => (A.credit ? lombardValue(A) : 0);
+export const creditRate = A => (M.lz === undefined ? M.r : M.lz) + ((TIERS[A.tierMax || 0] || TIERS[0]).margin ?? 0.03);
+// Eigene Unternehmen: Eigenkapitalwert = operativer Gewinn × Bewertungsmultiple − Schulden (nie negativ)
+export const coEbit = co => co.rev * co.m;
+export const coValue = co => Math.max(0, coEbit(co) * co.mult - co.debt);
+export const peValue = A => (A.pe || []).reduce((s, co) => s + coValue(co), 0);
+export const loanTotal = A => (A.loans || []).reduce((s, l) => s + l.amt, 0);
 // Verfügbar = Cash (+ Kreditrahmen) − für offene Kauforders reserviert. noCredit: nur eigenes Geld (z. B. für Hebelprodukte)
 export const availCash = (A, exceptId, noCredit) => A.cash + (noCredit ? 0 : creditLimit(A)) - reservedCash(A, exceptId);
 export function posValue(id, p) { const x = I(id); return x.cls === 'bond' ? p.qty * (x.price + x.acc) / 100 : p.qty * x.price; }
@@ -547,9 +569,9 @@ export function totals(A) {
   for (const id in A.pos) sec += posValue(id, A.pos[id]);
   for (const p of A.derivs) der += derivValue(p);
   for (const o of A.orders) if (o.type === 'fund' && isOpen(o) && o.side === 'buy') pend += o.amount;
-  const lux = luxValue(A), fxv = fxValue(A), dep = depValue(A);
+  const lux = luxValue(A), fxv = fxValue(A), dep = depValue(A), pe = peValue(A), loans = loanTotal(A), lomb = Math.max(0, -A.cash);
   const cashAll = A.cash + fxv + dep + pend; // Verrechnungskonto, Fremdwährung, Festgeld, unterwegs
-  return { cash: A.cash, fxv, dep, sec, der, pend, lux, invested: sec + der, cashAll, debt: Math.max(0, -A.cash), total: A.cash + sec + der + pend + lux + fxv + dep };
+  return { cash: A.cash, fxv, dep, sec, der, pend, lux, pe, loans, lomb, invested: sec + der, cashAll, debt: lomb + loans, gross: Math.max(0, A.cash) + sec + der + pend + lux + fxv + dep + pe, total: A.cash + sec + der + pend + lux + fxv + dep + pe - loans };
 }
 // Aktien und ETFs auch in Bruchstücken (4 Nachkommastellen), Anleihen in 1.000-€-Schritten
 export function roundQty(x, q) { if (!(q > 0)) return 0; if (x.cls === 'bond') return Math.floor(q / 1000 + 1e-6) * 1000; if (x.cls === 'fund') return Math.floor(q * 1e6 + 1e-6) / 1e6; return Math.floor(q * 1e4 + 1e-6) / 1e4; }
@@ -578,8 +600,8 @@ export function executeMarket(A, x, side, qty, o = {}) {
   const dir = side === 'buy' ? 1 : -1;
   applyTrade(x, dir, e.Q, true);
   let pnl = null;
-  if (dir > 0) { A.cash -= e.total; const p = A.pos[x.id] || (A.pos[x.id] = { qty: 0, cost: 0, t0: M.t }); p.qty += e.q; p.cost += e.total; }
-  else { const p = A.pos[x.id], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty -= e.q; p.cost -= c; p.rz = r2((p.rz || 0) + pnl); A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[x.id]; }
+  if (dir > 0) { A.cash -= e.total; const p = A.pos[x.id] || (A.pos[x.id] = { qty: 0, cost: 0, t0: M.t }); p.qty = +(p.qty + e.q).toFixed(6); p.cost += e.total; }
+  else { const p = A.pos[x.id], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty = +(p.qty - e.q).toFixed(6); p.cost -= c; p.rz = r2((p.rz || 0) + pnl); A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[x.id]; }
   if (e.fee) { ENV.fee(e.fee); book(A, 'fee', -e.fee, x.name); }
   logHist(A, { t: M.t, id: x.id, nm: x.name, side: o.label || (dir > 0 ? 'Kauf' : 'Verkauf'), q: e.q, px: e.px, amt: e.amount, fee: e.fee, pnl });
   ENV.dirty(A); return e;
@@ -599,8 +621,8 @@ function fillOrder(A, o) {
   const dir = o.side === 'buy' ? 1 : -1, pre = x.price;
   applyTrade(x, dir, e.Q, true);
   let pnl = 0;
-  if (dir > 0) { A.cash -= e.total; const p = A.pos[o.iid] || (A.pos[o.iid] = { qty: 0, cost: 0, t0: M.t }); p.qty += e.q; p.cost += e.total; }
-  else { const p = A.pos[o.iid], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty -= e.q; p.cost -= c; A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[o.iid]; }
+  if (dir > 0) { A.cash -= e.total; const p = A.pos[o.iid] || (A.pos[o.iid] = { qty: 0, cost: 0, t0: M.t }); p.qty = +(p.qty + e.q).toFixed(6); p.cost += e.total; }
+  else { const p = A.pos[o.iid], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty = +(p.qty - e.q).toFixed(6); p.cost -= c; A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[o.iid]; }
   ENV.fee(e.fee); book(A, 'fee', -e.fee, x.name);
   o.avg = (o.avg * o.filled + e.px * e.q) / (o.filled + e.q); o.filled += e.q; o.status = o.filled >= o.qty ? 'ausgeführt' : 'teilausgeführt';
   logHist(A, { t: M.t, id: x.id, nm: x.name, side: dir > 0 ? 'Kauf' : 'Verkauf', q: e.q, px: e.px, amt: e.amount, fee: e.fee, pnl: dir < 0 ? pnl : null });

@@ -1,14 +1,15 @@
 // Detailansicht: Kurs, Begründung, Chart, Handeln, Position, Kennzahlen mit Erklärungen, Quartalszahlen, Nachrichten, Profi-Bereich
-import { S, E, esc, sc, pctS, signE, actions, $ } from '../store.js';
+import { S, E, esc, sc, pctS, signE, act, actions, inputs, $ } from '../store.js';
 import { info } from '../glossary.js';
 import { drawChart, drawBars } from '../chart.js';
 import { av, subOf, whyText, newsItem, row, CLS, isEtc } from '../parts.js';
-import { openOrder } from './order.js';
+import { openOrder, openReview } from './order.js';
 const { fmt, fmtE, fmtBig, fmtPx, fmtQty, dig, fDate, fTime, chg, dayStart, posValue, SECTORS, STORY, OWNER, ownerLevel, members, bookP, isBook, marginal, maxQ, qAtLimit, unitVal, q2e, bidAsk, rateOf } = E;
 const RANGES = [['1T', '1T'], ['1M', '1M'], ['6M', '6M'], ['1J', '1J'], ['Max', 'Max']];
 
 export function render(id) {
   const x = E.I(id), U = S.UI; if (!x) return '<p class="empty">Nicht gefunden.</p>';
+  if (x.delisted) return `<div class="stack"><button class="x" data-go="${U.back}" aria-label="Zurück">←</button><h1 class="h1">${esc(x.name)}</h1><p class="lead">Von der Börse genommen: ${esc(x.delisted.by)} hat das Unternehmen am ${fDate(x.delisted.t)} zu ${fmt(x.delisted.P || x.price, 2)} € je Aktie übernommen.</p>${S.A.pe.some(c => c.id === id) ? '<button class="btn" data-go="firmen">Zu deinem Unternehmen</button>' : ''}</div>`;
   return `<div class="grid2"><div class="stack" style="gap:0">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px"><button class="x" data-go="${U.back}" aria-label="Zurück">←</button>${av(x)}<div style="min-width:0"><h1 class="h1" style="font-size:22px">${esc(x.name)}</h1><span class="small fg2">${esc(subOf(x))}${x.isin ? ' · ' + x.isin : ''}</span></div></div>
     <section class="hero"><span class="big" id="d-px">–</span><span class="delta" id="d-ch"></span><div class="why" id="d-why"></div></section>
@@ -17,6 +18,7 @@ export function render(id) {
     <div class="btns" style="margin:22px 0 8px" id="d-act">${actionsHTML(x)}</div>
     <div id="d-pos" class="only-narrow"></div>
     <div id="d-hint"></div>
+    ${x.cls === 'stock' ? `<section class="sec" id="d-own-sec" style="margin-top:16px"><h2>Beteiligung & Übernahme ${info('owner')}</h2><div id="d-own"></div></section>` : ''}
     <section class="sec" style="margin-top:16px"><h2>Über ${esc(x.cls === 'stock' ? 'das Unternehmen' : x.cls === 'bond' ? 'die Anleihe' : x.cls === 'fx' ? 'das Währungspaar' : x.cls === 'cmd' ? 'den Rohstoff' : 'das Produkt')}</h2>
       ${STORY[x.id] || x.desc ? `<p class="lead" style="margin:0 0 16px">${esc(STORY[x.id] || '')} ${STORY[x.id] ? '' : esc(x.desc || '')}</p>` : ''}<div class="kv" id="d-kv"></div></section>
     ${x.cls === 'stock' ? `<section class="sec"><h2>Quartalszahlen <span class="sp"></span><span class="seg"><button data-a="dearn" data-v="eps" class="${U.earn === 'eps' ? 'on' : ''}">Gewinn je Aktie</button><button data-a="dearn" data-v="rev" class="${U.earn === 'rev' ? 'on' : ''}">Umsatz</button></span></h2><div id="d-earn"></div></section>` : ''}
@@ -42,7 +44,7 @@ function bars(x, range) {
   return range === '1M' ? d.slice(-22) : range === '6M' ? d.slice(-126) : range === '1J' ? d.slice(-252) : d;
 }
 export function update(id) {
-  const x = E.I(id), A = S.A, U = S.UI; if (!x) return;
+  const x = E.I(id), A = S.A, U = S.UI; if (!x || x.delisted) return;
   const c = chg(x), pxEl = $('#d-px'), old = pxEl.dataset.v ? +pxEl.dataset.v : null;
   pxEl.textContent = fmtPx(x, x.price); pxEl.dataset.v = x.price;
   if (old !== null && old !== x.price) { pxEl.classList.remove('flash-up', 'flash-dn'); void pxEl.offsetWidth; pxEl.classList.add(x.price > old ? 'flash-up' : 'flash-dn'); }
@@ -55,7 +57,7 @@ export function update(id) {
   const h = S.ins.hints.find(h => h.id === x.id);
   $('#d-hint').innerHTML = h ? `<div class="celebrate" style="margin:16px 0 0"><span class="av">${h.dir > 0 ? '↑' : h.dir < 0 ? '↓' : '→'}</span><span><b>${esc(h.src)}: Die Zahlen am ${fDate(h.date, true).slice(0, 9)} werden ${h.dir > 0 ? 'eher besser' : h.dir < 0 ? 'eher schlechter' : 'eher im Rahmen'} als erwartet ausfallen.</b><br><span class="small fg2">Trefferquote etwa ${fmt(h.acc * 100, 0)} % – keine Garantie.</span></span></div>` : '';
   $('#d-kv').innerHTML = kv(x);
-  if (x.cls === 'stock') earnings(x);
+  if (x.cls === 'stock') { earnings(x); ownership(x); }
   const cp = $('#d-comp'); if (cp) cp.innerHTML = members(x).sort((a, b) => b.w - a.w).slice(0, 8).map(({ m, w }) => row(m, { right: `<b>${fmt(w * 100, 1)} %</b><small class="${sc(chg(m))}">${pctS(chg(m))}</small>`, noSpark: true })).join('');
   const news = E.M.news.filter(n => (n.ids || [n.id]).includes(x.id)).slice(0, 6);
   $('#d-news').innerHTML = news.length ? news.map(newsItem).join('') : '<p class="empty">Zuletzt keine Meldungen.</p>';
@@ -83,6 +85,46 @@ function posHTML(x) {
     ${x.cls === 'stock' ? `<p class="note" style="margin-top:10px">${share < 1e-6 ? `Dein Anteil an ${esc(x.name)} liegt unter 0,0001 %` : `Du besitzt ${fmt(share * 100, share < 1e-4 ? 4 : 2)} % von ${esc(x.name)}`}${lv ? ` – <b>${esc(lv.name)}</b>: ${esc(lv.perk)}` : ''}.${next ? ` Ab ${fmt(next.min * 100, 0)} %: ${esc(next.perk)} (${fmtE(next.min * x.shares * x.price, 0)}).` : ''} ${info('owner')}</p>` : ''}
     <div class="btns" style="margin-top:14px"><button class="btn sm" data-a="dbuy" data-v="${x.id}">Nachkaufen</button>${E.isTradable(x) || x.cls === 'fund' ? `<button class="btn sm ghost" data-a="dsell" data-v="${x.id}">Verkaufen</button>` : ''}</div></section>`;
 }
+// Beteiligungsleiter, Bilanz-Einblicke (ab 5 %), Abstimmung (ab 25 %), Übernahmeangebot
+function ownership(x) {
+  const box = $('#d-own'); if (!box) return;
+  const A = S.A, sh = E.shareOf(A, x), mcap = x.shares * x.price, M = E.M, bid = (M.ma && M.ma.bids || []).find(b => b.id === x.id), deep = S.ins.deep && S.ins.deep[x.id];
+  const steps = [[0.01, 'Investor Relations'], [0.05, 'Meldepflicht'], [0.25, 'Sperrminorität'], [0.501, 'Kontrolle']];
+  let h = `<div class="ladder">${steps.map(([m, l]) => `<div class="${sh >= m ? 'on' : ''}"><b>${fmt(m * 100, m < 0.5 ? 0 : 1)} %</b>${l}<br><span class="small">${sh >= m ? 'erreicht' : fmtBig((m - sh) * mcap) + ' € fehlen'}</span></div>`).join('')}</div>
+    <div class="lines" style="margin-top:10px"><div><span>Dein Anteil</span><b>${sh >= 1e-6 ? fmt(sh * 100, sh < 0.01 ? 4 : 2) + ' %' : '–'}</b></div><div><span>Börsenwert</span><b>${fmtBig(mcap)} €</b></div>${x.gov ? `<div><span>Gewinnverwendung</span><b>${x.gov.pay === 'div' ? 'hohe Ausschüttung' : 'Reinvestition'} (${esc(x.gov.by)})</b></div>` : ''}</div>`;
+  if (bid) h += `<div class="alert amb" style="margin-top:12px"><div class="t"><b>Übernahmeangebot läuft</b>${esc(bid.name)} bietet ${fmt(bid.P, 2)} € je Aktie (+${fmt(bid.prem * 100, 0)} %). Entscheidung zur Börseneröffnung am ${fDate(bid.until, true)}. Bei Erfolg werden alle Aktien zu diesem Preis abgefunden.</div></div>`;
+  if (deep) h += `<h3 class="sh" style="margin-top:16px">Bilanz-Einblicke (interne Planung)</h3><div class="lines"><div><span>Umsatz nächstes Quartal</span><b>${fmtBig(deep.rev)} €</b></div><div><span>Gewinn je Aktie nächstes Quartal</span><b>${fmtE(deep.eps)}</b></div>${Math.abs(deep.padj) > 0.005 ? `<div><span>Politik-Effekt auf den Gewinn</span><b class="${sc(deep.padj)}">${pctS(deep.padj, 1)}</b></div>` : ''}${deep.req ? `<div><span>Insider: Mindestprämie für eine Mehrheit</span><b>etwa ${fmt(deep.req * 100, 0)} %</b></div>` : ''}</div>`;
+  if (sh >= 0.25) h += `<h3 class="sh" style="margin-top:16px">Abstimmung: Gewinnverwendung ${info('sperrmin')}</h3><div class="seg">${[['div', 'Mehr Dividende'], ['bal', 'Ausgewogen'], ['re', 'Reinvestieren']].map(([k, l]) => `<button data-a="dvote" data-v="${k}" class="${(x.gov ? x.gov.pay : 'bal') === k ? 'on' : ''}">${l}</button>`).join('')}</div>`;
+  if (sh >= E.BID_MIN_SHARE && !bid) {
+    const U = S.UI, prem = U.bidPrem ?? 0.25, P = x.price * (1 + prem), lmax = E.lboMax(x, P), lbo = lmax * (U.bidLboF ?? 0.5), q = E.quoteBid(A, x, prem, lbo), o = E.bidOutlook(prem);
+    h += `<h3 class="sh" style="margin-top:16px">Übernahmeangebot ${info('takeover')}</h3>
+      <label class="field"><span>Prämie auf den Kurs: <b id="bd-pv">${fmt(prem * 100, 0)} %</b> ${info('premium')}</span><input type="range" id="bd-prem" min="5" max="60" step="1" value="${Math.round(prem * 100)}"></label>
+      <label class="field"><span>LBO-Kredit: <b id="bd-lv">${fmtE(lbo, 0)}</b> von max. ${fmtE(lmax, 0)} ${info('lbo')}</span><input type="range" id="bd-lbo" min="0" max="100" step="1" value="${Math.round((U.bidLboF ?? 0.5) * 100)}" ${lmax > 0 ? '' : 'disabled'}></label>
+      <div class="lines" id="bd-prev">${bidLines(q, o)}</div>
+      <button class="btn" data-a="dbid" style="margin-top:10px">Angebot prüfen</button>`;
+  } else if (!bid && sh < E.BID_MIN_SHARE) h += `<p class="note" style="margin-top:10px">Ab ${fmt(E.BID_MIN_SHARE * 100, 0)} % Beteiligung kannst du ein Übernahmeangebot abgeben. Dafür fehlen dir noch etwa ${fmtBig((E.BID_MIN_SHARE - sh) * mcap)} € – große Käufe treiben dabei den Kurs.</p>`;
+  const busy = document.activeElement && box.contains(document.activeElement) && document.activeElement.tagName === 'INPUT'; // Schieberegler nicht unter dem Finger neu aufbauen
+  if (!busy && (S.ownHTML !== h || !box.innerHTML)) { box.innerHTML = h; S.ownHTML = h; }
+}
+function bidLines(q, o) {
+  return `<div><span>Angebotspreis je Aktie</span><b>${fmt(q.P, 2)} €</b></div><div><span>Kaufpreis restliche ${fmt((1 - q.share) * 100, 1)} %</span><b>${fmtE(q.cost, 0)}</b></div>
+    <div><span>Beraterkosten (1 %)</span><b>${fmtE(q.fee, 0)}</b></div><div><span>Davon LBO-Kredit</span><b>−${fmtE(q.lbo, 0)}</b></div>
+    <div class="tot"><span>Eigenanteil</span><b>${fmtE(q.need, 0)}</b></div>
+    <div><span>Aus Guthaben / Wertpapierkredit</span><b>${fmtE(q.fromCash, 0)} / <span class="${q.fromCredit > 0 ? 'amb' : ''}">${fmtE(q.fromCredit, 0)}</span></b></div>
+    <div><span>Erfolgschance (Einschätzung)</span><b class="${o.k === 'low' ? 'dn' : o.k === 'mid' ? 'amb' : 'up'}">${o.t}</b></div>
+    ${q.ok ? '' : `<p class="warn">Finanzierung reicht nicht: verfügbar ${fmtE(Math.max(0, q.avail), 0)}${S.A.credit ? '' : ' – schalte den Wertpapierkredit ein'}.</p>`}`;
+}
+function bidRefresh() {
+  const x = E.I(S.UI.route.slice(2)); if (!x) return; const U = S.UI, prem = +$('#bd-prem').value / 100, P = x.price * (1 + prem), lmax = E.lboMax(x, P), lbo = lmax * +$('#bd-lbo').value / 100;
+  U.bidPrem = prem; U.bidLboF = +$('#bd-lbo').value / 100; $('#bd-pv').textContent = fmt(prem * 100, 0) + ' %'; $('#bd-lv').textContent = fmtE(lbo, 0);
+  $('#bd-prev').innerHTML = bidLines(E.quoteBid(S.A, x, prem, lbo), E.bidOutlook(prem));
+}
+inputs['bd-prem'] = bidRefresh; inputs['bd-lbo'] = bidRefresh;
+actions.dvote = el => { const id = S.UI.route.slice(2); act({ type: 'vote', id, v: el.dataset.v }); };
+actions.dbid = () => {
+  const x = E.I(S.UI.route.slice(2)); if (!x) return; const U = S.UI, prem = U.bidPrem ?? 0.25, P = x.price * (1 + prem), lbo = E.lboMax(x, P) * (U.bidLboF ?? 0.5), q = E.quoteBid(S.A, x, prem, lbo);
+  openReview({ title: `Übernahmeangebot für ${x.name}`, lines: [['Angebot je Aktie', `${fmt(q.P, 2)} € (+${fmt(prem * 100, 0)} %)`], ['Gesamtwert des Unternehmens', fmtE(q.total, 0)], ['LBO-Kredit (trägt das Unternehmen)', fmtE(q.lbo, 0), 'lbo'], ['Beraterkosten', fmtE(q.fee, 0)], ['Dein Eigenanteil', fmtE(q.need, 0)]], warn: 'Die Aktionäre entscheiden zur nächsten Börseneröffnung. Bekommst du über 50 %, gehört dir das Unternehmen zu 100 % und es verlässt die Börse. Scheitert das Angebot, fällt der Kurs zurück und du zahlst 0,3 % Beraterkosten.', confirm: 'Angebot abgeben', run: () => act({ type: 'bid', id: x.id, prem, lbo }, true) });
+};
 function kv(x) {
   const r = (a, b, k) => `<div><span>${a} ${k ? info(k) : ''}</span><b>${b}</b></div>`, cd = x.cD.slice(-252), hi = Math.max(x.hi, ...cd.map(k => k[2])), lo = Math.min(x.lo, ...cd.map(k => k[3]));
   const rets = [], c30 = x.cD.slice(-31); for (let i = 1; i < c30.length; i++) rets.push(Math.log(c30[i][4] / c30[i - 1][4]));

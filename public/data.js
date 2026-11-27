@@ -36,7 +36,12 @@ export const STOCKS = [
   ['RHST', 'Rheinstahl Defence', 'ind', 548.00, 0.0435, 0.7, 0.42, 0.0120, 38, 0.0090, 'Panzer, Munition und Flugabwehr – profitiert von steigenden Verteidigungsetats.'],
   ['LUFZ', 'Lufthanza AG', 'ind', 6.84, 1.2, 1.4, 0.38, 0.0080, 6, 0.0440, 'Fluggesellschaft mit Drehkreuzen in Frankfurt und München.'],
   ['BSFA', 'Basfa SE', 'chem', 44.30, 0.89, 1.1, 0.26, 0.0040, 21, 0.0770, 'Chemiekonzern: Kunststoffe, Agrarchemie und Batteriematerialien.'],
-  ['CBZE', 'Coinbaze Global', 'fin', 245.60, 0.25, 2.2, 0.80, 0.0300, 45, 0, 'Kryptobörse – schwankt mit dem Bitcoin-Kurs.']
+  ['CBZE', 'Coinbaze Global', 'fin', 245.60, 0.25, 2.2, 0.80, 0.0300, 45, 0, 'Kryptobörse – schwankt mit dem Bitcoin-Kurs.'],
+  // Nebenwerte – realistische Übernahmeziele
+  ['KRNH', 'Brauerei Kranich AG', 'cons', 3.80, 0.0032, 0.5, 0.30, 0.0040, 14, 0.045, 'Familienbrauerei mit drei Biermarken und eigener Mälzerei.'],
+  ['RTST', 'Ruhrtal Stahl AG', 'ind', 12.40, 0.0068, 1.3, 0.45, 0.0060, 9, 0.030, 'Spezialstahl für Maschinenbau und Windkraft aus dem Ruhrgebiet.'],
+  ['MDVO', 'Medivio Diagnostics', 'health', 21.50, 0.0075, 0.9, 0.48, 0.0060, 28, 0, 'Schnelltests und Labordiagnostik für Kliniken.'],
+  ['NWDT', 'Nordwind Turbinen', 'energy', 9.60, 0.0350, 1.3, 0.55, 0.0080, 35, 0, 'Baut Windkraftanlagen für Nord- und Ostsee.']
 ];
 export const CORE = new Set(STOCKS.slice(0, 24).map(d => d[0])); // Bestandteile des WELTIX 24
 export const BONDS = [
@@ -134,7 +139,9 @@ export const ACH = [
   { id: 'crisis', name: 'Krisen-Gewinner', desc: 'Beende eine komplette Rezession mit Portfolio im Plus.', reward: 5000 },
   { id: 'tenbagger', name: '10-Bagger', desc: 'Halte eine Position, die das Zehnfache ihres Einstands wert ist (ab 100 € Einsatz).', reward: 10000 },
   { id: 'owner', name: 'Großaktionär', desc: 'Besitze 1 % eines Unternehmens.', reward: 5000 },
-  { id: 'million', name: 'Millionär', desc: 'Erreiche 1 Mio. € Gesamtvermögen.', reward: 10000 }
+  { id: 'million', name: 'Millionär', desc: 'Erreiche 1 Mio. € Gesamtvermögen.', reward: 10000 },
+  { id: 'takeover', name: 'Übernahme-Profi', desc: 'Übernimm ein komplettes Unternehmen und nimm es von der Börse.', reward: 50000 },
+  { id: 'ipo', name: 'Börsengang', desc: 'Bring ein eigenes Unternehmen wieder an die Börse.', reward: 50000 }
 ];
 
 /* ---------- Fundamentaldaten & Geschichten ----------
@@ -147,7 +154,8 @@ export const FUNDA = {
   EXXF: { g: -0.02, psr: 1.3, fy: 1 }, SHLL: { g: -0.01, psr: 0.7, fy: 2 }, PFZR: { g: -0.03, psr: 2.4, fy: 0 }, NVNO: { g: 0.25, psr: 5.5, fy: 1 },
   ABZZ: { g: 0.07, psr: 2.0, fy: 2 }, TTEL: { g: 0.02, psr: 1.3, fy: 0 }, QNTX: { g: 0.60, psr: 40, fy: 1 }, SOLR: { g: 0.15, psr: 1.5, fy: 2 },
   NTFX: { g: 0.15, psr: 8.5, fy: 0 }, JPMG: { g: 0.06, psr: 3.6, fy: 1 }, VIZZ: { g: 0.10, psr: 15, fy: 2 }, HRMZ: { g: 0.14, psr: 13, fy: 0 },
-  RHST: { g: 0.30, psr: 2.6, fy: 1 }, LUFZ: { g: 0.04, psr: 0.2, fy: 2 }, BSFA: { g: -0.01, psr: 0.6, fy: 0 }, CBZE: { g: 0.35, psr: 8, fy: 1 }
+  RHST: { g: 0.30, psr: 2.6, fy: 1 }, LUFZ: { g: 0.04, psr: 0.2, fy: 2 }, BSFA: { g: -0.01, psr: 0.6, fy: 0 }, CBZE: { g: 0.35, psr: 8, fy: 1 },
+  KRNH: { g: 0.02, psr: 0.9, fy: 2 }, RTST: { g: 0.03, psr: 0.35, fy: 0 }, MDVO: { g: 0.12, psr: 2.8, fy: 1 }, NWDT: { g: 0.18, psr: 1.1, fy: 2 }
 };
 export const STORY = {
   MVDA: 'Gegründet von einer Gamerin, die Grafikkarten zu besseren Taschenrechnern umbaute. Heute laufen fast alle KI-Rechenzentren auf Mvidia-Chips – die Lieferzeiten betragen Monate.',
@@ -181,26 +189,79 @@ export const STORY = {
   RHST: 'Vom Mittelständler zum Rüstungsriesen. Die Auftragsbücher sind voll wie nie.',
   LUFZ: 'Fluglinie mit hohen Kosten und Streiks. Billig, aber Treibstoffpreise und Konjunktur schlagen voll durch.',
   BSFA: 'Größter Chemiekonzern der Welt. Leidet unter hohen Energiepreisen in Europa.',
-  CBZE: 'Größte Kryptobörse. Verdient an jedem Bitcoin-Trade – und bricht ein, wenn die Kryptowelt kriselt.'
+  CBZE: 'Größte Kryptobörse. Verdient an jedem Bitcoin-Trade – und bricht ein, wenn die Kryptowelt kriselt.',
+  KRNH: 'Seit 1874 in Familienhand, solide Dividende, kaum Wachstum. Klein genug, um sie komplett zu kaufen.',
+  RTST: 'Zyklischer Stahlkocher: leidet unter Billigimporten aus Fernost und jubelt über jeden Schutzzoll.',
+  MDVO: 'Wachsender Diagnostik-Spezialist mit guten Margen. Ein beliebtes Ziel für Finanzinvestoren.',
+  NWDT: 'Volle Auftragsbücher dank Energiewende, aber Bauteile kommen aus Asien – Zölle treffen die Marge.'
 };
+
+/* ---------- Wirtschaftliche Empfindlichkeiten ----------
+   rate: Zinsempfindlichkeit (positiv = leidet unter steigenden Zinsen), infl: Preissetzungsmacht (positiv = profitiert von Inflation),
+   cyc: Konjunkturabhängigkeit, home: Heimatmarkt (eu/us), exp: Anteil Auslandsumsatz, sc: Abhängigkeit von Importen/Lieferketten */
+export const SECTOR_SENS = {
+  tech: { rate: 1.4, infl: -0.3, cyc: 0.8 }, semi: { rate: 1.3, infl: -0.2, cyc: 1.3 }, auto: { rate: 0.6, infl: -0.5, cyc: 1.5 },
+  fin: { rate: -0.8, infl: 0.2, cyc: 1.0 }, cons: { rate: 0.4, infl: 0.2, cyc: 0.6 }, energy: { rate: 0.2, infl: 1.2, cyc: 0.7 },
+  health: { rate: 0.5, infl: 0.2, cyc: 0.2 }, ind: { rate: 0.5, infl: 0.1, cyc: 1.2 }, tel: { rate: 0.9, infl: 0.1, cyc: 0.3 }, chem: { rate: 0.4, infl: -0.4, cyc: 1.3 }
+};
+export const COMPANY_SENS = {
+  MVDA: { home: 'us', exp: 0.55, sc: 0.8 }, PEAR: { home: 'us', exp: 0.5, sc: 0.9 }, MHRD: { home: 'us', exp: 0.4, sc: 0.2 }, ABET: { home: 'us', exp: 0.45, sc: 0.1 },
+  AMZS: { home: 'us', exp: 0.3, sc: 0.6 }, TSLR: { home: 'us', exp: 0.4, sc: 0.4, rate: 1.6 }, MTVR: { home: 'us', exp: 0.5, sc: 0.3 }, SAPF: { home: 'eu', exp: 0.6, sc: 0.1 },
+  SIMZ: { home: 'eu', exp: 0.6, sc: 0.3 }, ALNX: { home: 'eu', exp: 0.3, sc: 0 }, DBNK: { home: 'eu', exp: 0.3, sc: 0 }, VWGN: { home: 'eu', exp: 0.55, sc: 0.5 },
+  BMVW: { home: 'eu', exp: 0.6, sc: 0.5 }, ADBS: { home: 'eu', exp: 0.65, sc: 0.8 }, NSTL: { home: 'eu', exp: 0.7, sc: 0.2, infl: 0.5 }, KOKA: { home: 'us', exp: 0.6, sc: 0.1, infl: 0.6 },
+  EXXF: { home: 'us', exp: 0.4, sc: 0.1 }, SHLL: { home: 'eu', exp: 0.5, sc: 0.1 }, PFZR: { home: 'us', exp: 0.45, sc: 0.3 }, NVNO: { home: 'eu', exp: 0.6, sc: 0.2, infl: 0.6 },
+  ABZZ: { home: 'eu', exp: 0.6, sc: 0.4 }, TTEL: { home: 'eu', exp: 0.2, sc: 0.3 }, QNTX: { home: 'us', exp: 0.3, sc: 0.5, rate: 2.5 }, SOLR: { home: 'eu', exp: 0.1, sc: 0.9, rate: 2.0 },
+  NTFX: { home: 'us', exp: 0.5, sc: 0 }, JPMG: { home: 'us', exp: 0.2, sc: 0 }, VIZZ: { home: 'us', exp: 0.45, sc: 0 }, HRMZ: { home: 'eu', exp: 0.75, sc: 0.1, infl: 0.8 },
+  RHST: { home: 'eu', exp: 0.3, sc: 0.2, cyc: 0.2 }, LUFZ: { home: 'eu', exp: 0.4, sc: 0.1, infl: -0.8 }, BSFA: { home: 'eu', exp: 0.55, sc: 0.3 }, CBZE: { home: 'us', exp: 0.3, sc: 0, rate: 1.8 },
+  KRNH: { home: 'eu', exp: 0.1, sc: 0.1, infl: 0.3 }, RTST: { home: 'eu', exp: 0.35, sc: 0.3, steel: 1 }, MDVO: { home: 'eu', exp: 0.5, sc: 0.3 }, NWDT: { home: 'eu', exp: 0.4, sc: 0.6, rate: 1.2 }
+};
+export const sensOf = x => Object.assign({ home: 'eu', exp: 0.4, sc: 0.3 }, SECTOR_SENS[x.sector] || { rate: 0.5, infl: 0, cyc: 1 }, COMPANY_SENS[x.id] || {});
+export const REGION = { eu: 'Europa', us: 'USA', asia: 'Fernost' };
+
+/* ---------- Politik: Storylines mit Vorlauf ----------
+   p: Grundwahrscheinlichkeit, dass es wirklich kommt; die angezeigte Markt-Einschätzung weicht davon ab */
+export const POLICIES = [
+  { k: 'tariff', by: 'us', on: 'eu', sectors: ['auto', 'chem', 'ind', 'cons'], rate: [15, 30], p: 0.6, rumor: 'Wahlkampf in den USA: Kandidat droht mit {r} % Strafzöllen auf europäische Autos und Industriegüter', draft: 'US-Handelsministerium legt Zollliste vor: {r} % auf europäische Autos, Chemie und Maschinen', yes: 'USA verhängen {r} % Strafzölle auf europäische Autos und Industriegüter', no: 'USA verschieben die Strafzölle auf europäische Waren' },
+  { k: 'tariff', by: 'us', on: 'asia', sectors: 'all', rate: [20, 50], p: 0.6, rumor: 'Washington erwägt {r} % Zölle auf alle Importe aus Fernost', draft: 'Gesetzentwurf: {r} % Importzoll auf Elektronik, Stahl und Konsumgüter aus Fernost', yes: 'USA verhängen {r} % Zölle auf Importe aus Fernost', no: 'Kein Zoll auf Fernost-Importe: Weißes Haus lenkt ein' },
+  { k: 'tariff', by: 'eu', on: 'us', sectors: ['tech', 'semi', 'cons', 'auto'], rate: [10, 25], p: 0.5, rumor: 'Brüssel prüft Gegenzölle von {r} % auf US-Waren', draft: 'EU-Kommission veröffentlicht Gegenzoll-Liste: {r} % auf US-Technik, Autos und Konsumgüter', yes: 'EU antwortet mit {r} % Gegenzöllen auf US-Waren', no: 'EU verzichtet vorerst auf Gegenzölle' },
+  { k: 'tariff', by: 'eu', on: 'asia', sectors: ['ind', 'energy', 'auto'], rate: [15, 35], p: 0.55, rumor: 'EU erwägt Schutzzölle von {r} % gegen Billigstahl, Solarmodule und E-Autos aus Fernost', draft: 'Antidumping-Verfahren: EU schlägt {r} % Zoll auf Stahl, Solarmodule und E-Autos aus Fernost vor', yes: 'EU verhängt {r} % Schutzzölle auf Stahl, Solarmodule und E-Autos aus Fernost', no: 'EU lässt Schutzzölle gegen Fernost fallen' },
+  { k: 'deal', p: 0.55, rumor: 'Hinter verschlossenen Türen: Unterhändler sprechen über ein Ende des Zollstreits', draft: 'Durchbruch in Sicht: Rahmenabkommen zum Abbau der Zölle liegt vor', yes: 'Handelsabkommen unterzeichnet: Zölle werden halbiert', no: 'Zollgespräche ohne Ergebnis abgebrochen' },
+  { k: 'stimulus', size: 500, sectors: ['ind', 'semi', 'tech', 'energy'], p: 0.65, rumor: 'Regierung plant angeblich 500-Mrd.-Programm für Infrastruktur und KI', draft: 'Kabinett beschließt Entwurf: 500 Mrd. € für Infrastruktur, Netze und KI-Rechenzentren', yes: 'Parlament verabschiedet 500-Mrd.-Infrastruktur- und KI-Programm', no: 'Konjunkturpaket scheitert im Parlament' },
+  { k: 'taxcut', p: 0.55, rumor: 'Koalition diskutiert Senkung der Unternehmenssteuer von 30 auf 25 %', draft: 'Gesetzentwurf: Unternehmenssteuer soll auf 25 % sinken', yes: 'Steuerreform beschlossen: Unternehmenssteuer sinkt auf 25 %', no: 'Steuerreform vertagt' },
+  { k: 'dereg', sectors: ['fin', 'energy'], p: 0.6, rumor: 'Regierung will Banken- und Energieregeln lockern', draft: 'Deregulierungspaket für Banken und Energie liegt vor', yes: 'Deregulierung beschlossen: weniger Kapitalvorschriften und schnellere Genehmigungen', no: 'Deregulierung scheitert am Widerstand der Aufsicht' },
+  { k: 'antitrust', ids: ['ABET', 'MHRD', 'MTVR', 'AMZS', 'PEAR'], p: 0.5, rumor: 'Wettbewerbshüter nehmen {n} ins Visier', draft: 'Kartellbehörde leitet förmliches Verfahren gegen {n} ein', yes: 'Kartellstrafe: {n} muss Milliarden zahlen und Geschäftsbereiche abtrennen', no: 'Kartellverfahren gegen {n} eingestellt' },
+  { k: 'exportban', ids: ['MVDA', 'QNTX'], sectors: ['semi'], p: 0.55, rumor: 'Berichte: Regierung plant Exportverbot für KI-Chips nach Fernost', draft: 'Exportkontrolle: Liste mit verbotenen Chip-Lieferungen nach Fernost veröffentlicht', yes: 'Exportverbot für Hochleistungs-Chips nach Fernost tritt in Kraft', no: 'Exportverbot für KI-Chips abgewendet' },
+  { k: 'defense', ids: ['RHST', 'ABZZ', 'SIMZ'], p: 0.7, rumor: 'NATO-Gipfel: Verteidigungsausgaben sollen auf 3,5 % steigen', draft: 'Haushaltsentwurf sieht Verdopplung des Verteidigungsetats vor', yes: 'Parlament beschließt Rekord-Verteidigungsetat', no: 'Verteidigungsetat wird gekürzt' }
+];
 
 /* ---------- Vermögensstufen ---------- */
 export const TIERS = [
-  { name: 'Kleinanleger', min: 0, credit: 0, terms: [3], hint: false, feeRate: 0.0005, perks: ['Sparpläne und Dividenden-Wiederanlage', 'Zinsen auf dein Guthaben', 'Festgeld über 3 Monate'] },
-  { name: 'Aktiver Trader', min: 25000, credit: 0.5, terms: [3, 6, 12], hint: false, feeRate: 0.0005, perks: ['Wertpapierkredit bis 50 % des Beleihungswerts', 'Festgeld über 6 und 12 Monate', 'Erweiterte Risikoanalyse (Beta, Volatilität)'] },
-  { name: 'Fondsmanager', min: 250000, credit: 0.8, terms: [3, 6, 12], hint: false, phase: true, feeRate: 0.0004, perks: ['Wertpapierkredit bis 80 %', 'Marktphasen-Radar mit Ausblick', 'Ordergebühr 0,04 %'] },
-  { name: 'Investor', min: 2500000, credit: 1, terms: [3, 6, 12], hint: true, phase: true, feeRate: 0.0003, perks: ['Wertpapierkredit bis 100 %', 'Analystentendenz vor jeder Quartalsbilanz', 'Ordergebühr 0,03 %'] },
-  { name: 'Finanz-Tycoon', min: 25000000, credit: 1, terms: [3, 6, 12], hint: true, phase: true, feeRate: 0.0002, perks: ['Alle Werkzeuge', 'Ordergebühr 0,02 %', 'Der Status, über den alle reden'] }
+  { name: 'Kleinanleger', min: 0, credit: 1, acq: 0, margin: 0.030, terms: [3], hint: false, feeRate: 0.0005, perks: ['Sparpläne und Dividenden-Wiederanlage', 'Zinsen auf dein Guthaben', 'Wertpapierkredit zu Leitzins + 3,0 %'] },
+  { name: 'Aktiver Trader', min: 25000, credit: 1, acq: 0, margin: 0.025, terms: [3, 6, 12], hint: false, feeRate: 0.0005, perks: ['Wertpapierkredit zu Leitzins + 2,5 %', 'Festgeld über 6 und 12 Monate', 'Erweiterte Risikoanalyse (Beta, Volatilität)'] },
+  { name: 'Fondsmanager', min: 250000, credit: 1, acq: 0.25, margin: 0.020, terms: [3, 6, 12], hint: false, phase: true, feeRate: 0.0004, perks: ['Unternehmenskredit bis 25 % des Vermögens', 'Wertpapierkredit zu Leitzins + 2,0 %', 'Marktphasen-Radar, Ordergebühr 0,04 %'] },
+  { name: 'Investor', min: 2500000, credit: 1, acq: 0.5, margin: 0.015, terms: [3, 6, 12], hint: true, phase: true, feeRate: 0.0003, perks: ['Unternehmenskredit bis 50 % des Vermögens', 'Analystentendenz vor jeder Quartalsbilanz', 'Wertpapierkredit zu Leitzins + 1,5 %'] },
+  { name: 'Finanz-Tycoon', min: 25000000, credit: 1, acq: 1, margin: 0.010, terms: [3, 6, 12], hint: true, phase: true, feeRate: 0.0002, perks: ['Unternehmenskredit bis 100 % des Vermögens', 'Wertpapierkredit zu Leitzins + 1,0 %', 'Ordergebühr 0,02 %'] }
 ];
 export const TIER_REWARD = [0, 1000, 5000, 20000, 50000];
 // Beleihungswerte für den Wertpapierkredit
-export const LOMBARD = { stock: 0.5, etf: 0.6, fund: 0.5, bond: 0.8 };
+export const LOMBARD = { stock: 0.5, etf: 0.6, fund: 0.5, bond: 0.8 }; // Grobwerte (für Altdaten); genaue Quoten je Wert in credit.js
 // Großaktionärs-Schwellen (Anteil an allen Aktien)
 export const OWNER = [
-  { min: 0.01, name: 'Großaktionär', div: 0, hint: 0.75, perk: 'Investor-Relations-Zugang: Tendenz vor jeder Quartalsbilanz' },
-  { min: 0.05, name: 'Ankeraktionär', div: 0.25, hint: 0.8, perk: 'Stimmrecht auf der Hauptversammlung und 25 % Sonderdividende' },
-  { min: 0.25, name: 'Aufsichtsratssitz', div: 0.5, hint: 0.92, perk: 'Sitz im Aufsichtsrat: 50 % Sonderdividende und verlässlicher Blick auf die Zahlen' }
+  { min: 0.01, name: 'Investor-Relations-Zugang', div: 0, hint: 0.7, perk: 'Tendenz vor jeder Quartalsbilanz' },
+  { min: 0.05, name: 'Meldepflichtiger Großaktionär', div: 0, hint: 0.8, deep: true, perk: 'Tiefere Bilanz-Einblicke und Übernahmeangebot möglich' },
+  { min: 0.25, name: 'Sperrminorität', div: 0, hint: 0.9, deep: true, vote: true, perk: 'Aufsichtsratssitz: Du stimmst über Dividende oder Reinvestition ab' },
+  { min: 0.501, name: 'Mehrheitsaktionär', div: 0, hint: 0.95, deep: true, vote: true, perk: 'Kontrolle: Übernahme und Rückzug von der Börse möglich' }
 ];
+export const BID_MIN_SHARE = 0.05;    // Übernahmeangebot ab 5 % Beteiligung
+export const LBO_SPREAD = 0.045;      // Übernahmekredit: Leitzins + 4,5 %
+export const LBO_MAX_X = 4.5;         // höchstens 4,5 × operativer Jahresgewinn (EBIT)
+export const LBO_MAX_SHARE = 0.6;     // höchstens 60 % des Kaufpreises
+export const PE_STRATS = {
+  cost: { name: 'Kosten radikal senken', desc: 'Marge +4 Prozentpunkte über zwei Quartale, Wachstum −3 Punkte für ein Jahr, einmalig 2 % des Umsatzes für Abfindungen.' },
+  rnd: { name: 'KI- und F&E-Offensive', desc: 'Marge −3 Punkte für drei Quartale. Mit etwa 70 % Wahrscheinlichkeit danach +6 Punkte Wachstum über anderthalb Jahre.' },
+  price: { name: 'Preise erhöhen', desc: 'Marge +3 Punkte, Wachstum −2 Punkte. Bei schlechtem Konsumklima springen Kunden stärker ab.' },
+  special: { name: 'Sonderdividende ausschütten', desc: 'Das Unternehmen nimmt Kredit bis 3,5 × EBIT auf und schüttet das Geld an dich aus – zum Beispiel, um deine eigenen Kredite zu tilgen.' }
+};
 export const DEPOSIT_PREMIUM = { 3: 0.002, 6: 0.004, 12: 0.006 }; // Aufschlag aufs Festgeld über dem Leitzins
 export const CASH_RATE_CAP = 100000; // Guthabenzinsen bis zu diesem Betrag
 

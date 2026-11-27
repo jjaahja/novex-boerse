@@ -1,7 +1,8 @@
 // NOVEX Börse – Marktereignisse: Marktphasen, Zentralbank & Inflation, Quartalszahlen, Dividenden, Gerüchte, Sektor-Termine.
 // Geheimes (vorab gezogene Überraschungen, Wahrheit von Gerüchten, nächste Marktphase) liegt in M.sec und verlässt den Server nie.
 import { M, hook, ENV, byCls, all, addNews, setWhy, gauss, pick, clamp, pct, fmt, fmtE, fmtBig, fDate, dayStart, isTradingDay, DAY, MIN, book, recomputeDerived, unitNav, executeMarket, maxBuyQty, isTradable, r2, logHist, bumpCmd } from './engine.js';
-import { REGIMES, FUNDA, SECTOR_EVENTS, RUMORS, OWNER, SECTORS, TIERS } from './data.js';
+import { REGIMES, FUNDA, SECTOR_EVENTS, RUMORS, OWNER, SECTORS, TIERS, sensOf } from './data.js';
+import { taylor, macroRevFactor } from './macro.js';
 
 const hash = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 const uni = (a, b) => a + Math.random() * (b - a);
@@ -49,13 +50,13 @@ function nextCpi(t) { // zweiter Handelstag des Monats, 11:00
   const d = new Date(t); for (let k = 0; k < 3; k++) { const first = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + k, 1); const rel = at(addTradingDays(nextTradingDay(first), 1), 11, 0); if (rel > t) return rel; }
   return t + 30 * DAY;
 }
-export function cbTarget() { return clamp((2.0 + 1.5 * (M.infl - 2) + (M.reg.k === 'rec' ? -1 : M.reg.k === 'recov' ? -0.5 : 0)) / 100, 0, 0.06); }
+export function cbTarget() { return taylor(); }
 function cbExpect() {
   const gap = cbTarget() - M.lz;
   M.cb.p = gap > 0.004 ? { up: 0.75, hold: 0.25, down: 0 } : gap > 0.0015 ? { up: 0.45, hold: 0.55, down: 0 } : gap < -0.004 ? { up: 0, hold: 0.25, down: 0.75 } : gap < -0.0015 ? { up: 0, hold: 0.55, down: 0.45 } : { up: 0.08, hold: 0.84, down: 0.08 };
 }
 function shockStocks(shock, why, finBonus = 0) {
-  for (const x of byCls('stock')) { const j = x.beta * shock + (x.sector === 'fin' ? finBonus : 0); x.f *= Math.exp(j); x.price = x.f * Math.exp(x.tr); if (why && Math.abs(j) >= 0.004) setWhy(x, `${pct(j, 1)} ${why}`, j); }
+  for (const x of byCls('stock')) { const s = sensOf(x), j = shock * (0.5 * x.beta + 0.5 * s.rate) + (x.sector === 'fin' ? finBonus : 0); x.f *= Math.exp(j); x.price = x.f * Math.exp(x.tr); if (why && Math.abs(j) >= 0.004) setWhy(x, `${pct(j, 1)} ${why}`, j); }
 }
 function refreshFx() { for (const f of byCls('fx')) f.price = M.U[f.base] / M.U[f.quote]; }
 function cbDecision() {
@@ -71,7 +72,7 @@ function cbDecision() {
   addNews(title, d < 0 ? 1 : d > 0 ? -1 : 0, ['WELTIX', 'EURUSD', 'TEUT34'], { cat: 'macro', eff: shock, sub: `Der Markt hatte zu ${Math.round(Math.max(p.up, p.hold, p.down) * 100)} % mit ${likely} gerechnet. ${surpriseTxt} Guthabenzinsen richten sich ab jetzt nach ${fmt(M.lz * 100, 2)} %.` });
   M.cb.last = { t: M.t, d, sur, old }; M.cb.next = nextCb(M.t + DAY); cbExpect();
 }
-function cpiExpect() { const tgt = REGIMES[M.reg.k].infl; M.cpi.exp = Math.round((M.infl + 0.35 * (tgt - M.infl)) * 10) / 10; }
+function cpiExpect() { const tgt = M.mac ? M.mac.inflT : REGIMES[M.reg.k].infl; M.cpi.exp = Math.round((M.infl + 0.35 * (tgt - M.infl)) * 10) / 10; }
 function cpiRelease() {
   const exp = M.cpi.exp, act = clamp(Math.round((exp + gauss() * 0.25) * 10) / 10, -1, 12), sur = act - exp, prev = M.infl;
   M.infl = act; M.r = clamp(M.r + 0.001 * sur, -0.01, 0.12); M.slope = clamp(M.slope + 0.0005 * sur, -0.03, 0.05);
@@ -97,6 +98,7 @@ function drawPre(x) {
   const guid = s > 0.04 ? (r < 0.5 ? 'up' : 'keep') : s < -0.03 ? (r < 0.5 ? 'down' : 'keep') : (r < 0.15 ? 'up' : r < 0.27 ? 'down' : 'keep');
   return { s, rs, guid, u: Math.random() };
 }
+export function scheduleReport(x) { nextReport(x); }
 function nextReport(x) {
   const fin = x.fin, today = dayStart(M.t), lastEnd = fin.hist.length ? fin.hist[fin.hist.length - 1].end : 0;
   for (const e of quarterEnds(fin.fy, M.t - 200 * DAY, M.t + 420 * DAY)) { const rd = reportDate(x, e); if (rd > today && e > lastEnd) { fin.next = rd; fin.nq = e; break; } }
@@ -129,10 +131,13 @@ function initFin(x) {
 }
 function report(x) {
   const fin = x.fin, pre = (M.sec && M.sec.pre[x.id]) || drawPre(x);
-  const revE = fin.rev * (1 + fin.g / 4), rev = revE * (1 + pre.rs);
-  const epsE = fin.eps >= 0 ? fin.eps * (1 + fin.g / 4 * 0.9) : fin.eps * 0.96, eps = epsE + Math.abs(epsE) * pre.s;
-  const verdict = pre.s > 0.02 ? 'beat' : pre.s < -0.02 ? 'miss' : 'inline';
-  const j = clamp((0.9 * pre.s + 0.5 * pre.rs + (pre.guid === 'up' ? 0.03 : pre.guid === 'down' ? -0.045 : 0) + 0.012 * gauss()) * Math.sqrt(x.vol / 0.3), -0.3, 0.3);
+  // Konjunktur und Politik (Zölle, Steuern, Strafen): Analysten preisen nur einen Teil ein
+  const mac = macroRevFactor(x), padj = clamp(x.padj || 0, -0.6, 0.6); x.padj = 0;
+  const revE = fin.rev * (1 + fin.g / 4) * (1 + 0.5 * mac), rev = revE * (1 + pre.rs + 0.5 * mac);
+  const epsE0 = fin.eps >= 0 ? fin.eps * (1 + fin.g / 4 * 0.9) : fin.eps * 0.96, epsE = epsE0 * (1 + mac + 0.5 * padj);
+  const eps = (epsE0 + Math.abs(epsE0) * pre.s) * (1 + 2 * mac + padj);
+  const sur = epsE ? (eps - epsE) / Math.abs(epsE) : pre.s, verdict = sur > 0.02 ? 'beat' : sur < -0.02 ? 'miss' : 'inline';
+  const j = clamp((0.9 * clamp(sur, -0.5, 0.5) + 0.5 * pre.rs + (pre.guid === 'up' ? 0.03 : pre.guid === 'down' ? -0.045 : 0) + 0.012 * gauss()) * Math.sqrt(x.vol / 0.3), -0.3, 0.3);
   x.f *= Math.exp(j); x.tr = 0; x.price = x.f; x.vb = 3.5;
   const q = qLabel(fin.nq), yoy = fin.hist.length >= 4 ? rev / fin.hist[fin.hist.length - 4].rev - 1 : NaN;
   const h = { q, end: fin.nq, date: dayStart(M.t), revE, rev, epsE, eps, margin: eps * x.shares / rev * 1.3, guid: pre.guid, verdict, move: j, sum: '' };
@@ -143,8 +148,10 @@ function report(x) {
   const vw = verdict === 'beat' ? 'starken' : verdict === 'miss' ? 'schwachen' : 'soliden';
   const title = verdict === 'beat' ? `${x.name} übertrifft die Erwartungen: Gewinn je Aktie ${fmt(eps, 2)} € statt ${fmt(epsE, 2)} €` : verdict === 'miss' ? `${x.name} verfehlt die Erwartungen: Gewinn je Aktie ${fmt(eps, 2)} € statt ${fmt(epsE, 2)} €` : `${x.name} liefert Zahlen im Rahmen der Erwartungen`;
   addNews(title, j > 0.005 ? 1 : j < -0.005 ? -1 : 0, [x.id], { cat: 'earn', eff: j, sub: `${q}: Umsatz ${fmtBig(rev)} € (${pct(rev / revE - 1, 1)} gegenüber der Erwartung), Ausblick ${GUID[pre.guid]}. Aktie ${pct(j, 1)} zur Eröffnung.` });
-  setWhy(x, `${pct(j, 1)} nach ${vw} ${q}-Zahlen${pre.guid !== 'keep' ? ' und ' + (pre.guid === 'up' ? 'angehobener' : 'gesenkter') + ' Prognose' : ''}`, j);
-  if (x.dy > 0) payDividend(x, x.dy * x.price / 4, q);
+  setWhy(x, `${pct(j, 1)} nach ${vw} ${q}-Zahlen${pre.guid !== 'keep' ? ' und ' + (pre.guid === 'up' ? 'angehobener' : 'gesenkter') + ' Prognose' : ''}${padj < -0.02 ? ' – Zölle und Politik drücken die Marge' : padj > 0.02 ? ' – Rückenwind aus der Politik' : ''}`, j);
+  const gov = x.gov && x.gov.pay, pm = gov === 'div' ? 1.8 : gov === 're' ? 0.3 : 1;
+  if (gov === 're') fin.g = clamp(fin.g + 0.01, -0.4, 1.2); else if (gov === 'div') fin.g = clamp(fin.g - 0.005, -0.4, 1.2);
+  if (x.dy > 0) payDividend(x, x.dy * pm * x.price / 4, q);
   nextReport(x);
 }
 
@@ -177,14 +184,14 @@ function maybeScheduleSector() {
   const opts = SECTOR_EVENTS.filter(s => !pending.some(p => p.sector === s.sector)); if (!opts.length) return;
   const s = pick(opts), d = addTradingDays(M.t, 2 + Math.floor(Math.random() * 4)), ev = { id: M.nseq, kind: 'sector', sector: s.sector, title: s.title, t: at(d, 15, 0), done: false };
   M.events.push(ev);
-  addNews(`Termin am ${fDate(ev.t, true).slice(0, 9)}: ${s.title}`, 0, stocksOf(s.sector).slice(0, 4).map(x => x.id), { cat: 'sector', sub: `Das Ergebnis kann ${SECTORS[s.sector]}-Werte deutlich bewegen – in beide Richtungen. Wer vorbereitet sein will, prüft jetzt seine Positionen.` });
+  addNews(`Termin am ${fDate(ev.t, true).slice(0, 9)}: ${s.title}`, 0, stocksOf(s.sector).slice(0, 4).map(x => x.id), { cat: 'politics', sub: `Das Ergebnis kann ${SECTORS[s.sector]}-Werte deutlich bewegen – in beide Richtungen. Wer vorbereitet sein will, prüft jetzt seine Positionen.` });
 }
 function resolveSector(ev) {
   const pos = Math.random() < 0.55, j = (pos ? 1 : -1) * uni(0.02, 0.05), head = ev.title.split(':')[0];
   for (const x of stocksOf(ev.sector)) { const jj = j * uni(0.7, 1.3) * Math.sqrt(x.vol / 0.3); x.f *= Math.exp(jj); x.price = x.f * Math.exp(x.tr); setWhy(x, `${pct(jj, 1)} nach ${head}`, jj); }
   if (ev.sector === 'energy') bumpCmd('BRNT', Math.exp(j));
   recomputeDerived();
-  addNews(`${head}: ${pos ? 'Entscheidung fällt zugunsten der Branche aus' : 'Entscheidung belastet die Branche'}`, pos ? 1 : -1, stocksOf(ev.sector).slice(0, 4).map(x => x.id), { cat: 'sector', eff: j, sub: `${SECTORS[ev.sector]}-Werte reagieren im Schnitt mit ${pct(j, 1)}.` });
+  addNews(`${head}: ${pos ? 'Entscheidung fällt zugunsten der Branche aus' : 'Entscheidung belastet die Branche'}`, pos ? 1 : -1, stocksOf(ev.sector).slice(0, 4).map(x => x.id), { cat: 'politics', eff: j, sub: `${SECTORS[ev.sector]}-Werte reagieren im Schnitt mit ${pct(j, 1)}.` });
   ev.done = true; ev.res = j;
 }
 
@@ -199,7 +206,7 @@ function publishRumor(r) {
   const x = M.inst[r.id], T = RUMORS[r.tpl]; if (!x) { r.res = 0; return; }
   const mv = uni(T.up[0], T.up[1]) * 0.4 * Math.sqrt(x.vol / 0.3), txt = T.txt.replace('{n}', x.name);
   x.f *= Math.exp(mv); x.price = x.f * Math.exp(x.tr); r.mv = mv; r.out = true;
-  addNews(txt, mv > 0 ? 1 : -1, [x.id], { cat: 'rumor', rumor: true, eff: mv, sub: 'Unbestätigt. Ob etwas dran ist, zeigt sich in den nächsten Tagen – Gerüchte stimmen längst nicht immer.' });
+  addNews(txt, mv > 0 ? 1 : -1, [x.id], { cat: r.tpl === 0 ? 'ma' : 'company', rumor: true, p: r.tpl === 0 ? 0.4 : null, eff: mv, sub: 'Unbestätigt. Ob etwas dran ist, zeigt sich in den nächsten Tagen – Gerüchte stimmen längst nicht immer.' });
   setWhy(x, `${pct(mv, 1)} wegen eines Gerüchts`, mv);
 }
 function resolveRumor(r) {
@@ -208,7 +215,7 @@ function resolveRumor(r) {
   if (r.truth) { const full = uni(T.up[0], T.up[1]) * Math.sqrt(x.vol / 0.3); const prem = Math.round(25 + Math.random() * 20); j = (r.tpl === 0 ? prem / 100 * 0.8 : full) - r.mv; txt = T.yes.replace('{n}', x.name).replace('{p}', prem); }
   else { j = -r.mv * 0.9; txt = T.no.replace('{n}', x.name); }
   x.f *= Math.exp(j); x.price = x.f * Math.exp(x.tr);
-  addNews(txt, j > 0 ? 1 : -1, [x.id], { cat: 'company', eff: j, sub: r.truth ? 'Das Gerücht hat sich bestätigt.' : 'Das Gerücht war falsch – der Kurs gibt den Gerüchte-Aufschlag wieder ab.' });
+  addNews(txt, j > 0 ? 1 : -1, [x.id], { cat: r.tpl === 0 ? 'ma' : 'company', eff: j, sub: r.truth ? 'Das Gerücht hat sich bestätigt.' : 'Das Gerücht war falsch – der Kurs gibt den Gerüchte-Aufschlag wieder ab.' });
   setWhy(x, `${pct(j, 1)} – ${txt}`, j);
 }
 
@@ -225,7 +232,7 @@ hook('step', () => {
   if (M.cb.next && M.t >= M.cb.next) cbDecision();
   if (M.cpi.next && M.t >= M.cpi.next) cpiRelease();
   let changed = false;
-  for (const ev of M.events) if (!ev.done && M.t >= ev.t) { resolveSector(ev); changed = true; }
+  for (const ev of M.events) if (!ev.done && ev.kind === 'sector' && M.t >= ev.t) { resolveSector(ev); changed = true; }
   for (const r of M.sec.rumors) { if (!r.out && M.t >= r.at) { publishRumor(r); changed = true; } else if (r.out && M.t >= r.res) { resolveRumor(r); r.done = true; changed = true; } }
   if (changed) { M.sec.rumors = M.sec.rumors.filter(r => !r.done && r.res); recomputeDerived(); }
 });
@@ -237,9 +244,18 @@ export function insightsFor(A) {
   for (const x of byCls('stock')) {
     const pre = M.sec.pre[x.id]; if (!pre || !x.fin) continue;
     const p = A.pos[x.id], lv = ownerLevel(p ? p.qty / x.shares : 0), acc = lv ? lv.hint : tier.hint ? 0.65 : 0; if (!acc) continue;
-    const truth = pre.s > 0.01 ? 1 : pre.s < -0.01 ? -1 : 0, ok = pre.u < acc;
+    const ts = pre.s + 0.5 * (x.padj || 0) + macroRevFactor(x), truth = ts > 0.01 ? 1 : ts < -0.01 ? -1 : 0, ok = pre.u < acc;
     out.hints.push({ id: x.id, dir: ok ? truth : (truth === 0 ? (pre.u < (1 + acc) / 2 ? 1 : -1) : -truth), acc, src: lv ? lv.name : 'Analystentendenz', date: x.fin.next });
   }
   if (tier.phase && M.sec.nextReg) out.phase = { next: M.sec.nextReg, until: M.reg.until };
+  // Bilanz-Einblicke ab 5 % (interne Planung), Insider-Wissen zur Übernahmeprämie ab 25 %
+  out.deep = {};
+  for (const id in A.pos) {
+    const x = M.inst[id]; if (!x || x.cls !== 'stock' || !x.fin) continue; const sh = A.pos[id].qty / x.shares; if (sh < 0.05) continue;
+    const pre = M.sec.pre[id] || { s: 0, rs: 0 }, mac = macroRevFactor(x), fin = x.fin;
+    const rev = fin.rev * (1 + fin.g / 4) * (1 + pre.rs + mac), eps = (fin.eps >= 0 ? fin.eps * (1 + fin.g / 4 * 0.9) : fin.eps * 0.96) * (1 + pre.s + 2 * mac + (x.padj || 0));
+    const d = out.deep[id] = { rev: rev * (1 + 0.02 * gauss()), eps: eps * (1 + 0.03 * gauss()), padj: x.padj || 0 };
+    if (sh >= 0.25 && ENV.bidReq) d.req = Math.round((ENV.bidReq(x) + 0.03 * gauss()) * 100) / 100;
+  }
   return out;
 }
