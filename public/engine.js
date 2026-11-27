@@ -1,6 +1,9 @@
 // NOVEX Börse – gemeinsame Engine für Browser (Vorschau) und Cloudflare Worker (verbindliche Ausführung).
 // Alle Unternehmen, Staaten, Fonds und Emittenten sind frei erfunden.
 
+import { SECTORS, CSECT, STOCKS, CORE, BONDS, CMDS, CMDNEWS, FXP, ETFS, FUNDS, POSN, NEGN, LIC, LUX, LUX_BUYBACK, ACH, TIERS, LOMBARD } from './data.js';
+export * from './data.js';
+
 export const VERSION = 2;
 export const MIN = 60000, DAY = 86400000, YR = 365 * DAY;
 export const OPEN_MIN = 8 * 60, CLOSE_MIN = 22 * 60, FUND_CUT = 17 * 60 + 30; // Handelszeit 08:00–22:00, Fonds-Annahmeschluss 17:30
@@ -16,8 +19,12 @@ const RATES = { USD: 0.040, GBP: 0.040, JPY: 0.005, CHF: 0.0025, AUD: 0.036 };
 const SIG_M = 0.14, SIG_S = 0.09, SIG_C = 0.10, VS = 0.76, VSH = VS * Math.sqrt(1.25), VSC = 0.68; // VSC: Rohstoffe haben zusätzlich Makro-Preissprünge
 
 export let M = null;
+// Erweiterungspunkte für events.js (Marktphasen, Quartalszahlen, Termine) und wealth.js (Konto-Funktionen)
+const HOOK = { init: [], gap: [], open: [], close: [], step: [], mark: [] };
+export function hook(name, fn) { HOOK[name].push(fn); }
+const run = (name, ...a) => { for (const f of HOOK[name]) f(...a); };
 // Beim Laden: abgeleitete Parameter neu berechnen und neu hinzugekommene Produkte in den laufenden Markt einfügen
-export function setMarket(m) { M = m; const added = buildMissing(); normalize(); if (added.length && M.ids.includes('WELTIX') && !added.includes('WELTIX')) extendWorld(added); return added; }
+export function setMarket(m) { M = m; const added = buildMissing(); normalize(); if (added.length && M.ids.includes('WELTIX') && !added.includes('WELTIX')) extendWorld(added); run('init'); return added; }
 function normalize() {
   for (const id of M.ids) {
     const x = M.inst[id]; if (x.cls !== 'stock' && x.cls !== 'cmd') continue;
@@ -26,14 +33,14 @@ function normalize() {
     const vs = x.cls === 'cmd' ? VSC : VS; x.var = vs * vs * (Math.pow(x.beta * SIG_M, 2) + sg * sg + x.idv * x.idv);
   }
 }
-const ENV = { accounts: () => [], note() { }, dirty() { }, fee() { }, event() { } };
+export const ENV = { accounts: () => [], note() { }, dirty() { }, fee() { }, event() { }, pay: () => 0, collect() { } };
 export function setEnv(e) { Object.assign(ENV, e); }
 
 /* ---------- Hilfen ---------- */
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-function gauss() { let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
-function heavy() { const g = gauss(); return (Math.random() < 0.04 ? g * 2.5 : g) / 1.1; }
-const pick = a => a[Math.floor(Math.random() * a.length)];
+export function gauss() { let u = 0, v = 0; while (u === 0) u = Math.random(); while (v === 0) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+export function heavy() { const g = gauss(); return (Math.random() < 0.04 ? g * 2.5 : g) / 1.1; }
+export const pick = a => a[Math.floor(Math.random() * a.length)];
 export const dayStart = t => Math.floor(t / DAY) * DAY;
 export const minuteOfDay = t => { const d = new Date(t); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
 export const weekStart = t => { const d = dayStart(t); return d - ((new Date(d).getUTCDay() + 6) % 7) * DAY; };
@@ -56,7 +63,7 @@ export function fDate(t, wd) { const d = new Date(t); return (wd ? WD[d.getUTCDa
 export function fTime(t) { const d = new Date(t); return p2(d.getUTCHours()) + ':' + p2(d.getUTCMinutes()); }
 export function dig(x) { if (x.cls === 'fx') return x.dec; if (x.cls === 'bond') return 3; if (x.cls === 'cmd' && x.price < 10) return 3; if (x.price < 2) return 4; return 2; }
 export function fmtPx(x, p) { return fmt(p, dig(x)) + (x.cls === 'bond' ? ' %' : x.cls === 'cmd' ? ' $' : x.cls === 'fx' || x.cls === 'index' ? '' : ' €'); }
-export function fmtQty(x, q) { if (x.cls === 'bond') return fmt(q, 0) + ' € nom.'; if (x.cls === 'fund') return fmt(q, 3) + ' Ant.'; return fmt(q, 0) + ' Stk.'; }
+export function fmtQty(x, q) { if (x.cls === 'bond') return fmt(q, 0) + ' € nom.'; if (x.cls === 'fund') return fmt(q, 3) + ' Ant.'; return (Math.abs(q - Math.round(q)) < 1e-9 ? fmt(q, 0) : fmt(q, 4).replace(/0+$/, '')) + ' Stk.'; }
 export function fmtD(p) { return fmt(p, p < 1 ? 4 : p < 10 ? 3 : 2) + ' €'; }
 export const r2 = n => Math.round(n * 100) / 100;
 
@@ -72,137 +79,6 @@ function bsDelta(cp, S, K, T, r, q, v) {
   const d1 = (Math.log(S / K) + (r - q + 0.5 * v * v) * T) / (v * Math.sqrt(T));
   return cp === 'C' ? Math.exp(-q * T) * ncdf(d1) : Math.exp(-q * T) * (ncdf(d1) - 1);
 }
-
-/* ---------- Stammdaten ---------- */
-export const SECTORS = { tech: 'Software & Internet', semi: 'Halbleiter', auto: 'Automobil', fin: 'Finanzen', cons: 'Konsum', energy: 'Energie', health: 'Gesundheit', ind: 'Industrie', tel: 'Telekom', chem: 'Chemie' };
-export const CSECT = { prec: 'Edelmetalle', ener: 'Energie', metal: 'Industriemetalle', agri: 'Agrar' };
-const STOCKS = [
-  ['MVDA', 'Mvidia Corp.', 'semi', 168.40, 24.4, 1.6, 0.50, 0.0070, 46, 0.0003, 'Weltmarktführer für KI-Beschleuniger und Grafikprozessoren.'],
-  ['PEAR', 'Pear Inc.', 'tech', 212.80, 15.0, 1.1, 0.26, 0.0030, 33, 0.0045, 'Smartphones, Tablets und ein geschlossenes App-Ökosystem.'],
-  ['MHRD', 'Macrohard Corp.', 'tech', 405.10, 7.4, 1.0, 0.24, 0.0030, 35, 0.0075, 'Betriebssysteme, Büro-Software und Cloud-Infrastruktur.'],
-  ['ABET', 'Alphabeat Inc.', 'tech', 252.30, 12.1, 1.1, 0.30, 0.0030, 24, 0.0035, 'Suchmaschine, Werbenetzwerk und Videoplattform.'],
-  ['AMZS', 'Amazonas Retail', 'cons', 198.60, 10.6, 1.2, 0.32, 0.0040, 38, 0, 'Online-Versandhandel und Cloud-Dienste.'],
-  ['TSLR', 'Tesler Motors', 'auto', 365.20, 3.2, 2.0, 0.60, 0.0200, 120, 0, 'Elektroautos, Batteriespeicher und Robotaxi-Pläne.'],
-  ['MTVR', 'Metaversum Platforms', 'tech', 590.50, 2.5, 1.3, 0.38, 0.0050, 27, 0.0034, 'Soziale Netzwerke, Messenger und VR-Brillen.'],
-  ['SAPF', 'Sapfire Software', 'tech', 205.40, 1.23, 0.9, 0.28, 0.0030, 42, 0.0110, 'Unternehmenssoftware für Buchhaltung und Logistik.'],
-  ['SIMZ', 'Siemenz AG', 'ind', 218.30, 0.79, 1.0, 0.25, 0.0030, 19, 0.0240, 'Automatisierung, Zugtechnik und Medizintechnik.'],
-  ['ALNX', 'Allianx SE', 'fin', 345.60, 0.385, 0.8, 0.20, 0.0025, 13, 0.0460, 'Versicherungen und Vermögensverwaltung.'],
-  ['DBNK', 'Deutsche Bunk AG', 'fin', 26.42, 1.95, 1.4, 0.35, 0.0060, 10, 0.0260, 'Universalbank mit großem Investmentbanking.'],
-  ['VWGN', 'Volkswagon AG', 'auto', 92.18, 0.50, 1.2, 0.30, 0.0050, 4.5, 0.0680, 'Massenhersteller von Pkw und Nutzfahrzeugen.'],
-  ['BMVW', 'BMV Motorenwerke', 'auto', 78.04, 0.64, 1.1, 0.28, 0.0040, 6, 0.0560, 'Premium-Autos und Motorräder.'],
-  ['ADBS', 'Adibas AG', 'cons', 182.50, 0.178, 1.0, 0.30, 0.0060, 32, 0.0110, 'Sportartikel, Schuhe und Bekleidung.'],
-  ['NSTL', 'Nestlo SA', 'cons', 81.20, 2.6, 0.5, 0.17, 0.0020, 17, 0.0380, 'Nahrungsmittel, Kaffee und Tiernahrung.'],
-  ['KOKA', 'Koka-Kolo Co.', 'cons', 63.10, 4.3, 0.6, 0.16, 0.0020, 24, 0.0300, 'Erfrischungsgetränke in über 200 Ländern.'],
-  ['EXXF', 'Exxoff Energy', 'energy', 104.30, 4.3, 0.8, 0.25, 0.0030, 13, 0.0350, 'Öl- und Gasförderung, Raffinerien.'],
-  ['SHLL', 'Shall plc', 'energy', 31.55, 6.1, 0.8, 0.24, 0.0030, 11, 0.0400, 'Integrierter Energiekonzern mit Flüssiggasgeschäft.'],
-  ['PFZR', 'Pfizzer Inc.', 'health', 24.80, 5.7, 0.6, 0.22, 0.0040, 9, 0.0650, 'Impfstoffe und verschreibungspflichtige Medikamente.'],
-  ['NVNO', 'Novanordo A/S', 'health', 54.10, 4.4, 0.9, 0.38, 0.0060, 18, 0.0250, 'Diabetes- und Abnehmmedikamente.'],
-  ['ABZZ', 'Airbuzz SE', 'ind', 196.20, 0.79, 1.1, 0.28, 0.0030, 28, 0.0100, 'Verkehrsflugzeuge, Hubschrauber und Raumfahrt.'],
-  ['TTEL', 'Telekom Teutonia', 'tel', 30.20, 4.98, 0.5, 0.18, 0.0020, 14, 0.0300, 'Mobilfunk, Festnetz und Glasfaser.'],
-  ['QNTX', 'Quantix Computing', 'tech', 14.20, 0.30, 2.4, 0.95, 0.0500, -1, 0, 'Quantencomputer-Start-up, noch ohne Gewinn.'],
-  ['SOLR', 'Solaris Energie', 'energy', 7.82, 0.50, 1.6, 0.70, 0.0200, 31, 0, 'Solarparks und Heimspeicher, hoch verschuldet.'],
-  // ab hier: nicht im WELTIX 24 enthalten
-  ['NTFX', 'Netflux Inc.', 'tech', 612.40, 0.43, 1.2, 0.36, 0.0050, 41, 0, 'Streamingdienst mit eigenen Serien und Filmen.'],
-  ['JPMG', 'JP Morgen Chase', 'fin', 218.70, 2.85, 1.1, 0.24, 0.0030, 13, 0.0220, 'Größte Bank des Landes: Privatkunden, Investmentbanking, Vermögensverwaltung.'],
-  ['VIZZ', 'Vizza Payments', 'fin', 286.30, 1.95, 0.9, 0.20, 0.0025, 30, 0.0075, 'Kreditkarten-Netzwerk und digitale Zahlungen.'],
-  ['HRMZ', 'Hermez SCA', 'cons', 2210.00, 0.105, 0.9, 0.27, 0.0020, 52, 0.0080, 'Luxusmode, Lederwaren und Seidentücher mit langen Wartelisten.'],
-  ['RHST', 'Rheinstahl Defence', 'ind', 548.00, 0.0435, 0.7, 0.42, 0.0120, 38, 0.0090, 'Panzer, Munition und Flugabwehr – profitiert von steigenden Verteidigungsetats.'],
-  ['LUFZ', 'Lufthanza AG', 'ind', 6.84, 1.2, 1.4, 0.38, 0.0080, 6, 0.0440, 'Fluggesellschaft mit Drehkreuzen in Frankfurt und München.'],
-  ['BSFA', 'Basfa SE', 'chem', 44.30, 0.89, 1.1, 0.26, 0.0040, 21, 0.0770, 'Chemiekonzern: Kunststoffe, Agrarchemie und Batteriematerialien.'],
-  ['CBZE', 'Coinbaze Global', 'fin', 245.60, 0.25, 2.2, 0.80, 0.0300, 45, 0, 'Kryptobörse – schwankt mit dem Bitcoin-Kurs.']
-];
-const CORE = new Set(STOCKS.slice(0, 24).map(d => d[0])); // Bestandteile des WELTIX 24
-const BONDS = [
-  ['TEUT29', 'Teutonien 2,10 % 2029', 'Bundesrepublik Teutonien', 2.10, [2029, 4, 15], 'AAA', 0, 1500, null],
-  ['TEUT34', 'Teutonien 2,60 % 2034', 'Bundesrepublik Teutonien', 2.60, [2034, 2, 15], 'AAA', 0, 1200, null],
-  ['TEUT54', 'Teutonien 3,25 % 2054', 'Bundesrepublik Teutonien', 3.25, [2054, 8, 15], 'AAA', 8, 400, null],
-  ['HISP31', 'Hispalia 3,15 % 2031', 'Königreich Hispalia', 3.15, [2031, 10, 31], 'A', 55, 600, null],
-  ['LOMB33', 'Lombardia 3,85 % 2033', 'Republik Lombardia', 3.85, [2033, 9, 1], 'BBB', 110, 800, null],
-  ['MVDA30', 'Mvidia 3,40 % 2030', 'Mvidia Corp.', 3.40, [2030, 6, 1], 'AA-', 45, 120, 'MVDA'],
-  ['TSLR32', 'Tesler 5,75 % 2032', 'Tesler Motors', 5.75, [2032, 3, 15], 'BB+', 250, 90, 'TSLR'],
-  ['DBNK28', 'Deutsche Bunk 4,50 % 2028', 'Deutsche Bunk AG', 4.50, [2028, 1, 19], 'BBB', 130, 150, 'DBNK'],
-  ['VWGN31', 'Volkswagon 3,875 % 2031', 'Volkswagon AG', 3.875, [2031, 11, 30], 'BBB+', 105, 110, 'VWGN'],
-  ['SOLR29', 'Solaris Energie 8,25 % 2029', 'Solaris Energie', 8.25, [2029, 7, 1], 'B', 560, 15, 'SOLR'],
-  ['TEUT27', 'Teutonien 2,00 % 2027', 'Bundesrepublik Teutonien', 2.00, [2027, 6, 15], 'AAA', 0, 2000, null],
-  ['TEUT31', 'Teutonien 0 % 2031 (Nullkupon)', 'Bundesrepublik Teutonien', 0, [2031, 8, 15], 'AAA', 0, 700, null],
-  ['JPMG29', 'JP Morgen 4,20 % 2029', 'JP Morgen Chase', 4.20, [2029, 9, 24], 'A+', 70, 200, 'JPMG'],
-  ['HRMZ35', 'Hermez 3,10 % 2035', 'Hermez SCA', 3.10, [2035, 5, 7], 'A', 60, 60, 'HRMZ'],
-  ['CBZE30', 'Coinbaze 9,50 % 2030', 'Coinbaze Global', 9.50, [2030, 10, 1], 'B-', 650, 20, 'CBZE']
-];
-// Rohstoffe (Notierung in US-Dollar): id, Name, Einheit, Kurs, Vola p.a., Beta, Gruppe, Tagesumsatz (Mrd €), halber Spread, Beschreibung
-const CMDS = [
-  ['GOLD', 'Gold', 'Feinunze', 2650, 0.15, -0.05, 'prec', 150, 0.00005, 'Das klassische Krisenmetall. Gefragt, wenn Anleger Sicherheit suchen.'],
-  ['SILV', 'Silber', 'Feinunze', 31.20, 0.28, 0.2, 'prec', 20, 0.0002, 'Edel- und Industriemetall, schwankt stärker als Gold.'],
-  ['BRNT', 'Rohöl Brent', 'Barrel', 73.40, 0.32, 0.5, 'ener', 100, 0.0002, 'Referenzsorte für Rohöl aus der Nordsee.'],
-  ['NGAS', 'Erdgas', 'MMBtu', 3.20, 0.60, 0.3, 'ener', 20, 0.0006, 'US-Erdgas (Henry Hub). Wetter und Speicherstände bewegen den Preis stark.'],
-  ['COPR', 'Kupfer', 'Pfund', 4.15, 0.22, 0.7, 'metal', 30, 0.0003, 'Konjunkturmetall für Kabel, Motoren und Stromnetze.'],
-  ['WHEA', 'Weizen', 'Scheffel', 5.50, 0.28, 0.1, 'agri', 3, 0.0008, 'Wichtigstes Brotgetreide; Ernten und Wetter treiben den Preis.']
-];
-const CMDNEWS = {
-  GOLD: [['Zentralbanken kaufen Gold in Rekordmenge', 'Goldpreis steigt nach schwachen US-Daten'], ['Starker Dollar belastet den Goldpreis', 'Anleger ziehen Geld aus Gold-ETCs ab']],
-  SILV: [['Solarindustrie treibt Silbernachfrage', 'Silber folgt Gold nach oben'], ['Silberminen fahren Produktion hoch', 'Gewinnmitnahmen bei Silber']],
-  BRNT: [['OPEC+ kündigt Förderkürzung an', 'Angriff auf Tanker im Golf treibt Ölpreis'], ['US-Lagerbestände steigen überraschend stark', 'OPEC+ uneinig – mehr Öl kommt auf den Markt']],
-  NGAS: [['Kältewelle treibt Gasnachfrage', 'Ausfall eines LNG-Terminals verknappt Angebot'], ['Milder Winter: Gasspeicher randvoll', 'Neue Förderprojekte drücken Gaspreis']],
-  COPR: [['Streik in der größten Kupfermine der Welt', 'Netzausbau lässt Kupfernachfrage steigen'], ['Bauwirtschaft schwächelt – Kupfer unter Druck', 'Kupferlager in London füllen sich']],
-  WHEA: [['Dürre bedroht die Weizenernte', 'Exportstopp eines großen Anbaulands'], ['Rekordernte drückt Weizenpreise', 'Regen entspannt die Lage auf den Feldern']]
-};
-const FXP = [
-  ['EURUSD', 'EUR', 'USD', 500, 0.6, 0.065], ['GBPUSD', 'GBP', 'USD', 200, 0.9, 0.075], ['USDJPY', 'USD', 'JPY', 300, 0.8, 0.095],
-  ['EURCHF', 'EUR', 'CHF', 60, 1.2, 0.055], ['AUDUSD', 'AUD', 'USD', 90, 0.8, 0.095], ['EURGBP', 'EUR', 'GBP', 70, 0.9, 0.055], ['EURJPY', 'EUR', 'JPY', 70, 1.2, 0.10]
-];
-const ETFS = [
-  { id: 'WLTX', name: 'iShores WELTIX 24 UCITS ETF', px: 92.40, ter: 0.0007, sprd: 0.0004, adv: 3e8, comp: 'ALLCAP', desc: 'Bildet den Leitindex WELTIX 24 physisch und vollständig nach.' },
-  { id: 'TECX', name: 'Vanguardian Global Tech ETF', px: 48.15, ter: 0.0015, sprd: 0.0005, adv: 1.2e8, comp: 'TECHCAP', desc: 'Alle Software-, Internet- und Halbleiterwerte, nach Marktkapitalisierung gewichtet.' },
-  { id: 'DIVX', name: 'Xtrakt Europa Dividenden ETF', px: 31.70, ter: 0.0030, sprd: 0.0008, adv: 3e7, comp: { ALNX: 1, SIMZ: 1, TTEL: 1, NSTL: 1, BMVW: 1, VWGN: 1, DBNK: 1, SHLL: 1, ABZZ: 1, SAPF: 1 }, desc: 'Zehn europäische Dividendenwerte, gleichgewichtet.' },
-  { id: 'EGOV', name: 'iShores Euro Staatsanleihen ETF', px: 118.30, ter: 0.0009, sprd: 0.00015, adv: 8e7, comp: { TEUT29: 1, TEUT34: 1, TEUT54: 1, HISP31: 1, LOMB33: 1 }, desc: 'Staatsanleihen der Eurozone über alle Laufzeiten.' },
-  { id: 'ECRP', name: 'Xtrakt Euro Corporate Bond ETF', px: 54.20, ter: 0.0020, sprd: 0.0003, adv: 2.5e7, comp: { MVDA30: 1, TSLR32: 1, DBNK28: 1, VWGN31: 1, SOLR29: 1 }, desc: 'Unternehmensanleihen von Investment Grade bis High Yield.' },
-  { id: 'GLDX', name: 'Xtrakt Physical Gold ETC', px: 24.80, ter: 0.0025, sprd: 0.0003, adv: 1.5e8, comp: { GOLD: 1 }, desc: 'Mit physischem Gold hinterlegt. Notiert in Euro und folgt dem Goldpreis in US-Dollar (nicht währungsgesichert).' },
-  { id: 'SLVX', name: 'Xtrakt Physical Silver ETC', px: 28.40, ter: 0.0045, sprd: 0.0006, adv: 3e7, comp: { SILV: 1 }, desc: 'Mit physischem Silber hinterlegt, nicht währungsgesichert.' },
-  { id: 'OILX', name: 'WisdomFree Brent Crude Oil ETC', px: 18.60, ter: 0.0049, sprd: 0.0008, adv: 4e7, comp: { BRNT: 1 }, desc: 'Bildet den Ölpreis der Sorte Brent ab, nicht währungsgesichert.' },
-  { id: 'CMDX', name: 'iShores Diversified Commodity ETF', px: 36.20, ter: 0.0019, sprd: 0.0006, adv: 3e7, comp: { GOLD: .3, BRNT: .25, COPR: .2, SILV: .1, NGAS: .1, WHEA: .05 }, desc: 'Breiter Rohstoffkorb aus Edelmetallen, Energie, Industriemetallen und Agrar.' },
-  { id: 'FINX', name: 'Vanguardian Global Financials ETF', px: 42.90, ter: 0.0018, sprd: 0.0005, adv: 4e7, comp: { JPMG: .3, VIZZ: .25, ALNX: .2, DBNK: .15, CBZE: .1 }, desc: 'Banken, Versicherer und Zahlungsdienstleister.' },
-  { id: 'DEFX', name: 'Xtrakt Europe Defence ETF', px: 27.10, ter: 0.0035, sprd: 0.0008, adv: 2e7, comp: { RHST: .4, ABZZ: .35, SIMZ: .25 }, desc: 'Europäische Rüstungs- und Luftfahrtwerte.' }
-];
-const FUNDS = [
-  { id: 'DWZT', name: 'DWZ Top Dividende', px: 142.85, aa: 0.05, ter: 0.0145, av: 0.02, type: 'Aktienfonds', comp: { ALNX: .12, NSTL: .12, KOKA: .12, TTEL: .12, EXXF: .10, SHLL: .10, PFZR: .10, SIMZ: .11, MHRD: .11 }, desc: 'Aktiv gemanagter Dividendenfonds mit Fokus auf defensive Substanzwerte.' },
-  { id: 'UNIG', name: 'Unidepot Global', px: 386.20, aa: 0.05, ter: 0.0150, av: 0.02, type: 'Aktienfonds', comp: { PEAR: .12, MHRD: .12, ABET: .10, AMZS: .10, MVDA: .10, NSTL: .06, ALNX: .06, SIMZ: .06, NVNO: .06, EXXF: .06, KOKA: .05, SAPF: .05, ABZZ: .06 }, desc: 'Breit gestreuter globaler Aktienfonds.' },
-  { id: 'FTIN', name: 'Fidelitas Tech Innovation', px: 27.64, aa: 0.0525, ter: 0.0180, av: 0.03, type: 'Aktienfonds', comp: { MVDA: .25, MTVR: .15, ABET: .15, TSLR: .15, QNTX: .10, SAPF: .10, PEAR: .10 }, desc: 'Konzentrierter Technologiefonds mit hoher Schwankung.' },
-  { id: 'HREN', name: 'Hansa Rentenfonds Euro', px: 51.12, aa: 0.03, ter: 0.0090, av: 0.004, type: 'Rentenfonds', comp: { TEUT29: .2, TEUT34: .2, HISP31: .15, LOMB33: .15, DBNK28: .1, VWGN31: .1, MVDA30: .1 }, desc: 'Euro-Anleihen guter Bonität, Staats- und Unternehmensanleihen.' },
-  { id: 'MBAL', name: 'Mischfonds Balance 60/40', px: 63.48, aa: 0.04, ter: 0.0135, av: 0.01, type: 'Mischfonds', comp: { PEAR: .1, MHRD: .1, NSTL: .1, ALNX: .1, SIMZ: .1, EXXF: .1, TEUT34: .15, TEUT54: .1, HISP31: .15 }, desc: 'Ausgewogener Mischfonds: 60 % Aktien, 40 % Anleihen.' },
-  { id: 'RHGF', name: 'Lazarus Rohstoff & Gold', px: 88.40, aa: 0.05, ter: 0.0175, av: 0.03, type: 'Rohstofffonds', comp: { GOLD: .35, SILV: .1, BRNT: .15, COPR: .1, EXXF: .15, SHLL: .15 }, desc: 'Aktiv gemanagter Rohstofffonds mit Goldschwerpunkt und Energieaktien.' },
-  { id: 'GVAL', name: 'Kapital Global Value', px: 156.90, aa: 0.05, ter: 0.0160, av: 0.02, type: 'Aktienfonds', comp: { JPMG: .15, ALNX: .12, NSTL: .12, KOKA: .1, PFZR: .1, BSFA: .1, VWGN: .1, TTEL: .11, HRMZ: .1 }, desc: 'Weltweite Substanzwerte mit niedriger Bewertung.' }
-];
-const POSN = ['{n} übertrifft die Gewinnerwartungen deutlich', '{n} hebt die Jahresprognose an', 'Analysten stufen {n} auf „Kaufen“ hoch', '{n} meldet Rekordumsatz im Quartal', '{n} kündigt milliardenschweren Aktienrückkauf an', '{n} gewinnt Großauftrag', 'Übernahmegerüchte um {n}', '{n}: Neues Produkt übertrifft Vorbestellungen'];
-const NEGN = ['{n} verfehlt die Umsatzerwartungen', '{n} senkt die Prognose', 'Kartellbehörde ermittelt gegen {n}', '{n}: Finanzvorstand tritt überraschend zurück', 'Rückrufaktion belastet {n}', 'Analysten stufen {n} auf „Verkaufen“ ab', '{n} warnt vor schwächerer Nachfrage', 'Hackerangriff legt Systeme von {n} lahm'];
-
-/* ---------- Spielökonomie (Definitionen, gemeinsam für Server und Browser) ---------- */
-export const LIC = [
-  { name: 'Basis', price: 0, ko: 10, fac: 3, cfd: 5, opt: false, desc: 'Aktien, ETFs, ETCs, Fonds, Anleihen. Turbos bis Hebel 10, Faktor bis 3, CFDs und Devisen bis 1:5.' },
-  { name: 'Derivate-Lizenz', price: 2500, ko: 50, fac: 10, cfd: 30, opt: true, desc: 'Turbos bis Hebel 50, Faktor bis 10, Optionsscheine, CFDs und Devisen bis 1:30.' },
-  { name: 'Profi-Lizenz', price: 25000, ko: 500, fac: 20, cfd: 200, opt: true, desc: 'Turbos bis Hebel 500, Faktor bis 20, CFDs und Devisen bis 1:200.' }
-];
-export const LUX = [
-  { id: 'uhr', name: 'Rolexx Daytona', price: 15000, supply: 12, desc: 'Die Uhr, auf die jeder beim Händeschütteln schaut.' },
-  { id: 'glocke', name: 'Goldene Börsenglocke', price: 40000, supply: 8, desc: 'Einmal läuten, und alle wissen: Du hast es geschafft.' },
-  { id: 'auto', name: 'Ferrino 812 Superfast', price: 250000, supply: 5, desc: 'V12, 800 PS, nur fünf Stück für die ganze Börse.' },
-  { id: 'penthouse', name: 'Penthouse an der Kaiserstraße', price: 1500000, supply: 3, desc: 'Dachterrasse mit Blick auf die Börse.' },
-  { id: 'yacht', name: 'Yacht „Bullenmarkt“', price: 8000000, supply: 1, desc: 'Es gibt genau eine. Wer sie hat, hat sie.' },
-  { id: 'insel', name: 'Privatinsel Taleria', price: 25000000, supply: 1, desc: 'Das Endgame. Steuerfrei und unerreichbar.' }
-];
-export const LUX_BUYBACK = 0.8;
-export const ACH = [
-  { id: 'first', name: 'Erster Trade', desc: 'Führe deine erste Börsenorder aus.', reward: 500 },
-  { id: 'divers', name: 'Breit gestreut', desc: 'Halte gleichzeitig Aktie, ETF, Fonds und Anleihe.', reward: 2000 },
-  { id: 'coupon', name: 'Kuponjäger', desc: 'Erhalte deine erste Kuponzahlung.', reward: 1000 },
-  { id: 'fund', name: 'Sparfuchs', desc: 'Lass eine Fondsorder abrechnen.', reward: 500 },
-  { id: 'fx', name: 'Devisenhändler', desc: 'Eröffne eine Devisenposition.', reward: 500 },
-  { id: 'cmd', name: 'Rohstoffhändler', desc: 'Handle ein Rohstoff-ETC oder ein Hebelprodukt auf einen Rohstoff.', reward: 500 },
-  { id: 'lever', name: 'Hebelkünstler', desc: 'Schließe ein Hebelprodukt mit mindestens +50 % Gewinn.', reward: 2500 },
-  { id: 'limit', name: 'Geduldig', desc: 'Lass 10 Limit-Orders ausführen.', reward: 1000 },
-  { id: 'streak', name: 'Treue', desc: 'Hole den Tagesbonus 7 Tage in Folge ab.', reward: 1500 },
-  { id: 'league', name: 'Wochensieger', desc: 'Gewinne die Wochenliga.', reward: 5000 },
-  { id: 'million', name: 'Millionär', desc: 'Erreiche 1 Mio. € Gesamtvermögen.', reward: 10000 }
-];
 
 /* ---------- Basisfunktionen ---------- */
 export const I = id => M.inst[id];
@@ -279,7 +155,7 @@ export function unitVal(x) { return x.cls === 'bond' ? x.price / 100 : x.price; 
 export function settleVal(x, px) { return x.cls === 'bond' ? (px + x.acc) / 100 : px; }
 function pushTS(x, px, q, dir, me) { x.ts.unshift([M.t, px, q, dir, me ? 1 : 0]); if (x.ts.length > 28) x.ts.length = 28; }
 
-function applyTrade(x, dir, Q, user) {
+export function applyTrade(x, dir, Q, user) {
   if (!(Q > 0) || x.matured) return;
   const before = x.price, vw = before * avgRatio(x, dir, Q);
   if (isBook(x)) {
@@ -303,14 +179,14 @@ function applyTrade(x, dir, Q, user) {
   }
   refreshAll();
 }
-function recomputeDerived() {
+export function recomputeDerived() {
   for (const x of all()) {
     if (x.cls === 'index') { let s = 0; for (const c of x.comp) s += c.c * I(c.id).price; x.price = s / x.divisor; }
     else if (x.cls === 'etf') { let s = 0; for (const c of x.comp) s += c.c * bpx(I(c.id)); x.nav = s * x.ff; x.price = x.nav * (1 + x.prem); }
     else if (x.cls === 'fund') { let s = 0; for (const c of x.comp) s += c.c * bpx(I(c.id)); x.nav = s * x.ff; x.price = x.nav; }
   }
 }
-function refreshAll() {
+export function refreshAll() {
   recomputeDerived();
   for (const x of all()) { const k = x.c1[x.c1.length - 1]; if (k) { k[2] = Math.max(k[2], x.price); k[3] = Math.min(k[3], x.price); k[4] = x.price; } x.lc = x.price; x.hi = Math.max(x.hi, x.price); x.lo = Math.min(x.lo, x.price); }
 }
@@ -365,6 +241,7 @@ export function createWorld(now) {
   M = { v: VERSION, t: t0 + OPEN_MIN * MIN, isOpen: true, lastClose: histEnd, lastCut: 0, eqMark: 0, nseq: 1, week: weekStart(t0), lv: 0, r: 0.0205, slope: 0.0085, U: { USD: 1, EUR: 1.0850, GBP: 1.2710, JPY: 1 / 152.4, CHF: 1.1360, AUD: 0.6540 }, inst: {}, ids: [], news: [] };
   const ids = buildMissing(); normalize(); recomputeDerived();
   genHistory(260, histEnd, ids);
+  run('init');
   return M;
 }
 // Neue Produkte in einen laufenden Markt einfügen: Kurshistorie auf denselben Handelstagen wie der Bestand
@@ -436,22 +313,36 @@ function genHistory(N, lastDay, ids) {
 }
 
 /* ---------- Nachrichten ---------- */
-function addNews(txt, tone, id) { M.news.unshift({ n: M.nseq++, t: M.t, txt, tone, id: id || null }); if (M.news.length > 150) M.news.length = 150; }
-function cmdNews(x) { const pos = Math.random() < 0.5, mag = (0.01 + Math.abs(gauss()) * 0.025) * (x.vol / 0.3); const t = CMDNEWS[x.id]; addNews(t ? pick(t[pos ? 0 : 1]) : `${x.name}: ${pos ? 'Preissprung' : 'Preisrutsch'}`, pos ? 1 : -1, x.id); return pos ? mag : -mag; }
-const bumpCmd = (id, f) => { const x = M.inst[id]; if (x) x.f *= f; };
-function companyNews(x) { const pos = Math.random() < 0.5, mag = (0.01 + Math.abs(gauss()) * 0.025) * (x.vol / 0.3); addNews(pick(pos ? POSN : NEGN).replace('{n}', x.name), pos ? 1 : -1, x.id); return pos ? mag : -mag; }
+// Strukturierte Nachricht: Schlagzeile, Einordnung, betroffene Werte, Kategorie, erwarteter Effekt
+// cat: earn (Quartalszahlen) · macro (Makro & Zentralbank) · sector (Sektoren) · company (Unternehmen) · rumor (Gerücht)
+export function addNews(txt, tone, ids, o = {}) {
+  ids = ids ? (Array.isArray(ids) ? ids : [ids]) : [];
+  M.news.unshift({ n: M.nseq++, t: M.t, txt, sub: o.sub || '', tone, ids, id: ids[0] || null, cat: o.cat || (ids.length ? 'company' : 'macro'), eff: o.eff === undefined ? null : o.eff, rumor: !!o.rumor });
+  if (M.news.length > 200) M.news.length = 200;
+}
+// Grund für die heutige Kursbewegung merken („Warum bewegt sich der Kurs?“)
+export function setWhy(x, txt, eff) { x.why = { t: M.t, txt, eff }; }
+function cmdNews(x) {
+  const pos = Math.random() < 0.5, mag = (0.01 + Math.abs(gauss()) * 0.025) * (x.vol / 0.3), t = CMDNEWS[x.id], j = pos ? mag : -mag;
+  const txt = t ? pick(t[pos ? 0 : 1]) : `${x.name}: ${pos ? 'Preissprung' : 'Preisrutsch'}`;
+  addNews(txt, pos ? 1 : -1, x.id, { cat: 'sector', eff: j, sub: `${x.name} reagiert mit etwa ${pct(j, 1)}.` }); setWhy(x, `${pct(j, 1)} – ${txt}`, j);
+  return j;
+}
+export const bumpCmd = (id, f) => { const x = M.inst[id]; if (x) x.f *= f; };
+function companyNews(x) {
+  const pos = Math.random() < 0.5, mag = (0.01 + Math.abs(gauss()) * 0.025) * (x.vol / 0.3), j = pos ? mag : -mag, txt = pick(pos ? POSN : NEGN).replace('{n}', x.name);
+  addNews(txt, pos ? 1 : -1, x.id, { eff: j, sub: pos ? 'Positive Unternehmensnachricht – Käufer greifen zu.' : 'Negative Unternehmensnachricht – Anleger verkaufen.' }); setWhy(x, `${pct(j, 1)} – ${txt}`, j);
+  return j;
+}
+// Zufällige Konjunkturmeldungen (Zinsentscheide und Inflationsdaten kommen als feste Termine aus events.js)
 function macroNews(sec) {
   return pick([
-    () => { M.r -= 0.0025; addNews('Zentralbank der Eurozone senkt den Leitzins um 25 Basispunkte', 1); return 0.007; },
-    () => { M.r += 0.0025; addNews('Überraschung: Zentralbank erhöht den Leitzins um 25 Basispunkte', -1); return -0.008; },
-    () => { M.r += 0.0008; M.slope += 0.0005; addNews('Inflation in der Eurozone höher als erwartet', -1); return -0.005; },
-    () => { M.r -= 0.0008; addNews('Inflationsrate sinkt stärker als erwartet', 1); return 0.005; },
-    () => { for (const c of ['EUR', 'GBP', 'CHF', 'JPY', 'AUD']) M.U[c] *= 0.997; addNews('Starke US-Arbeitsmarktdaten – Dollar gefragt', 0); return 0.002; },
-    () => { M.lv += 0.45; M.U.CHF *= 1.006; M.U.JPY *= 1.008; bumpCmd('GOLD', 1.02); bumpCmd('BRNT', 1.03); addNews('Geopolitische Spannungen: Anleger flüchten in sichere Häfen', -1); return -0.011; },
-    () => { addNews('Einkaufsmanagerindizes deuten auf Abschwung hin', -1); return -0.005; },
-    () => { M.lv -= 0.2; addNews('Einigung im Handelsstreit: Zölle fallen weg', 1); return 0.012; },
-    () => { addNews('Konjunkturdaten überraschen positiv', 1); return 0.006; },
-    () => { sec.energy += 0.03; bumpCmd('BRNT', 1.06); bumpCmd('NGAS', 1.03); addNews('Ölpreis springt nach Förderkürzung um 6 %', 0); return -0.003; }
+    () => { for (const c of ['EUR', 'GBP', 'CHF', 'JPY', 'AUD']) M.U[c] *= 0.997; addNews('Starke US-Arbeitsmarktdaten – Dollar gefragt', 0, ['EURUSD'], { cat: 'macro', eff: 0.002, sub: 'Der Dollar legt gegenüber allen Währungen zu. Euro-Anleger mit US-Werten profitieren.' }); return 0.002; },
+    () => { M.lv += 0.45; M.U.CHF *= 1.006; M.U.JPY *= 1.008; bumpCmd('GOLD', 1.02); bumpCmd('BRNT', 1.03); addNews('Geopolitische Spannungen: Anleger flüchten in sichere Häfen', -1, ['GOLD', 'EURCHF'], { cat: 'macro', eff: -0.011, sub: 'Aktien geben nach, Gold, Franken und Yen sind gefragt. Die Schwankungen nehmen zu.' }); return -0.011; },
+    () => { addNews('Einkaufsmanagerindizes deuten auf Abschwung hin', -1, [], { cat: 'macro', eff: -0.005, sub: 'Unternehmen bestellen weniger. Zyklische Werte wie Autos und Industrie leiden zuerst.' }); return -0.005; },
+    () => { M.lv -= 0.2; addNews('Einigung im Handelsstreit: Zölle fallen weg', 1, [], { cat: 'macro', eff: 0.012, sub: 'Erleichterung an den Märkten, Exporteure und Halbleiter sind gefragt.' }); return 0.012; },
+    () => { addNews('Konjunkturdaten überraschen positiv', 1, [], { cat: 'macro', eff: 0.006, sub: 'Die Wirtschaft läuft besser als gedacht – gut für Gewinne, aber mehr Zinsdruck.' }); return 0.006; },
+    () => { sec.energy += 0.03; bumpCmd('BRNT', 1.06); bumpCmd('NGAS', 1.03); addNews('Ölpreis springt nach Förderkürzung um 6 %', 0, ['BRNT', 'EXXF', 'SHLL'], { cat: 'sector', eff: 0.06, sub: 'Ölkonzerne profitieren, Fluglinien und Chemie leiden unter höheren Kosten.' }); return -0.003; }
   ])();
 }
 
@@ -483,19 +374,20 @@ export function advanceTo(target) {
 }
 function step(dtMs) {
   const dm = dtMs / MIN, dy = dm * DT, sq = Math.sqrt(dy), sdm = Math.sqrt(dm);
-  M.lv = clamp(M.lv * Math.pow(0.996, dm) + 0.025 * Math.min(sdm, 4) * gauss(), -0.7, 1.6);
-  const vm = Math.exp(M.lv), sec = {}; for (const k in SECTORS) sec[k] = SIG_S * VS * vm * sq * gauss();
-  let rm = 0.07 * dy + SIG_M * VS * vm * sq * heavy();
-  if (Math.random() < dm / (SESSION * 5)) rm += macroNews(sec);
+  const rp = M.rp || { mu: 0.07, vol: 1, tilt: {} }, lvT = Math.log(rp.vol || 1); // Marktphase (events.js)
+  M.lv = clamp(lvT + (M.lv - lvT) * Math.pow(0.996, dm) + 0.025 * Math.min(sdm, 4) * gauss(), -0.7, 1.6);
+  const vm = Math.exp(M.lv), sec = {}; for (const k in SECTORS) sec[k] = SIG_S * VS * vm * sq * gauss() + (rp.tilt[k] || 0) * dy;
+  let rm = rp.mu * dy + SIG_M * VS * vm * sq * heavy();
+  if (Math.random() < dm / (SESSION * 6)) rm += macroNews(sec);
   const sret = {}, mod = minuteOfDay(M.t) - OPEN_MIN;
   const ushape = 0.55 + 0.9 * (Math.exp(-mod / 35) + Math.exp(-(SESSION - mod) / 35));
   const td = Math.pow(TD_BASE, dm), lq = 1 - Math.pow(0.96, dm);
   for (const x of byCls('stock')) {
     let r = x.beta * rm + sec[x.sector] + x.idv * VS * vm * sq * heavy() - 0.5 * x.var * vm * vm * dy;
-    if (Math.random() < dm / (SESSION * 20)) r += companyNews(x);
+    if (Math.random() < dm / (SESSION * 30)) r += companyNews(x);
     sret[x.id] = r; x.f *= Math.exp(r); x.tr *= td; x.liq += (1 - x.liq) * lq; x.price = x.f * Math.exp(x.tr);
   }
-  const csec = {}; for (const k in CSECT) csec[k] = SIG_C * VSC * vm * sq * gauss();
+  const csec = {}; for (const k in CSECT) csec[k] = SIG_C * VSC * vm * sq * gauss() + (rp.tilt[k] || 0) * dy;
   for (const x of byCls('cmd')) {
     let r = x.beta * rm + csec[x.sector] + x.idv * VSC * vm * sq * heavy() - 0.5 * x.var * vm * vm * dy;
     if (Math.random() < dm / (SESSION * 20)) r += cmdNews(x);
@@ -505,7 +397,7 @@ function step(dtMs) {
   M.U.EUR *= Math.exp(e + 0.04 * vm * sq * gauss()); M.U.GBP *= Math.exp(e + 0.05 * vm * sq * gauss()); M.U.CHF *= Math.exp(e + 0.04 * vm * sq * gauss());
   M.U.JPY *= Math.exp(0.09 * vm * sq * gauss() - 0.3 * rm); M.U.AUD *= Math.exp(0.08 * vm * sq * gauss() + 0.4 * rm);
   for (const f of byCls('fx')) { f.price = M.U[f.base] / M.U[f.quote]; f.liq += (1 - f.liq) * lq; }
-  M.r = clamp(M.r + 0.15 * (0.022 - M.r) * dy + 0.009 * vm * sq * gauss(), -0.01, 0.12);
+  M.r = clamp(M.r + 4 * ((M.lz === undefined ? 0.022 : M.lz + 0.002) - M.r) * dy + 0.006 * vm * sq * gauss(), -0.01, 0.12); // Marktzins folgt dem Leitzins
   M.slope = clamp(M.slope + 0.3 * (0.009 - M.slope) * dy + 0.005 * sq * gauss(), -0.03, 0.05);
   const idd = Math.pow(ID_BASE, dm);
   for (const b of byCls('bond')) {
@@ -523,7 +415,7 @@ function step(dtMs) {
     const h = Math.max(o, c) * (1 + Math.abs(gauss()) * w), l = Math.min(o, c) * (1 - Math.abs(gauss()) * w);
     let v = 0;
     if (x.cls === 'stock') v = x.advPct * x.shares; else if (x.cls === 'bond' && !x.matured) v = x.adv / (x.price / 100); else if (x.cls === 'fx' || x.cls === 'cmd') v = x.adv / (x.price * q2e(x)); else if (x.cls === 'etf') v = x.adv / x.price;
-    v *= dm / SESSION * ushape * vm * Math.exp(0.5 * gauss() - 0.125);
+    v *= dm / SESSION * ushape * vm * (x.vb || 1) * Math.exp(0.5 * gauss() - 0.125);
     if (x.cls === 'bond') v = Math.round(v / 1000) * 1000; else if (x.cls !== 'fx') v = Math.round(v);
     const k = x.c1[x.c1.length - 1];
     if (k && k[0] === bucket) { k[2] = Math.max(k[2], h); k[3] = Math.min(k[3], l); k[4] = c; k[5] += v; }
@@ -534,8 +426,15 @@ function step(dtMs) {
   bondEvents();
   M.t += dtMs;
   updateFactors(); processOrders(); checkDerivs();
+  run('step', dtMs);
   const mark = Math.floor(M.t / (15 * MIN));
-  if (mark !== M.eqMark) { M.eqMark = mark; for (const A of ENV.accounts()) { A.eq.push([M.t, r2(totals(A).total)]); if (A.eq.length > 2500) A.eq.splice(0, A.eq.length - 2500); ENV.event(A, 'equity'); } }
+  if (mark !== M.eqMark) {
+    M.eqMark = mark; const ix = M.inst.WELTIX ? M.inst.WELTIX.price : 0;
+    for (const A of ENV.accounts()) {
+      const T = totals(A).total; A.eq.push([M.t, r2(T), +unitNav(A, T).toFixed(4), +ix.toFixed(2)]); if (A.eq.length > 1500) A.eq.splice(0, A.eq.length - 1500);
+      run('mark', A, T); ENV.event(A, 'equity');
+    }
+  }
 }
 function bondEvents() {
   for (const b of byCls('bond')) {
@@ -545,7 +444,7 @@ function bondEvents() {
       b.tri *= (b.dirty + b.cpn) / b.dirty;
       for (const A of ENV.accounts()) {
         const p = A.pos[b.id]; if (!p || p.qty <= 0 || !(b.cpn > 0)) continue;
-        const c = r2(p.qty * b.cpn / 100); A.cash += c; A.realized += c;
+        const c = r2(p.qty * b.cpn / 100); A.cash += c; A.realized += c; book(A, 'cpn', c, b.name);
         logHist(A, { t: M.t, id: b.id, nm: b.name, side: 'Kupon', q: p.qty, px: b.cpn, amt: c, fee: 0, pnl: c });
         ENV.note(A, `Kuponzahlung ${b.name}: ${fmtE(c)}`, 'up'); ENV.event(A, 'coupon'); ENV.dirty(A);
       }
@@ -567,6 +466,7 @@ function closeDay() {
   for (const x of all()) { x.cD.push([today, x.do, Math.max(x.hi, x.price), Math.min(x.lo, x.price), x.price, x.dv]); if (x.cD.length > CDMAX) x.cD.splice(0, x.cD.length - CDMAX); }
   for (const A of ENV.accounts()) for (const o of A.orders) if (isOpen(o) && o.val === 'day' && o.type !== 'fund') { o.status = 'verfallen'; o.note = 'Tagesgültigkeit abgelaufen'; ENV.dirty(A); }
   M.isOpen = false; M.lastClose = today;
+  run('close');
 }
 function openDay() {
   const days = Math.max(1, Math.round((dayStart(M.t) - M.lastClose) / DAY));
@@ -579,79 +479,129 @@ function openDay() {
   for (const f of byCls('fx')) { f.price = M.U[f.base] / M.U[f.quote]; f.liq = 1; }
   M.r = clamp(M.r + 0.009 * on * gauss(), -0.01, 0.12);
   for (const b of byCls('bond')) if (!b.matured) { const od = b.dirty; reprice(b); b.tri *= b.dirty / od; b.liq = 1; }
+  for (const x of all()) if (x.vb) x.vb = x.vb > 1.05 ? 1 + (x.vb - 1) * 0.3 : 0;
+  run('gap', days); // Marktphase, Quartalszahlen, Dividenden – wirken als Eröffnungslücke
   recomputeDerived();
   overnightDerivs(days);
   for (const x of all()) { x.pc = x.cD.length ? x.cD[x.cD.length - 1][4] : x.price; x.do = x.price; x.hi = x.price; x.lo = x.price; x.dv = 0; x.dt = 0; x.lc = x.price; }
   M.isOpen = true;
   bondEvents();
+  run('open', days); // Zinsen, Festgeld, Sparpläne
   updateFactors(); checkDerivs();
 }
 
 /* ---------- Konto ---------- */
-export const fee = amt => Math.max(FEE_MIN, amt * FEE_RATE);
+export const feeRateOf = A => (A && TIERS[A.tier || 0] ? TIERS[A.tier || 0].feeRate : FEE_RATE);
+export const fee = (amt, A) => Math.max(FEE_MIN, amt * feeRateOf(A));
 export const isOpen = o => o.status === 'offen' || o.status === 'teilausgeführt';
+export const CCYS = ['USD', 'CHF', 'GBP']; // Fremdwährungskonten
+export const ccyEur = c => c === 'EUR' ? 1 : M.U[c] / M.U.EUR;
 export function newAccount(uid, name, cash) {
-  return { uid, name, cash, start: cash, pos: {}, derivs: [], orders: [], hist: [], realized: 0, seq: 1, eq: [], lic: 0, lux: {}, ach: {}, bonus: { day: 0, streak: 0 }, stats: { trades: 0, limitFills: 0 }, week: { k: 0, start: cash, flow: 0, trades: 0 }, reliefT: 0, created: M ? M.t : 0 };
+  return normalizeAccount({ uid, name, cash, start: cash, pos: {}, derivs: [], orders: [], hist: [], realized: 0, seq: 1, eq: [], lic: 0, lux: {}, ach: {}, bonus: { day: 0, streak: 0 }, stats: { trades: 0, limitFills: 0 }, week: { k: 0, start: cash, flow: 0, trades: 0 }, reliefT: 0, created: M ? M.t : 0, tw: { u: cash / 100 } });
 }
-function logHist(A, h) { A.hist.unshift(h); if (A.hist.length > 300) A.hist.length = 300; }
+// Fehlende Felder älterer Konten ergänzen (Migration)
+export function normalizeAccount(A) {
+  const d = (k, v) => { if (A[k] === undefined || A[k] === null) A[k] = v; };
+  d('fxc', { USD: 0, CHF: 0, GBP: 0 }); d('fxCost', { USD: 0, CHF: 0, GBP: 0 }); d('fxAcc', { USD: 0, CHF: 0, GBP: 0 });
+  d('agg', { div: 0, int: 0, cpn: 0, prize: 0, fee: 0, pnl: 0, fx: 0, debt: 0 }); d('flows', []);
+  d('drip', false); d('credit', false); d('plans', []); d('deps', []); d('intAcc', 0); d('intMonth', 0);
+  d('tier', 0); d('tierMax', 0); d('stats', { trades: 0, limitFills: 0 }); if (A.stats.plans === undefined) A.stats.plans = 0;
+  d('ath', 0);
+  if (!A.tw || !(A.tw.u > 0)) { let T = A.cash; for (const id in A.pos) if (M && M.inst[id]) T += posValue(id, A.pos[id]); A.tw = { u: Math.max(T, 1) / 100 }; }
+  return A;
+}
+export function logHist(A, h) { A.hist.unshift(h); if (A.hist.length > 300) A.hist.length = 300; }
+// Geldfluss-Buch: Dividenden, Zinsen, Kupons, Prämien, Gebühren, realisierte Gewinne, Währung, Kreditzinsen
+export function book(A, cat, amt, txt) {
+  if (!A.agg) normalizeAccount(A);
+  A.agg[cat] = (A.agg[cat] || 0) + amt;
+  A.flows.unshift({ t: M.t, cat, amt: r2(amt), txt: txt || '' }); if (A.flows.length > 300) A.flows.length = 300;
+}
+// Anteilswert für zeitgewichtete Rendite (Ein- und Auszahlungen verfälschen die Performance nicht)
+export const unitNav = (A, T) => { const v = T === undefined ? totals(A).total : typeof T === 'object' ? T.total : T; return A.tw && A.tw.u > 0 && isFinite(v) ? v / A.tw.u : 100; };
+export function extFlow(A, X) { // nach der Buchung aufrufen
+  const T = totals(A).total, before = (T - X) / A.tw.u;
+  if (before > 1e-6) A.tw.u += X / before; else A.tw.u = Math.max(T, 1) / 100;
+}
 export function reservedCash(A, exceptId) {
   let r = 0;
   for (const o of A.orders) {
     if (!isOpen(o) || o.id === exceptId || o.side !== 'buy' || o.type === 'fund') continue;
     const x = I(o.iid), rem = o.qty - o.filled, px = o.type === 'limit' || o.type === 'stoplimit' ? o.limit : o.stop * 1.05;
-    const amt = rem * settleVal(x, px); r += amt + fee(amt);
+    const amt = rem * settleVal(x, px); r += amt + fee(amt, A);
   }
   return r;
 }
 export function reservedUnits(A, iid, exceptId) { let r = 0; for (const o of A.orders) if (isOpen(o) && o.id !== exceptId && o.side === 'sell' && o.iid === iid) r += o.type === 'fund' ? o.qty : o.qty - o.filled; return r; }
-export const availCash = (A, exceptId) => A.cash - reservedCash(A, exceptId);
+// Wertpapierkredit: Beleihungswert × Faktor der Vermögensstufe (nur wenn freigeschaltet und aktiviert)
+export function lombardValue(A) { let v = 0; for (const id in A.pos) { const x = M.inst[id]; if (x) v += posValue(id, A.pos[id]) * (LOMBARD[x.cls] || 0); } return v; }
+export const creditLimit = A => (A.credit ? lombardValue(A) * (TIERS[A.tier || 0] ? TIERS[A.tier || 0].credit : 0) : 0);
+// Verfügbar = Cash (+ Kreditrahmen) − für offene Kauforders reserviert. noCredit: nur eigenes Geld (z. B. für Hebelprodukte)
+export const availCash = (A, exceptId, noCredit) => A.cash + (noCredit ? 0 : creditLimit(A)) - reservedCash(A, exceptId);
 export function posValue(id, p) { const x = I(id); return x.cls === 'bond' ? p.qty * (x.price + x.acc) / 100 : p.qty * x.price; }
 export function luxValue(A) { let v = 0; for (const it of LUX) v += (A.lux[it.id] || 0) * it.price * LUX_BUYBACK; return v; }
+export function fxValue(A) { let v = 0; if (A.fxc) for (const c of CCYS) v += (A.fxc[c] || 0) * ccyEur(c); return v; }
+export function depValue(A) { let v = 0; if (A.deps) for (const d of A.deps) v += d.amt + d.amt * d.rate * Math.max(0, Math.min(M.t, d.end) - d.start) / YR; return v; }
 export function totals(A) {
   let sec = 0, der = 0, pend = 0;
   for (const id in A.pos) sec += posValue(id, A.pos[id]);
   for (const p of A.derivs) der += derivValue(p);
   for (const o of A.orders) if (o.type === 'fund' && isOpen(o) && o.side === 'buy') pend += o.amount;
-  const lux = luxValue(A);
-  return { sec, der, pend, lux, total: A.cash + sec + der + pend + lux };
+  const lux = luxValue(A), fxv = fxValue(A), dep = depValue(A);
+  const cashAll = A.cash + fxv + dep + pend; // Verrechnungskonto, Fremdwährung, Festgeld, unterwegs
+  return { cash: A.cash, fxv, dep, sec, der, pend, lux, invested: sec + der, cashAll, debt: Math.max(0, -A.cash), total: A.cash + sec + der + pend + lux + fxv + dep };
 }
-export function roundQty(x, q) { if (!(q > 0)) return 0; if (x.cls === 'bond') return Math.floor(q / 1000 + 1e-6) * 1000; return Math.floor(q + 1e-6); }
-export function estimateExchange(x, side, qty, limitPx) {
+// Aktien und ETFs auch in Bruchstücken (4 Nachkommastellen), Anleihen in 1.000-€-Schritten
+export function roundQty(x, q) { if (!(q > 0)) return 0; if (x.cls === 'bond') return Math.floor(q / 1000 + 1e-6) * 1000; if (x.cls === 'fund') return Math.floor(q * 1e6 + 1e-6) / 1e6; return Math.floor(q * 1e4 + 1e-6) / 1e4; }
+const lotOf = x => (x.cls === 'bond' ? 1000 : 1e-4);
+export function estimateExchange(x, side, qty, limitPx, A, noFee) {
   const dir = side === 'buy' ? 1 : -1, uv = unitVal(x), qReq = roundQty(x, qty);
   let Q = qReq * uv, capped = false, limited = false;
   const qm = maxQ(x); if (Q > qm) { Q = qm; capped = true; }
   if (limitPx > 0) { const ql = qAtLimit(x, dir, limitPx); if (ql < Q) { Q = ql; limited = true; } }
   const q = capped || limited ? Math.min(qReq, roundQty(x, Q / uv)) : qReq;
   if (q <= 0) return { q: 0, capped, limited };
-  const Qr = q * uv, ratio = avgRatio(x, dir, Qr), px = x.price * ratio, amount = q * settleVal(x, px), f = fee(amount);
+  const Qr = q * uv, ratio = avgRatio(x, dir, Qr), px = x.price * ratio, amount = q * settleVal(x, px), f = noFee ? 0 : fee(amount, A);
   return { q, px, amount, fee: f, total: dir > 0 ? amount + f : amount - f, impact: ratio - 1, after: x.price * permRatio(x, dir, Qr), worst: x.price * marginal(x, dir, Qr), capped, limited, Q: Qr };
 }
-export function maxBuyQty(x, budget, limitPx) {
-  const lot = x.cls === 'bond' ? 1000 : 1, fits = q => { const e = estimateExchange(x, 'buy', q, limitPx); return e.q === 0 || e.total <= budget; };
+export function maxBuyQty(x, budget, limitPx, A, noFee) {
+  const lot = lotOf(x), fits = q => { const e = estimateExchange(x, 'buy', q, limitPx, A, noFee); return e.q === 0 || e.total <= budget; };
   let hi = roundQty(x, maxQ(x) / unitVal(x)); if (limitPx > 0) hi = Math.min(hi, roundQty(x, qAtLimit(x, 1, limitPx) / unitVal(x)));
   hi = Math.min(hi, roundQty(x, budget / settleVal(x, x.price * marginal(x, 1, 0)) + lot));
   if (hi <= 0) return 0; if (fits(hi)) return hi;
-  let lo = 0; for (let k = 0; k < 64 && hi - lo > lot; k++) { const m = roundQty(x, (lo + hi) / 2); if (m <= lo) break; if (fits(m)) lo = m; else hi = m; }
+  let lo = 0; for (let k = 0; k < 80 && hi - lo > lot; k++) { const m = roundQty(x, (lo + hi) / 2); if (m <= lo) break; if (fits(m)) lo = m; else hi = m; }
   return lo;
+}
+// Sofortige Ausführung zum Marktpreis ohne Orderbuch-Eintrag (Sparplan, Dividenden-Wiederanlage, Zwangsverkauf)
+export function executeMarket(A, x, side, qty, o = {}) {
+  const e = estimateExchange(x, side, qty, 0, A, o.noFee); if (!e.q) return null;
+  const dir = side === 'buy' ? 1 : -1;
+  applyTrade(x, dir, e.Q, true);
+  let pnl = null;
+  if (dir > 0) { A.cash -= e.total; const p = A.pos[x.id] || (A.pos[x.id] = { qty: 0, cost: 0 }); p.qty += e.q; p.cost += e.total; }
+  else { const p = A.pos[x.id], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty -= e.q; p.cost -= c; A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[x.id]; }
+  if (e.fee) { ENV.fee(e.fee); book(A, 'fee', -e.fee, x.name); }
+  logHist(A, { t: M.t, id: x.id, nm: x.name, side: o.label || (dir > 0 ? 'Kauf' : 'Verkauf'), q: e.q, px: e.px, amt: e.amount, fee: e.fee, pnl });
+  ENV.dirty(A); return e;
 }
 function fillOrder(A, o) {
   const x = I(o.iid); if (!x || x.matured) { o.status = 'gestrichen'; o.note = 'nicht handelbar'; ENV.dirty(A); return 0; }
   const rem = o.qty - o.filled; if (rem <= 0) return 0;
   const lim = o.type === 'limit' ? o.limit : 0;
-  let e = estimateExchange(x, o.side, rem, lim); if (e.q <= 0) return 0;
+  let e = estimateExchange(x, o.side, rem, lim, A); if (e.q <= 0) return 0;
   if (o.side === 'buy') {
     const av = availCash(A, o.id);
-    if (e.total > av) { const q = maxBuyQty(x, av, lim); if (q <= 0) { o.status = 'gestrichen'; o.note = 'mangels Deckung gestrichen'; ENV.note(A, `Order ${x.name} mangels Deckung gestrichen`, 'dn'); ENV.dirty(A); return 0; } e = estimateExchange(x, 'buy', q, lim); }
+    if (e.total > av) { const q = maxBuyQty(x, av, lim, A); if (q <= 0) { o.status = 'gestrichen'; o.note = 'mangels Deckung gestrichen'; ENV.note(A, `Order ${x.name} mangels Deckung gestrichen`, 'dn'); ENV.dirty(A); return 0; } e = estimateExchange(x, 'buy', q, lim, A); }
   } else {
     const p = A.pos[o.iid], have = p ? p.qty - reservedUnits(A, o.iid, o.id) : 0;
-    if (have < e.q) { if (have <= 0) { o.status = 'gestrichen'; o.note = 'kein Bestand'; ENV.dirty(A); return 0; } e = estimateExchange(x, 'sell', roundQty(x, have), lim); if (e.q <= 0) return 0; }
+    if (have < e.q) { if (have <= 0) { o.status = 'gestrichen'; o.note = 'kein Bestand'; ENV.dirty(A); return 0; } e = estimateExchange(x, 'sell', roundQty(x, have), lim, A); if (e.q <= 0) return 0; }
   }
   const dir = o.side === 'buy' ? 1 : -1, pre = x.price;
   applyTrade(x, dir, e.Q, true);
   let pnl = 0;
   if (dir > 0) { A.cash -= e.total; const p = A.pos[o.iid] || (A.pos[o.iid] = { qty: 0, cost: 0 }); p.qty += e.q; p.cost += e.total; }
-  else { const p = A.pos[o.iid], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty -= e.q; p.cost -= c; A.realized += pnl; if (p.qty <= 1e-9) delete A.pos[o.iid]; }
-  ENV.fee(e.fee);
+  else { const p = A.pos[o.iid], c = p.cost * e.q / p.qty; pnl = e.total - c; A.cash += e.total; p.qty -= e.q; p.cost -= c; A.realized += pnl; book(A, 'pnl', pnl, x.name); if (p.qty <= 1e-9) delete A.pos[o.iid]; }
+  ENV.fee(e.fee); book(A, 'fee', -e.fee, x.name);
   o.avg = (o.avg * o.filled + e.px * e.q) / (o.filled + e.q); o.filled += e.q; o.status = o.filled >= o.qty ? 'ausgeführt' : 'teilausgeführt';
   logHist(A, { t: M.t, id: x.id, nm: x.name, side: dir > 0 ? 'Kauf' : 'Verkauf', q: e.q, px: e.px, amt: e.amount, fee: e.fee, pnl: dir < 0 ? pnl : null });
   const mv = x.price / pre - 1;
@@ -668,7 +618,7 @@ export function placeOrder(A, s) {
   if (!['market', 'limit', 'stop', 'stoplimit'].includes(s.type)) return 'Ungültiger Ordertyp.';
   if (!okNum(s.qty)) return 'Bitte eine gültige Menge eingeben.';
   const qty = roundQty(x, s.qty);
-  if (!(qty > 0)) return x.cls === 'bond' ? 'Mindeststückelung: 1.000 € nominal.' : 'Bitte mindestens 1 Stück eingeben.';
+  if (!(qty > 0)) return x.cls === 'bond' ? 'Mindeststückelung: 1.000 € nominal.' : 'Bitte eine Menge größer als 0 eingeben.';
   const needL = s.type === 'limit' || s.type === 'stoplimit', needS = s.type === 'stop' || s.type === 'stoplimit';
   if (needL && !okNum(s.limit, 1e9)) return 'Bitte ein gültiges Limit eingeben.';
   if (needS && !okNum(s.stop, 1e9)) return 'Bitte einen gültigen Stoppkurs eingeben.';
@@ -678,8 +628,8 @@ export function placeOrder(A, s) {
   if (s.side === 'sell') { const p = A.pos[x.id], have = p ? p.qty - reservedUnits(A, x.id) : 0; if (qty > have + 1e-9) return `Nicht genug Bestand (verfügbar: ${fmtQty(x, Math.max(0, have))})`; }
   else {
     let need;
-    if (s.type === 'market') { const e = estimateExchange(x, 'buy', qty, 0); need = e.q ? e.total : 0; }
-    else { const px = s.type === 'stop' ? s.stop * 1.05 : s.limit, amt = qty * settleVal(x, px); need = amt + fee(amt); }
+    if (s.type === 'market') { const e = estimateExchange(x, 'buy', qty, 0, A); need = e.q ? e.total : 0; }
+    else { const px = s.type === 'stop' ? s.stop * 1.05 : s.limit, amt = qty * settleVal(x, px); need = amt + fee(amt, A); }
     if (need > availCash(A) + 1e-6) return `Nicht genug Guthaben: benötigt ca. ${fmtE(need)}, verfügbar ${fmtE(availCash(A))}.`;
   }
   const o = { id: A.seq++, iid: x.id, side: s.side, type: s.type, otype: s.type, qty, filled: 0, avg: 0, limit: needL ? s.limit : 0, stop: needS ? s.stop : 0, val: s.type === 'market' ? 'day' : (s.val === 'gtc' ? 'gtc' : 'day'), status: 'offen', t: M.t, note: '' };
@@ -730,7 +680,7 @@ function processFundOrders() {
     const x = I(o.iid);
     if (o.side === 'buy') {
       const net = o.amount / (1 + x.aa), ratio = avgRatio(x, 1, net), px = x.nav * ratio, units = net / px;
-      applyTrade(x, 1, net, false); ENV.fee(o.amount - net);
+      applyTrade(x, 1, net, false); ENV.fee(o.amount - net); book(A, 'fee', -(o.amount - net), x.name + ' Ausgabeaufschlag');
       const p = A.pos[x.id] || (A.pos[x.id] = { qty: 0, cost: 0 }); p.qty += units; p.cost += o.amount;
       o.filled = units; o.qty = units; o.avg = px; o.status = 'ausgeführt'; o.note = `NAV ${fmt(x.nav, 2)} · Swing ${pct(ratio - 1, 3)} · Aufschlag ${fmtE(o.amount - net)}`;
       logHist(A, { t: M.t, id: x.id, nm: x.name, side: 'Kauf', q: units, px, amt: o.amount, fee: o.amount - net, pnl: null });
@@ -739,7 +689,7 @@ function processFundOrders() {
       const p = A.pos[x.id]; if (!p || p.qty < o.qty - 1e-9) { o.status = 'gestrichen'; o.note = 'kein Bestand'; ENV.dirty(A); continue; }
       const gross = o.qty * x.nav, ratio = avgRatio(x, -1, gross), px = x.nav * ratio, amt = o.qty * px;
       applyTrade(x, -1, gross, false);
-      const c = p.cost * o.qty / p.qty, pnl = amt - c; A.cash += amt; A.realized += pnl; p.qty -= o.qty; p.cost -= c; if (p.qty <= 1e-9) delete A.pos[x.id];
+      const c = p.cost * o.qty / p.qty, pnl = amt - c; A.cash += amt; A.realized += pnl; book(A, 'pnl', pnl, x.name); p.qty -= o.qty; p.cost -= c; if (p.qty <= 1e-9) delete A.pos[x.id];
       o.filled = o.qty; o.avg = px; o.status = 'ausgeführt'; o.note = `Rücknahme zu ${fmt(px, 2)}`;
       logHist(A, { t: M.t, id: x.id, nm: x.name, side: 'Verkauf', q: o.qty, px, amt, fee: 0, pnl });
       ENV.note(A, `Fondsverkauf abgerechnet: ${fmtE(amt)}`, 'dn');
@@ -843,7 +793,7 @@ export function openDeriv(A, d) {
   if (!isUnd(u)) return 'Ungültiger Basiswert.';
   if (!M.isOpen) return 'Hebelprodukte sind nur zu Börsenzeiten handelbar (Mo–Fr 08:00–22:00).';
   if (A.derivs.length >= 50) return 'Maximal 50 offene Hebelpositionen.';
-  const L = LIC[A.lic || 0], av = availCash(A);
+  const L = LIC[A.lic || 0], av = availCash(A, undefined, true); // Hebelprodukte nur mit eigenem Geld
   if (d.kind === 'ko' || d.kind === 'opt') {
     if (!okNum(d.budget)) return 'Bitte einen Anlagebetrag eingeben.';
     if (d.budget > av + 1e-6) return `Nicht genug Guthaben (verfügbar ${fmtE(av)}).`;
@@ -916,7 +866,7 @@ export function closeDeriv(A, pid, frac, reason) {
     p.units -= units; p.margin -= p.margin * frac; p.fin -= p.fin * frac;
   }
   p.cost -= costPart; A.cash += payout;
-  const pnl = payout - costPart; A.realized += pnl;
+  const pnl = payout - costPart; A.realized += pnl; book(A, 'pnl', pnl, derivName(p));
   logHist(A, { t: M.t, id: u.id, nm: derivName(p), side: reason || (p.kind === 'cfd' ? 'Schließung' : 'Verkauf'), q, px, amt: payout, fee: 0, pnl });
   if (frac >= 0.999 || (p.kind !== 'cfd' && p.n <= 0) || (p.kind === 'cfd' && p.units <= 1e-12)) A.derivs.splice(A.derivs.indexOf(p), 1);
   else if (p.kind === 'fac') p.ref = u.price; // Restbestand ab jetzt vom Kurs nach dem Verkauf
