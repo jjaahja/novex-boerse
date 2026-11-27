@@ -63,3 +63,49 @@ Der Lombardkredit ist ein negatives Verrechnungskonto. Alle Buchungen laufen üb
 ## Persistenz und Migration
 
 Alle Init-Hooks ergänzen fehlende Felder bestehender Märkte und Konten. Neue Nebenwerte kommen über `buildMissing()` dazu. Der Browser lädt nach Delisting oder IPO neu (`resync`).
+
+## Ausbau 2: Auto-Orders, Detailansicht, mehr Unternehmen
+
+Analyse:
+- Navigation läuft über `app.js` (Hash-Routen, `S.UI.back`).
+- Positionen liegen in `A.pos[id] = { qty, cost, t0, inc, rz }`.
+- Die Order-Engine `executeMarket`/`placeOrder` kennt Limit- und Stop-Orders mit Reservierung.
+- Der Chart (`chart.js`) zeichnet Linie oder Kerzen mit Fadenkreuz.
+
+Umsetzung:
+1. **`public/auto.js`**: Stop-Loss, Take-Profit und Trailing-Stop für Wertpapiere, Hebelprodukte (auf den Basiswert) und Fremdwährung.
+   - Die Menge wird als Anteil der Position gespeichert. Manuelle Verkäufe verkleinern die Order automatisch, es bleiben keine Geister-Orders.
+   - OCO-Gruppen.
+   - Prüfung bei jedem Markt-Schritt. Bei einer Kurslücke wird zum Marktpreis ausgeführt, mit Hinweis.
+   - Persönliche Meldungen im News-Feed.
+   - Fonds und eigene Unternehmen sind ausgeschlossen, mit Begründung.
+2. **Detailansicht**:
+   - Eigene Position oben (Wert, Rendite, Tag, Gewichtung, Einstand gegen Kurs, Erträge).
+   - Zeiträume 1T/1W/1M/1J/Max, im Chart Einstand-, SL-, TP- und Trailing-Linien sowie Kauf- und Verkaufsmarker.
+   - Produktspezifische Kennzahlen (Wachstum, Zins- und Zollempfindlichkeit, LTV, Restlaufzeit, ETF-Schwerpunkte).
+   - Gefilterte News, Aktionsleiste mit „Absichern“.
+3. **Navigation**:
+   - Detailansichten bekommen einen eigenen Verlaufseintrag.
+   - Scroll-Position und Filter bleiben beim Zurückgehen erhalten.
+   - Schnellaktionen in der Depotliste.
+4. **40 weitere Unternehmen**, zwei neue Branchen (Versorger, Immobilien), Heimatregion Fernost.
+
+## Effizienz (Cloudflare Free)
+
+Gemessen mit 123 Instrumenten:
+
+| Messgröße | Vorher | Nachher |
+|---|---|---|
+| Live-Takt | ca. 92 KB | ca. 16 KB |
+| Startdaten | ca. 8,7 MB | ca. 1,2 MB |
+
+So wurde das erreicht:
+- Kompakter Takt: Arrays, gemeinsame Kerzenminute, nur geänderte Felder, neue Umsätze und News als Delta, 7 Stellen Genauigkeit.
+- Fortlaufende Nummer `seq`: Verpasst der Browser einen Takt, lädt er den Stand neu.
+- Lange Kursverläufe kommen erst bei Bedarf über `/api/hist`.
+
+Weitere Werte:
+- CPU je 5-Sekunden-Takt: unter 1 ms
+- Geschriebene Zeilen: ca. 830 pro Stunde bei offener Börse (Limit: 100.000 pro Tag)
+- Größte Speicherzeile: ca. 0,72 MB (Limit: 2 MB)
+- Stundenkerzen für „1W“ liegen in den vorhandenen Kerzenzeilen.

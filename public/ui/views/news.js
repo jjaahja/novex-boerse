@@ -20,7 +20,8 @@ export function update() {
   const U = S.UI;
   if (U.newsView === 'feed') {
     const mine = holdingIds(S.A);
-    const list = E.M.news.filter(n => U.newsCat === 'all' ? true : U.newsCat === 'mine' ? (n.ids || [n.id]).some(id => mine.has(id)) : n.cat === U.newsCat).slice(0, 80);
+    const own = U.newsCat === 'all' || U.newsCat === 'mine' ? (S.A.feed || []) : [];
+    const list = own.concat(E.M.news.filter(n => U.newsCat === 'all' ? true : U.newsCat === 'mine' ? (n.ids || [n.id]).some(id => mine.has(id)) : n.cat === U.newsCat)).sort((a, b) => b.t - a.t).slice(0, 80);
     $('#n-list').innerHTML = list.length ? list.map(newsItem).join('') : `<p class="empty">${U.newsCat === 'mine' ? 'Zu deinen Werten gibt es gerade keine Meldungen.' : 'Keine Meldungen in dieser Kategorie.'}</p>`;
   } else {
     const ev = upcoming(35), byDay = new Map();

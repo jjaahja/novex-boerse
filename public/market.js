@@ -5,3 +5,4 @@ export * from './macro.js';
 export * from './politics.js';
 export * from './credit.js';
 export * from './ma.js';
+export * from './auto.js';

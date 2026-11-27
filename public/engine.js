@@ -11,7 +11,7 @@ export const SESSION = CLOSE_MIN - OPEN_MIN;
 const DT = 1 / (252 * SESSION);                  // Jahre je Handelsminute
 export const PERM = 0.45, TRANS = 0.15, AMAX = 1.6, IMPACT_Y = 1.0;
 export const FEE_RATE = 0.0005, FEE_MIN = 1, KO_SPR = 0.0002;
-const C1MAX = 900, CDMAX = 400;
+const C1MAX = 900, CDMAX = 400, CHMAX = 120, HOUR = 3600000; // Minuten-, Tages- und Stundenkerzen (Stunden für die Wochenansicht)
 const TD_BASE = Math.pow(0.5, 1 / 45);          // transiente Marktwirkung: Halbwertszeit 45 Min.
 const ID_BASE = Math.pow(0.5, 1 / (3 * SESSION)); // Anleihen: 3 Handelstage
 const RATES = { USD: 0.040, GBP: 0.040, JPY: 0.005, CHF: 0.0025, AUD: 0.036 };
@@ -193,7 +193,7 @@ export function refreshAll() {
 
 /* ---------- Welt erzeugen ---------- */
 function isin(id, i) { return 'NX' + (id + '000000').slice(0, 6).toUpperCase() + String(1000 + i).slice(1) + ((i * 7) % 10); }
-function blankStats(x) { x.c1 = []; x.cD = []; x.ts = []; x.do = x.price; x.pc = x.price; x.hi = x.price; x.lo = x.price; x.dv = 0; x.dt = 0; x.lc = x.price; }
+function blankStats(x) { x.c1 = []; x.cH = []; x.cD = []; x.ts = []; x.do = x.price; x.pc = x.price; x.hi = x.price; x.lo = x.price; x.dv = 0; x.dt = 0; x.lc = x.price; }
 function addInst(x) { M.inst[x.id] = x; M.ids.push(x.id); blankStats(x); return x; }
 function compOf(spec) {
   let w = {};
@@ -419,6 +419,9 @@ function step(dtMs) {
     const k = x.c1[x.c1.length - 1];
     if (k && k[0] === bucket) { k[2] = Math.max(k[2], h); k[3] = Math.min(k[3], l); k[4] = c; k[5] += v; }
     else { x.c1.push([bucket, o, h, l, c, v]); if (x.c1.length > C1MAX) x.c1.splice(0, x.c1.length - C1MAX); }
+    const hb = Math.floor(bucket / HOUR) * HOUR, cH = x.cH || (x.cH = []), kh = cH[cH.length - 1];
+    if (kh && kh[0] === hb) { kh[2] = Math.max(kh[2], h); kh[3] = Math.min(kh[3], l); kh[4] = c; kh[5] += v; }
+    else { cH.push([hb, o, h, l, c, v]); if (cH.length > CHMAX) cH.splice(0, cH.length - CHMAX); }
     x.lc = c; x.hi = Math.max(x.hi, h); x.lo = Math.min(x.lo, l); x.dv += v; x.dt += v * (x.cls === 'fx' || x.cls === 'cmd' ? x.price * q2e(x) : unitVal(x));
     if (v > 0 && x.cls !== 'index' && x.cls !== 'fund') { const dir = Math.random() < 0.5 ? 1 : -1; pushTS(x, c * marginal(x, dir, 0), Math.max(1, Math.round(v * (0.02 + Math.random() * 0.1))), dir, false); }
   }
@@ -505,7 +508,7 @@ export function normalizeAccount(A) {
   d('agg', { div: 0, int: 0, cpn: 0, prize: 0, fee: 0, pnl: 0, fx: 0, debt: 0 }); d('flows', []);
   d('drip', false); d('credit', false); d('plans', []); d('deps', []); d('intAcc', 0); d('intMonth', 0);
   d('tier', 0); d('tierMax', 0); d('stats', { trades: 0, limitFills: 0 }); if (A.stats.plans === undefined) A.stats.plans = 0;
-  d('ath', 0); d('pe', []); d('loans', []); d('mc', null); d('votes', {});
+  d('ath', 0); d('pe', []); d('loans', []); d('mc', null); d('votes', {}); d('auto', []); d('feed', []);
   if (!A.tw || !(A.tw.u > 0)) { let T = A.cash; for (const id in A.pos) if (M && M.inst[id]) T += posValue(id, A.pos[id]); A.tw = { u: Math.max(T, 1) / 100 }; }
   return A;
 }

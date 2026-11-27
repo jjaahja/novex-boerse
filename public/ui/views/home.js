@@ -66,7 +66,9 @@ export function update() {
   const ids = Object.keys(A.pos).sort((a, b) => posValue(b, A.pos[b]) - posValue(a, A.pos[a]));
   $('#h-pos').innerHTML = ids.length ? ids.map(id => {
     const x = E.I(id), p = A.pos[id], v = posValue(id, p), g = v - p.cost;
-    return row(x, { sub: `${fmtQty(x, p.qty)} · ${fmt(chg(x) * 100, 2).replace(/^(?!-)/, '+')} % heute`, right: `<b>${fmtE(v)}</b><small class="${sc(g)}">${signE(g)} (${pctS(p.cost ? g / p.cost : 0)})</small>` });
+    const ao = (A.auto || []).filter(o => o.tg === 'pos' && o.ref === id).length, open = S.qa === id;
+    return `<div class="rq">${row(x, { sub: `${fmtQty(x, p.qty)} · ${fmt(chg(x) * 100, 2).replace(/^(?!-)/, '+')} % heute${ao ? ` · ${ao} Auto-Order${ao > 1 ? 's' : ''}` : ''}`, right: `<b>${fmtE(v)}</b><small class="${sc(g)}">${signE(g)} (${pctS(p.cost ? g / p.cost : 0)})</small>` })}<button class="qa" data-a="qa" data-v="${id}" aria-expanded="${open}" aria-label="Schnellaktionen für ${esc(x.name)}">⋯</button></div>`
+      + (open ? `<div class="qmenu"><button class="btn sm" data-a="dbuy" data-v="${id}">Kaufen</button><button class="btn sm ghost" data-a="dsell" data-v="${id}">Verkaufen</button>${E.autoBlocked(x) ? '' : `<button class="btn sm ghost" data-a="dauto" data-v="${id}">Stop-Loss / Take-Profit</button>`}<button class="btn sm ghost" data-go="i-${id}">Details</button></div>` : '');
   }).join('') : `<p class="empty">Noch keine Wertpapiere. Unter <button class="link" data-go="markt">Markt</button> findest du Aktien, ETFs und mehr – ein Sparplan auf den WELTIX-ETF ist ein guter Start.</p>`;
   $('#h-der-sec').hidden = !A.derivs.length;
   $('#h-der').innerHTML = A.derivs.map(p => { const u = E.I(p.und), v = derivValue(p), g = v - p.cost; return `<button class="r" data-go="hebel">${av(u)}<span style="min-width:0"><span class="nm" style="display:block">${esc(derivName(p))}</span><span class="sub" style="display:block">Einsatz ${fmtE(p.cost)}</span></span><span></span><span class="val"><b>${fmtE(v)}</b><small class="${sc(g)}">${pctS(p.cost ? g / p.cost : 0)}</small></span></button>`; }).join('');
@@ -88,6 +90,7 @@ export function update() {
     <div><span>EUR/USD</span><b>${fmt(M.inst.EURUSD.price, 4)} <span class="${sc(chg(M.inst.EURUSD))}">${pctS(chg(M.inst.EURUSD))}</span></b></div></div>
     <p class="note" style="margin-top:8px">${esc(R.desc)}</p>`;
 }
+actions.qa = el => { S.qa = S.qa === el.dataset.v ? null : el.dataset.v; update(); };
 actions.gocredit = () => { S.UI.acct = 'credit'; S.go('konto'); };
 actions.prange = el => { S.UI.pRange = el.dataset.v; el.parentElement.querySelectorAll('[data-a="prange"]').forEach(b => b.classList.toggle('on', b === el)); update(); };
 actions.cmp = el => { S.UI.cmp = !S.UI.cmp; el.classList.toggle('on', S.UI.cmp); el.setAttribute('aria-pressed', S.UI.cmp); update(); };

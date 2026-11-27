@@ -11,7 +11,8 @@ function prep(cv) {
 }
 function niceStep(raw) { const p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 3.5 ? 2.5 : f < 7.5 ? 5 : 10) * p; }
 
-// bars: [t, o, h, l, c, v]; o: { candle, cmp: [[t, v]], digits, daily, ref, pct, fmtV }
+// bars: [t, o, h, l, c, v]; o: { candle, cmp: [[t, v]], digits, daily, ref, pct, fmtV,
+//   lines: [{ v, label, tone: 'up'|'dn'|'fg' }] – waagerechte Linien (Einstand, Stop-Loss, Take-Profit), marks: [{ t, px, buy }] – Käufe/Verkäufe }
 export function drawChart(cv, bars, o = {}) {
   if (!cv) return; const P = prep(cv); if (!P) return; const { g, W, H } = P, C = css();
   g.font = `12px ${C.f}`;
@@ -23,6 +24,9 @@ export function drawChart(cv, bars, o = {}) {
   let hi = -Infinity, lo = Infinity;
   for (const b of bars) { const h = o.candle && !cmp ? b[2] : yv(b), l = o.candle && !cmp ? b[3] : yv(b); if (h > hi) hi = h; if (l < lo) lo = l; }
   if (cmp) for (const c of cmp) { const v = c[1] / cbase - 1; if (v > hi) hi = v; if (v < lo) lo = v; }
+  // Linien einbeziehen, wenn sie nicht allzu weit weg liegen (sonst Pfeil am Rand)
+  const lines = !cmp && !o.pct && o.lines ? o.lines.filter(l => isFinite(l.v) && l.v > 0) : [];
+  { const span = Math.max(hi - lo, Math.abs(hi) * 0.01); for (const l of lines) if (l.v >= lo - span * 1.5 && l.v <= hi + span * 1.5) { hi = Math.max(hi, l.v); lo = Math.min(lo, l.v); } }
   if (hi - lo < Math.abs(hi) * 1e-6 + 1e-9) { hi += Math.abs(hi) * 0.001 + 1e-6; lo -= Math.abs(lo) * 0.001 + 1e-6; }
   const pad = (hi - lo) * 0.08; hi += pad; lo -= pad;
   const sp = pw / Math.max(n - 1, 1), X = i => n === 1 ? pw / 2 : i * sp, Y = v => padT + (hi - v) / (hi - lo) * ph;
@@ -43,9 +47,26 @@ export function drawChart(cv, bars, o = {}) {
     g.strokeStyle = cmp ? C.fg : col; g.lineWidth = 2; g.lineJoin = 'round'; g.stroke();
     if (!cmp) { g.lineTo(X(n - 1), padT + ph); g.lineTo(X(0), padT + ph); g.closePath(); const gr = g.createLinearGradient(0, padT, 0, padT + ph); gr.addColorStop(0, col + '26'); gr.addColorStop(1, col + '00'); g.fillStyle = gr; g.fill(); }
   }
+  // Trigger- und Einstandslinien mit Beschriftung im rechten Rand
+  const used = [];
+  for (const l of lines.slice().sort((a, b) => b.v - a.v)) {
+    const out = l.v > hi ? 1 : l.v < lo ? -1 : 0, y = Math.round(out > 0 ? padT + 1 : out < 0 ? padT + ph - 1 : Y(l.v)) + 0.5;
+    let ly = y; while (used.some(u => Math.abs(u - ly) < 19)) ly += out < 0 ? -19 : 19; used.push(ly); // Beschriftungen nicht übereinander, col = l.tone === 'up' ? C.up : l.tone === 'dn' ? C.dn : C.fg2;
+    g.strokeStyle = col; g.lineWidth = 1; g.setLineDash(out ? [2, 4] : [5, 4]); g.beginPath(); g.moveTo(0, y); g.lineTo(pw, y); g.stroke(); g.setLineDash([]);
+    const txt = (out > 0 ? '↑ ' : out < 0 ? '↓ ' : '') + l.label; g.font = `600 11px ${C.f}`; const tw = g.measureText(txt).width + 10, bx = Math.max(0, pw - tw - 4);
+    g.fillStyle = C.bg; g.fillRect(bx, ly - 9, tw, 18); g.strokeStyle = col; g.strokeRect(bx + 0.5, ly - 8.5, tw - 1, 17); g.fillStyle = col; g.textBaseline = 'middle'; g.fillText(txt, bx + 5, ly + 0.5); g.font = `12px ${C.f}`;
+  }
+  // Käufe (gefülltes Dreieck) und Verkäufe (Umriss) auf der Zeitachse
+  if (o.marks && !cmp && n > 1) for (const mk of o.marks) {
+    if (mk.t < bars[0][0] || mk.t > bars[n - 1][0] + (bars[n - 1][0] - bars[n - 2][0])) continue;
+    let i = 0; while (i < n - 1 && bars[i + 1][0] <= mk.t) i++;
+    const x = X(i), y = Y(o.pct ? mk.px / base - 1 : mk.px), d = mk.buy ? 1 : -1;
+    g.beginPath(); g.moveTo(x, y + d * 4); g.lineTo(x - 5, y + d * 12); g.lineTo(x + 5, y + d * 12); g.closePath();
+    g.fillStyle = mk.buy ? C.fg : C.bg; g.strokeStyle = C.fg; g.lineWidth = 1.5; g.fill(); g.stroke();
+  }
   // Achse: Anfang und Ende
   g.fillStyle = C.mute; g.textBaseline = 'alphabetic';
-  const tl = t => o.daily ? fDate(t).slice(0, 6) + fDate(t).slice(8) : fTime(t);
+  const tl = t => o.daily ? fDate(t).slice(0, 6) + fDate(t).slice(8) : o.hourly ? fDate(t).slice(0, 6) + ' ' + fTime(t) : fTime(t);
   g.textAlign = 'left'; g.fillText(tl(bars[0][0]), 0, H - 5); g.textAlign = 'right'; g.fillText(tl(bars[n - 1][0]), pw, H - 5); g.textAlign = 'left';
   // Fadenkreuz
   if (hover.id === cv.id && hover.x >= 0 && hover.x <= pw) {

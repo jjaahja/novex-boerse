@@ -36,11 +36,15 @@ const validRoute = r => !!r && (VIEWS[r] || r === 'hebel' || (r.startsWith('i-')
 export function go(route) {
   if (!validRoute(route)) route = 'home';
   if (route === 'hebel') { S.UI.mkt = 'lever'; route = 'markt'; }
+  const from = S.UI.route; (S.scrollPos || (S.scrollPos = {}))[from] = window.scrollY; // Scroll-Position merken
   if (!route.startsWith('i-') && route !== S.UI.route) S.UI.back = route;
   if (route.startsWith('i-') && !S.UI.route.startsWith('i-')) S.UI.back = S.UI.route;
-  S.UI.route = route; hover.id = null; hidePop();
-  try { if (location.hash.slice(1) !== route) history.replaceState(null, '', '#' + route); } catch { }
-  buildView(); window.scrollTo(0, 0);
+  S.UI.route = route; hover.id = null; hidePop(); S.qa = null;
+  // Detailansichten bekommen einen eigenen Verlaufseintrag: „Zurück“ im Browser oder am Handy führt zur Liste zurück
+  try { if (location.hash.slice(1) !== route) { if (route.startsWith('i-') && !from.startsWith('i-')) history.pushState(null, '', '#' + route); else history.replaceState(null, '', '#' + route); } } catch { }
+  buildView();
+  const back = from.startsWith('i-') && !route.startsWith('i-') && S.scrollPos[route] !== undefined;
+  window.scrollTo(0, back ? S.scrollPos[route] : 0);
 }
 S.go = go;
 function navHTML(bottom) {
@@ -76,7 +80,7 @@ async function loadState() {
     const r = await getJSON('/api/state');
     if (r.status === 401) { showAuth(); return; }
     if (r.status !== 200) { toast('Server nicht erreichbar.', 'dn'); return; }
-    E.setMarket(r.data.M); S.A = E.normalizeAccount(r.data.acct); S.ins = r.data.ins || { hints: [] }; S.BANK = r.data.bank; S.BOARD = r.data.board; S.ME = r.data.me; S.lastTick = Date.now();
+    E.setMarket(r.data.M); S.seq = r.data.M.seq || 0; S.A = E.normalizeAccount(r.data.acct); S.ins = r.data.ins || { hints: [] }; S.BANK = r.data.bank; S.BOARD = r.data.board; S.ME = r.data.me; S.lastTick = Date.now();
   } finally { loading = false; }
 }
 function connectWS() {
@@ -100,25 +104,50 @@ function connectWS() {
 function pauseWS(reason) { S.paused = reason; if (WS) { const w = WS; WS = null; try { w.close(1000, 'pausiert'); } catch { } } S.wsOk = false; if (S.booted) updateStatus(); }
 async function resumeWS() { if (!S.booted || (WS && WS.readyState <= 1)) return; if (Date.now() - S.lastTick > 15000) { await loadState(); update(); } connectWS(); }
 setInterval(() => { if (WS && WS.readyState === 1 && !document.hidden) WS.send('ping'); }, 50000);
+const HOUR = 3600000;
+function putCandle(arr, k, max) { const l = arr[arr.length - 1]; if (l && l[0] === k[0]) arr[arr.length - 1] = k; else if (!l || k[0] > l[0]) { arr.push(k); if (arr.length > max) arr.shift(); } }
+// Stundenkerzen (für „1W“) laufend aus den Minutenkerzen fortschreiben
+function feedHour(x, k) {
+  if (!x.cH || !x.histT) return; const hb = Math.floor(k[0] / HOUR) * HOUR, l = x.cH[x.cH.length - 1];
+  if (l && l[0] === hb) { l[2] = Math.max(l[2], k[2]); l[3] = Math.min(l[3], k[3]); l[4] = k[4]; } else if (!l || hb > l[0]) { x.cH.push([hb, k[1], k[2], k[3], k[4], k[5]]); if (x.cH.length > 120) x.cH.shift(); }
+}
 async function applyTick(m) {
   const M = E.M; if (!M) return;
-  if (m.resync || (M.isOpen && m.t - M.t > 3 * MIN)) { await loadState(); update(); return; }
+  const gap = S.seq && m.seq && m.seq !== S.seq + 1; // verpasster Takt → Stand neu laden
+  if (m.resync || gap || (M.isOpen && m.t - M.t > 3 * MIN)) { await loadState(); update(); return; }
+  S.seq = m.seq;
   Object.assign(M, { t: m.t, isOpen: m.isOpen, lv: m.lv, r: m.r, slope: m.slope, U: m.U, week: m.week, lastClose: m.lastClose, eqMark: m.eqMark });
   if (m.idsV !== undefined && M.idsV !== undefined && m.idsV !== M.idsV) { await loadState(); update(); return; } // Börsengang oder Delisting
   for (const k of ['lz', 'infl', 'reg', 'rp', 'cb', 'cpi', 'events', 'fr', 'pol', 'ma']) if (m[k] !== undefined) M[k] = m[k];
   if (m.mac) M.mac = m.mac.h ? m.mac : Object.assign({}, m.mac, { h: (M.mac && M.mac.h) || [] });
+  if (m.bank) S.BANK = m.bank;
   for (const id in m.d) {
-    const x = M.inst[id], o = m.d[id]; if (!x) continue;
-    x.price = o.p; x.lc = o.lc; x.do = o.do; x.pc = o.pc; x.hi = o.hi; x.lo = o.lo; x.dv = o.dv; x.dt = o.dt; x.liq = o.lq; x.ts = o.ts;
-    for (const k of ['f', 'tr', 'dirty', 'acc', 'mdur', 'ytm', 'tri', 'spr', 'idio', 'matured', 'ci', 'nav', 'prem', 'ff', 'why', 'eps', 'fin', 'comp']) if (k in o) x[k] = o[k];
-    for (const k of o.k) { const l = x.c1[x.c1.length - 1]; if (l && l[0] === k[0]) x.c1[x.c1.length - 1] = k; else if (!l || k[0] > l[0]) { x.c1.push(k); if (x.c1.length > 900) x.c1.shift(); } }
-    if (o.cd) { const l = x.cD[x.cD.length - 1]; if (!l || o.cd[0] > l[0]) x.cD.push(o.cd); else if (l[0] === o.cd[0]) x.cD[x.cD.length - 1] = o.cd; }
+    const x = M.inst[id], a = m.d[id]; if (!x) continue;
+    const p = a[0]; x.price = p; x.lc = p; x.dv = a[1]; x.dt = a[2];
+    const ex = m.x[id], k = a.length > 3 ? [m.kb, a[3], a[4], a[5], p, a[6]] : ex && ex.k;
+    if (ex) {
+      for (const key of ['do', 'pc', 'hi', 'lo', 'why', 'eps', 'fin', 'comp', 'ts', 'dirty', 'acc', 'mdur', 'ytm', 'tri', 'spr', 'idio', 'matured', 'ci', 'nav', 'prem', 'ff']) if (key in ex) x[key] = ex[key];
+      if (ex.tn) { x.ts = ex.tn.concat(x.ts || []).slice(0, 8); }
+      if ('lq' in ex) x.liq = ex.lq;
+      if (ex.k0) { putCandle(x.c1, ex.k0, 900); feedHour(x, ex.k0); }
+      if (ex.cd) putCandle(x.cD, ex.cd, 400);
+    }
+    if (k) { putCandle(x.c1, k, 900); feedHour(x, k); x.hi = Math.max(x.hi, k[2]); x.lo = Math.min(x.lo, k[3]); }
   }
-  const have = new Set(M.news.map(n => n.n)); for (const n of m.news.slice().reverse()) if (!have.has(n.n)) M.news.unshift(n);
+  for (const n of (m.news || []).slice().reverse()) if (!M.news.some(o => o.n === n.n)) M.news.unshift(n);
   M.news.sort((a, b) => b.n - a.n); if (M.news.length > 200) M.news.length = 200;
-  S.BANK = m.bank; S.lastTick = Date.now();
+  S.lastTick = Date.now();
   update();
 }
+// Lange Kursverläufe (Minuten des Tages, Stunden, ein Jahr Tageskerzen) erst laden, wenn ein Chart sie braucht
+const histLoading = new Set();
+export async function ensureHist(id) {
+  const x = E.M && E.M.inst[id]; if (!x || x.histT || histLoading.has(id)) return;
+  histLoading.add(id);
+  try { const r = await getJSON('/api/hist?id=' + encodeURIComponent(id)); if (r.status === 200 && r.data.c1) { const h = r.data; const last = x.c1[x.c1.length - 1]; x.c1 = h.c1; if (last) putCandle(x.c1, last, 900); x.cH = h.cH; x.cD = h.cD; x.histT = Date.now(); S.redraw && S.redraw(); } }
+  finally { histLoading.delete(id); }
+}
+S.ensureHist = ensureHist;
 
 /* ---------- Anmeldung ---------- */
 function showAuth() {

@@ -4,7 +4,7 @@ Ein gemeinsamer, in Echtzeit laufender Markt mit erfundenen Unternehmen (Mvidia,
 
 | Anlageklasse | Produkte |
 |---|---|
-| Aktien | 32, davon 24 im Leitindex WELTIX 24 |
+| Aktien | 76, davon 24 im Leitindex WELTIX 24, aus zwölf Branchen |
 | Anleihen | 15, Staaten und Unternehmen von AAA bis B-, darunter eine Nullkupon-Anleihe |
 | ETFs & ETCs | 11, darunter Gold-, Silber- und Öl-ETCs sowie ein Rohstoffkorb |
 | Fonds | 7 mit Ausgabeaufschlag, Abrechnung zum NAV |
@@ -31,6 +31,7 @@ Ein gemeinsamer, in Echtzeit laufender Markt mit erfundenen Unternehmen (Mvidia,
   - Unter „Unternehmen“ führst du es mit Strategien (Kosten senken, F&E-Offensive, Preise erhöhen, Sonderdividende).
   - Später bringst du es per Börsengang zurück an die Börse.
   - Vier kleine Nebenwerte sind realistische erste Ziele.
+- **Absicherung & Auto-Orders:** Stop-Loss, Take-Profit und Trailing-Stop lassen sich nachträglich für Aktien, ETFs, Anleihen, Hebelprodukte und Fremdwährung einrichten. Teilmengen und OCO sind möglich. Zielkurs, Abstand und erwarteter Gewinn sind live verknüpft, die Linien erscheinen im Chart.
 - **Depot-Analyse:** Aufteilung, Währungen, Streuung, Beta, Schwankung und Vergleich mit dem WELTIX (zeitgewichtete Rendite).
 
 Neue Produkte, die nach dem ersten Start hinzukommen, werden beim nächsten Deploy automatisch in den laufenden Markt eingefügt. Konten und Kurse bleiben dabei erhalten.

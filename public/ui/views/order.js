@@ -65,6 +65,7 @@ function renderOrder() {
 export function updateOrder() {
   if (!cur) return;
   if (cur.kind === 'fund') { updateFund(); return; }
+  if (cur.kind === 'auto') { if (cur.step === 'form') autoPrev(); return; }
   if (cur.kind !== 'order' || cur.step !== 'form') return;
   const box = $('#o-prev'); if (!box) return;
   const s = orderSpec(), e = s.e, x = s.x, A = S.A, buy = cur.side === 'buy', av = availCash(A), p = A.pos[x.id];
@@ -140,7 +141,7 @@ function renderReview() {
 /* ---------- Ereignisse ---------- */
 actions.sheetx = () => close();
 actions.sheetbg = (el, ev) => { if (ev.target === el) close(); };
-actions.sheetback = () => { if (!cur) return; if (cur.kind === 'review') { close(); return; } cur.step = 'form'; cur.kind === 'fund' ? renderFund() : renderOrder(); };
+actions.sheetback = () => { if (!cur) return; if (cur.kind === 'review') { close(); return; } cur.step = 'form'; cur.kind === 'fund' ? renderFund() : cur.kind === 'auto' ? renderAuto() : renderOrder(); };
 actions.oside = el => { cur.side = el.dataset.v; cur.val = ''; cur.kind === 'fund' ? renderFund() : renderOrder(); };
 actions.omode = el => { cur.mode = el.dataset.v; cur.val = ''; renderOrder(); };
 actions.ogtc = el => { cur.gtc = !cur.gtc; el.classList.toggle('on', cur.gtc); el.setAttribute('aria-pressed', cur.gtc); };
@@ -169,3 +170,80 @@ changes['o-type'] = el => {
   if ((cur.type === 'stop' || cur.type === 'stoplimit') && !cur.stop) cur.stop = fmt(x.price * (cur.side === 'buy' ? 1.03 : 0.97), dig(x)).replace(/\./g, '');
   renderOrder();
 };
+
+/* ---------- Absicherung & Auto-Orders: Stop-Loss, Take-Profit, Trailing-Stop ---------- */
+// t: { tg: 'pos'|'der'|'fx', ref, id? (bearbeiten), k? }
+const nfmt = (v, d) => isFinite(v) ? String(+v.toFixed(d)).replace('.', ',') : '';
+export function openAuto(t) {
+  S.lastFocus = document.activeElement;
+  const A = S.A, old = t.id ? (A.auto || []).find(o => o.id === t.id) : null, T = E.autoTarget(A, t); if (!T) { S.toast('Diese Position hast du nicht mehr.', 'dn'); return; }
+  const k = old ? old.k : t.k || 'sl', d = T.x ? dig(T.x) : 4;
+  cur = { kind: 'auto', step: 'form', tg: t.tg, ref: String(t.ref), id: old ? old.id : 0, k, f: old ? old.f : 1, oco: old ? old.oco : true, tm: old && old.tm ? old.tm : 'pct', dist: old && old.k === 'tr' ? (old.tm === 'pct' ? old.dist * 100 : old.dist) : 8, d };
+  cur.trig = old && old.k !== 'tr' ? old.trig : T.px * (k === 'tp' ? 1.1 : 0.92);
+  renderAuto();
+}
+const spec = () => ({ tg: cur.tg, ref: cur.ref, k: cur.k, f: cur.f, oco: cur.oco, trig: cur.trig, tm: cur.tm, dist: cur.tm === 'pct' ? cur.dist / 100 : cur.dist });
+function renderAuto() {
+  const o = cur, A = S.A, T = E.autoTarget(A, o); if (!T) { close(); return; }
+  if (o.step === 'form') {
+    const pv = E.autoPreview(A, spec()), hasBuy = pv && pv.buyIn > 0 && o.tg !== 'der', hasPl = pv && pv.pnl !== null;
+    frame(`${top(o.id ? 'Auto-Order ändern' : 'Absichern & Gewinne mitnehmen', `${esc(T.name)} · aktuell ${T.fmtP(T.px)}${o.tg === 'der' ? ' (Basiswert)' : ''}`)}
+      <div class="seg" role="group">${[['sl', 'Stop-Loss'], ['tp', 'Take-Profit'], ['tr', 'Trailing-Stop']].map(([k, l]) => `<button data-a="auk" data-v="${k}" class="${o.k === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+      <p class="note" style="margin:0">${o.k === 'sl' ? `Verkauft automatisch, wenn der Kurs auf oder unter dein Limit fällt ${info('autosl')}` : o.k === 'tp' ? `Verkauft automatisch, sobald der Kurs dein Kursziel erreicht ${info('autotp')}` : `Zieht bei steigenden Kursen automatisch nach und bleibt bei fallenden stehen ${info('autotr')}`}</p>
+      ${o.k === 'tr' ? `<div class="seg" role="group"><button data-a="autm" data-v="pct" class="${o.tm === 'pct' ? 'on' : ''}">Abstand in %</button><button data-a="autm" data-v="abs" class="${o.tm === 'abs' ? 'on' : ''}">Abstand in ${o.tg === 'fx' ? '€' : T.x && T.x.cls === 'bond' ? 'Punkten' : T.x && T.x.cls === 'cmd' ? '$' : '€'}</button></div>
+        <label class="field"><span>Abstand zum Höchstkurs</span><input class="inp" id="au-dist" inputmode="decimal" autocomplete="off" value="${nfmt(o.dist, o.tm === 'pct' ? 1 : o.d)}"></label>`
+      : `<div class="row2"><label class="field"><span>${o.k === 'sl' ? 'Stop-Kurs' : 'Kursziel'}</span><input class="inp" id="au-trig" inputmode="decimal" autocomplete="off" value="${nfmt(o.trig, o.d)}"></label>
+          <label class="field"><span>Abstand zum Kurs (%)</span><input class="inp" id="au-pk" inputmode="decimal" autocomplete="off"></label></div>
+        <div class="row2">${hasBuy ? `<label class="field"><span>Abstand zum Einstand (%) ${info('avgcost')}</span><input class="inp" id="au-pb" inputmode="decimal" autocomplete="off"></label>` : '<span></span>'}
+          ${hasPl ? `<label class="field"><span>Gewinn/Verlust (€)</span><input class="inp" id="au-pl" inputmode="decimal" autocomplete="off"></label>` : '<span></span>'}</div>`}
+      <div><span class="label">Menge</span><div class="chips" style="margin-top:6px">${[0.25, 0.5, 0.75, 1].map(f => `<button class="chip ${Math.abs(o.f - f) < 1e-6 ? 'on' : ''}" data-a="auf" data-v="${f}">${f === 1 ? 'Ganze Position' : fmt(f * 100, 0) + ' %'}</button>`).join('')}</div>
+        ${o.tg === 'pos' && T.x.cls !== 'bond' ? `<label class="field" style="margin-top:8px"><span>oder Stückzahl (von ${fmtQty(T.x, T.qty)})</span><input class="inp" id="au-q" inputmode="decimal" autocomplete="off" value="${nfmt(pv ? pv.q : 0, 4)}"></label>` : ''}</div>
+      <label class="setting" style="border:0;padding:0"><span class="t"><b>OCO – eine streicht die andere ${info('oco')}</b><small>Löst diese Order aus, werden deine anderen OCO-Orders dieser Position gestrichen.</small></span><button type="button" class="toggle ${o.oco ? 'on' : ''}" data-a="auoco" aria-pressed="${o.oco}" aria-label="OCO"></button></label>
+      <div id="au-prev"></div>
+      <button class="btn full" data-a="aureview">Order prüfen</button>`);
+    autoPrev(true);
+  } else if (o.step === 'review') {
+    const sp = spec(), oid = o.id, pv = E.autoPreview(A, sp); if (!pv) { close(); return; } // Daten festhalten: openReview ersetzt den Sheet-Zustand
+    const lines = autoLines(pv), sentence = autoSentence(pv);
+    openReview({ title: `${E.AUTO_KINDS[o.k]} ${o.id ? 'ändern' : 'einrichten'}`, sub: esc(T.name), totalLast: false, lines, warn: sentence + ' Bei Kurslücken (etwa über Nacht oder nach Quartalszahlen) wird zum nächsten verfügbaren Kurs verkauft – das kann ungünstiger sein als deine Schwelle.', confirm: oid ? 'Änderung speichern' : 'Order aktivieren', run: () => act(Object.assign({ type: 'auto', id: oid || undefined }, sp), true) });
+  }
+}
+function autoLines(pv) {
+  const o = cur, T = pv.T, L = [['Art', E.AUTO_KINDS[o.k]], [o.k === 'tr' ? 'Stop aktuell' : o.k === 'sl' ? 'Stop-Kurs' : 'Kursziel', `${T.fmtP(pv.trig)} (${pctS(pv.trig / T.px - 1, 1)})`], ['Menge', pv.qtyTxt + (o.f < 0.9999 ? ` · ${fmt(o.f * 100, 0)} % der Position` : '')]];
+  if (o.k === 'tr') L.push(['Abstand', o.tm === 'pct' ? fmt(o.dist, 1) + ' % unter dem Hoch' : `${T.fmtP(o.dist)} unter dem Hoch`]);
+  if (pv.val !== null) L.push(['Erlös bei Auslösung ca.', fmtE(pv.val)]);
+  if (pv.pnl !== null) L.push(['Gewinn/Verlust ggü. Einstand', `<span class="${sc(pv.pnl)}">${pv.pnl >= 0 ? '+' : '−'}${fmtE(Math.abs(pv.pnl))}</span>`]);
+  L.push(['OCO', o.oco ? 'ja' : 'nein']);
+  return L;
+}
+function autoSentence(pv) {
+  const o = cur, T = pv.T, pk = pctS(pv.trig / T.px - 1, 1), pl = pv.pnl;
+  const tail = pl === null ? '' : o.k === 'tp' ? ` Gewinn gegenüber deinem Einstand: etwa ${fmtE(pl)}.` : pl < 0 ? ` So begrenzt du deinen Verlust auf etwa ${fmtE(-pl)}.` : ` So sicherst du einen Gewinn von etwa ${fmtE(pl)}.`;
+  if (o.k === 'tr') return `Der Stop liegt ${o.tm === 'pct' ? fmt(o.dist, 1) + ' %' : T.fmtP(o.dist)} unter dem höchsten Kurs seit Aktivierung – jetzt bei ${T.fmtP(pv.trig)} (${pk}). Steigt der Kurs, zieht er nach; fällt er, bleibt er stehen. Wird er erreicht, verkauft NOVEX automatisch ${pv.qtyTxt}.${tail}`;
+  return o.k === 'sl' ? `Verkauft automatisch ${pv.qtyTxt}, falls der Kurs auf ${T.fmtP(pv.trig)} (${pk}) fällt.${tail}` : `Verkauft automatisch ${pv.qtyTxt}, sobald der Kurs ${T.fmtP(pv.trig)} (${pk}) erreicht.${tail}`;
+}
+// Felder live verknüpfen: Zielkurs ⇄ Abstand zum Kurs ⇄ Abstand zum Einstand ⇄ Gewinn/Verlust
+function autoPrev(all) {
+  const o = cur, A = S.A, pv = E.autoPreview(A, spec()), box = $('#au-prev'); if (!box || !pv) return;
+  const T = pv.T, set = (id, v) => { const el = $('#' + id); if (el && (all || document.activeElement !== el)) el.value = v; };
+  if (o.k !== 'tr') { set('au-trig', nfmt(pv.trig, o.d)); set('au-pk', nfmt((pv.trig / T.px - 1) * 100, 2)); if (pv.buyIn) set('au-pb', nfmt((pv.trig / pv.buyIn - 1) * 100, 2)); if (pv.pnl !== null) set('au-pl', nfmt(pv.pnl, 2)); }
+  if (o.tg === 'pos' && T.x.cls !== 'bond') set('au-q', nfmt(pv.q, 4));
+  const bad = o.k === 'sl' ? pv.trig >= T.px : o.k === 'tp' ? pv.trig <= T.px : !(o.dist > 0) || (o.tm === 'pct' && o.dist > 50);
+  box.innerHTML = `<p class="lead" style="margin:4px 0 0;font-size:15px">${autoSentence(pv)}</p>${bad ? `<p class="warn">${o.k === 'sl' ? 'Der Stop-Kurs muss unter dem aktuellen Kurs liegen.' : o.k === 'tp' ? 'Das Kursziel muss über dem aktuellen Kurs liegen.' : 'Bitte einen Abstand zwischen 0,5 und 50 % wählen.'}</p>` : ''}`;
+  const b = document.querySelector('[data-a="aureview"]'); if (b) b.disabled = bad;
+}
+function fromTrig(v) { if (v > 0) { cur.trig = v; autoPrev(); } }
+inputs['au-trig'] = el => fromTrig(parseNum(el.value));
+inputs['au-pk'] = el => { const v = parseNum(el.value), T = E.autoTarget(S.A, cur); if (isFinite(v) && T) fromTrig(T.px * (1 + v / 100)); };
+inputs['au-pb'] = el => { const v = parseNum(el.value), pv = E.autoPreview(S.A, spec()); if (isFinite(v) && pv && pv.buyIn) fromTrig(pv.buyIn * (1 + v / 100)); };
+inputs['au-pl'] = el => { // Gewinn/Verlust → Zielkurs (bei Anleihen inkl. Stückzinsen)
+  const v = parseNum(el.value), pv = E.autoPreview(S.A, spec()); if (!isFinite(v) || !pv || !(pv.q > 0)) return;
+  const unit = (v + pv.cost) / pv.q, x = pv.T.x; fromTrig(cur.tg === 'fx' ? unit : x && x.cls === 'bond' ? unit * 100 - x.acc : unit);
+};
+inputs['au-dist'] = el => { const v = parseNum(el.value); if (v > 0) { cur.dist = v; autoPrev(); } };
+inputs['au-q'] = el => { const v = parseNum(el.value), T = E.autoTarget(S.A, cur); if (v > 0 && T) { cur.f = Math.min(1, v / T.qty); document.querySelectorAll('[data-a="auf"]').forEach(b => b.classList.toggle('on', Math.abs(+b.dataset.v - cur.f) < 1e-6)); autoPrev(); } };
+actions.auk = el => { const T = E.autoTarget(S.A, cur); cur.k = el.dataset.v; if (cur.k === 'sl' && !(cur.trig < T.px)) cur.trig = T.px * 0.92; if (cur.k === 'tp' && !(cur.trig > T.px)) cur.trig = T.px * 1.1; renderAuto(); };
+actions.autm = el => { const T = E.autoTarget(S.A, cur); cur.tm = el.dataset.v; cur.dist = cur.tm === 'pct' ? 8 : +(T.px * 0.08).toFixed(cur.d); renderAuto(); };
+actions.auf = el => { cur.f = +el.dataset.v; el.parentElement.querySelectorAll('.chip').forEach(b => b.classList.toggle('on', b === el)); autoPrev(); };
+actions.auoco = el => { cur.oco = !cur.oco; el.classList.toggle('on', cur.oco); el.setAttribute('aria-pressed', cur.oco); };
+actions.aureview = () => { cur.step = 'review'; renderAuto(); };

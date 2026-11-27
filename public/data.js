@@ -1,7 +1,7 @@
 // NOVEX Börse – Stammdaten und Spielregeln (gemeinsam für Browser und Server). Alles frei erfunden.
 
 /* ---------- Stammdaten ---------- */
-export const SECTORS = { tech: 'Software & Internet', semi: 'Halbleiter', auto: 'Automobil', fin: 'Finanzen', cons: 'Konsum', energy: 'Energie', health: 'Gesundheit', ind: 'Industrie', tel: 'Telekom', chem: 'Chemie' };
+export const SECTORS = { tech: 'Software & Internet', semi: 'Halbleiter', auto: 'Automobil', fin: 'Finanzen', cons: 'Konsum', energy: 'Energie', health: 'Gesundheit', ind: 'Industrie', tel: 'Telekom', chem: 'Chemie', util: 'Versorger', realty: 'Immobilien' };
 export const CSECT = { prec: 'Edelmetalle', ener: 'Energie', metal: 'Industriemetalle', agri: 'Agrar' };
 export const STOCKS = [
   ['MVDA', 'Mvidia Corp.', 'semi', 168.40, 24.4, 1.6, 0.50, 0.0070, 46, 0.0003, 'Weltmarktführer für KI-Beschleuniger und Grafikprozessoren.'],
@@ -41,7 +41,48 @@ export const STOCKS = [
   ['KRNH', 'Brauerei Kranich AG', 'cons', 3.80, 0.0032, 0.5, 0.30, 0.0040, 14, 0.045, 'Familienbrauerei mit drei Biermarken und eigener Mälzerei.'],
   ['RTST', 'Ruhrtal Stahl AG', 'ind', 12.40, 0.0068, 1.3, 0.45, 0.0060, 9, 0.030, 'Spezialstahl für Maschinenbau und Windkraft aus dem Ruhrgebiet.'],
   ['MDVO', 'Medivio Diagnostics', 'health', 21.50, 0.0075, 0.9, 0.48, 0.0060, 28, 0, 'Schnelltests und Labordiagnostik für Kliniken.'],
-  ['NWDT', 'Nordwind Turbinen', 'energy', 9.60, 0.0350, 1.3, 0.55, 0.0080, 35, 0, 'Baut Windkraftanlagen für Nord- und Ostsee.']
+  ['NWDT', 'Nordwind Turbinen', 'energy', 9.60, 0.0350, 1.3, 0.55, 0.0080, 35, 0, 'Baut Windkraftanlagen für Nord- und Ostsee.'],
+  // Erweiterung: weitere Konzerne aus aller Welt
+  ["OKRL", "Orakel Systems", 'tech', 168.00, 2.8, 1.0, 0.28, 0.003, 32, 0.01, "Datenbanken und Cloud-Infrastruktur für Großkonzerne."],
+  ["SLSF", "Salesfarce Inc.", 'tech', 268.00, 0.96, 1.1, 0.3, 0.004, 45, 0.006, "Kundenmanagement-Software aus der Cloud."],
+  ["ADOB", "Adobo Systems", 'tech', 480.00, 0.44, 1.1, 0.3, 0.004, 38, 0, "Software für Bildbearbeitung, Design und PDF."],
+  ["SPTF", "Spotifly Technology", 'tech', 420.00, 0.2, 1.3, 0.42, 0.008, 80, 0, "Musik- und Podcast-Streaming."],
+  ["UBRX", "Uba Technologies", 'tech', 72.00, 2.1, 1.3, 0.4, 0.006, 30, 0, "Fahrdienste und Essenslieferung per App."],
+  ["ZLND", "Zalandi SE", 'cons', 31.00, 0.26, 1.4, 0.42, 0.008, 28, 0, "Online-Modehändler für ganz Europa."],
+  ["TSMK", "Taiwan Semikon", 'semi', 168.00, 5.2, 1.3, 0.38, 0.004, 24, 0.014, "Auftragsfertiger für fast alle Hochleistungs-Chips."],
+  ["ASMR", "ASMR Lithography NV", 'semi', 690.00, 0.39, 1.3, 0.38, 0.005, 36, 0.009, "Einziger Hersteller von EUV-Belichtungsmaschinen."],
+  ["INTL", "Intal Corp.", 'semi', 24.00, 4.3, 1.1, 0.4, 0.007, -1, 0.02, "Prozessoren für PCs und Rechenzentren, im Umbau."],
+  ["AMDX", "AMB Devices", 'semi', 152.00, 1.62, 1.7, 0.5, 0.009, 110, 0, "Prozessoren und KI-Beschleuniger."],
+  ["INFN", "Infinion AG", 'semi', 34.00, 1.3, 1.4, 0.38, 0.006, 24, 0.01, "Leistungshalbleiter für Autos und Energietechnik."],
+  ["MBNZ", "Merzedes-Benz Group", 'auto', 62.00, 1.0, 1.1, 0.28, 0.004, 6.5, 0.085, "Premium-Autos und Transporter."],
+  ["PRSH", "Porsha AG", 'auto', 64.00, 0.91, 1.1, 0.3, 0.004, 15, 0.036, "Sportwagen mit Kultstatus."],
+  ["BYDX", "BYT Auto", 'auto', 32.00, 2.9, 1.2, 0.45, 0.006, 22, 0.01, "Größter Hersteller von E-Autos und Batterien."],
+  ["GSAC", "Goldmann Sax", 'fin', 560.00, 0.32, 1.3, 0.28, 0.003, 16, 0.02, "Investmentbank und Vermögensverwalter."],
+  ["BRKS", "Berkshore Hathaway", 'fin', 470.00, 2.16, 0.8, 0.16, 0.002, 22, 0, "Beteiligungsholding mit Versicherungen und Industrie."],
+  ["MCHR", "Münchner Rück", 'fin', 470.00, 0.13, 0.7, 0.19, 0.002, 13, 0.033, "Rückversicherer für Naturkatastrophen und Großrisiken."],
+  ["PAYP", "PayPall Holdings", 'fin', 68.00, 1.0, 1.3, 0.38, 0.007, 15, 0, "Online-Bezahldienst."],
+  ["MCDO", "McDonalt's Corp.", 'cons', 290.00, 0.72, 0.6, 0.17, 0.002, 25, 0.023, "Größte Schnellrestaurant-Kette der Welt."],
+  ["LVMX", "LVHM Moët Hennessy", 'cons', 640.00, 0.5, 1.0, 0.3, 0.004, 24, 0.02, "Luxuskonzern: Mode, Champagner, Schmuck."],
+  ["WMRT", "Wallmarkt Inc.", 'cons', 92.00, 8.0, 0.5, 0.18, 0.002, 38, 0.011, "Supermärkte und Onlinehandel in den USA."],
+  ["NKEE", "Nikke Inc.", 'cons', 74.00, 1.5, 1.0, 0.3, 0.005, 26, 0.02, "Sportschuhe und Sportbekleidung."],
+  ["STBX", "Starbacks Corp.", 'cons', 95.00, 1.13, 0.9, 0.28, 0.004, 30, 0.025, "Kaffeehaus-Kette mit 40.000 Filialen."],
+  ["TTEN", "TotalErgies SE", 'energy', 58.00, 2.3, 0.8, 0.24, 0.003, 8, 0.055, "Öl, Gas, Flüssiggas und Strom."],
+  ["NEXE", "NextEra Grün", 'util', 72.00, 2.05, 0.8, 0.26, 0.004, 22, 0.028, "Größter Betreiber von Wind- und Solarparks."],
+  ["EONX", "E.ON-Netz AG", 'util', 13.40, 2.6, 0.6, 0.18, 0.003, 13, 0.04, "Stromnetze und Energievertrieb."],
+  ["RWEX", "RWE Kraft AG", 'util', 33.00, 0.74, 0.7, 0.26, 0.004, 9, 0.033, "Stromerzeugung aus Wind, Solar und Gas."],
+  ["LLLY", "Lilly & Söhne", 'health', 820.00, 0.95, 0.7, 0.3, 0.004, 60, 0.007, "Diabetes- und Abnehmmedikamente."],
+  ["JNJX", "Jonson & Jonson", 'health', 158.00, 2.4, 0.5, 0.16, 0.002, 15, 0.032, "Medikamente und Medizintechnik."],
+  ["BAYR", "Beyer AG", 'health', 26.00, 0.98, 1.0, 0.4, 0.007, 6, 0.004, "Pharma, Pflanzenschutz und Saatgut."],
+  ["MRCK", "Merk KGaA", 'health', 150.00, 0.13, 0.8, 0.26, 0.003, 18, 0.015, "Pharma, Laborbedarf und Spezialchemie."],
+  ["CATX", "Caterpiller Inc.", 'ind', 360.00, 0.48, 1.1, 0.28, 0.003, 17, 0.016, "Bagger, Bergbau- und Baumaschinen."],
+  ["BOEG", "Boing Co.", 'ind', 175.00, 0.75, 1.3, 0.38, 0.006, -1, 0, "Verkehrsflugzeuge und Rüstung."],
+  ["DHLX", "DHL Logistik", 'ind', 38.00, 1.2, 1.0, 0.26, 0.004, 13, 0.05, "Paket- und Expresslogistik weltweit."],
+  ["SCHN", "Schnyder Electric", 'ind', 236.00, 0.57, 1.1, 0.26, 0.003, 30, 0.016, "Elektrotechnik für Rechenzentren und Gebäude."],
+  ["VZNX", "Verizan Comm.", 'tel', 40.00, 4.2, 0.4, 0.17, 0.002, 9, 0.066, "Mobilfunk und Glasfaser in den USA."],
+  ["LINX", "Lindt Gas plc", 'chem', 430.00, 0.48, 0.8, 0.2, 0.002, 33, 0.013, "Industriegase für Stahl, Medizin und Chips."],
+  ["VNVX", "Vonovio SE", 'realty', 28.00, 0.82, 1.0, 0.3, 0.005, 14, 0.04, "Größter Wohnungsvermieter Europas."],
+  ["PLDX", "Prologix Inc.", 'realty', 112.00, 0.93, 1.0, 0.26, 0.003, 30, 0.034, "Logistikhallen und Lagerzentren."],
+  ["DWNX", "Deutsche Wohnwert AG", 'realty', 22.00, 0.4, 1.0, 0.32, 0.006, 16, 0.03, "Wohnungen in Berlin und Großstädten."]
 ];
 export const CORE = new Set(STOCKS.slice(0, 24).map(d => d[0])); // Bestandteile des WELTIX 24
 export const BONDS = [
@@ -155,7 +196,8 @@ export const FUNDA = {
   ABZZ: { g: 0.07, psr: 2.0, fy: 2 }, TTEL: { g: 0.02, psr: 1.3, fy: 0 }, QNTX: { g: 0.60, psr: 40, fy: 1 }, SOLR: { g: 0.15, psr: 1.5, fy: 2 },
   NTFX: { g: 0.15, psr: 8.5, fy: 0 }, JPMG: { g: 0.06, psr: 3.6, fy: 1 }, VIZZ: { g: 0.10, psr: 15, fy: 2 }, HRMZ: { g: 0.14, psr: 13, fy: 0 },
   RHST: { g: 0.30, psr: 2.6, fy: 1 }, LUFZ: { g: 0.04, psr: 0.2, fy: 2 }, BSFA: { g: -0.01, psr: 0.6, fy: 0 }, CBZE: { g: 0.35, psr: 8, fy: 1 },
-  KRNH: { g: 0.02, psr: 0.9, fy: 2 }, RTST: { g: 0.03, psr: 0.35, fy: 0 }, MDVO: { g: 0.12, psr: 2.8, fy: 1 }, NWDT: { g: 0.18, psr: 1.1, fy: 2 }
+  KRNH: { g: 0.02, psr: 0.9, fy: 2 }, RTST: { g: 0.03, psr: 0.35, fy: 0 }, MDVO: { g: 0.12, psr: 2.8, fy: 1 }, NWDT: { g: 0.18, psr: 1.1, fy: 2 },
+  OKRL: { g: 0.09, psr: 8, fy: 0 }, SLSF: { g: 0.1, psr: 7, fy: 1 }, ADOB: { g: 0.1, psr: 11, fy: 2 }, SPTF: { g: 0.16, psr: 4.5, fy: 0 }, UBRX: { g: 0.17, psr: 3.5, fy: 1 }, ZLND: { g: 0.06, psr: 0.75, fy: 2 }, TSMK: { g: 0.28, psr: 10, fy: 0 }, ASMR: { g: 0.12, psr: 9.5, fy: 1 }, INTL: { g: -0.04, psr: 1.9, fy: 2 }, AMDX: { g: 0.22, psr: 9, fy: 0 }, INFN: { g: 0.05, psr: 2.8, fy: 1 }, MBNZ: { g: -0.01, psr: 0.45, fy: 2 }, PRSH: { g: 0.02, psr: 1.4, fy: 0 }, BYDX: { g: 0.25, psr: 1.1, fy: 1 }, GSAC: { g: 0.06, psr: 3.8, fy: 2 }, BRKS: { g: 0.06, psr: 2.7, fy: 0 }, MCHR: { g: 0.04, psr: 0.9, fy: 1 }, PAYP: { g: 0.07, psr: 2.2, fy: 2 }, MCDO: { g: 0.05, psr: 8, fy: 0 }, LVMX: { g: 0.06, psr: 3.8, fy: 1 }, WMRT: { g: 0.05, psr: 1.0, fy: 2 }, NKEE: { g: 0.03, psr: 2.2, fy: 0 }, STBX: { g: 0.05, psr: 3.0, fy: 1 }, TTEN: { g: 0.0, psr: 0.65, fy: 2 }, NEXE: { g: 0.08, psr: 5.5, fy: 0 }, EONX: { g: 0.03, psr: 0.38, fy: 1 }, RWEX: { g: 0.05, psr: 1.0, fy: 2 }, LLLY: { g: 0.3, psr: 18, fy: 1 }, JNJX: { g: 0.04, psr: 4.3, fy: 2 }, BAYR: { g: -0.01, psr: 0.55, fy: 0 }, MRCK: { g: 0.04, psr: 0.9, fy: 1 }, CATX: { g: 0.03, psr: 2.6, fy: 2 }, BOEG: { g: 0.08, psr: 1.6, fy: 0 }, DHLX: { g: 0.03, psr: 0.55, fy: 1 }, SCHN: { g: 0.1, psr: 3.6, fy: 2 }, VZNX: { g: 0.01, psr: 1.2, fy: 0 }, LINX: { g: 0.05, psr: 6.2, fy: 1 }, VNVX: { g: 0.03, psr: 6.5, fy: 2 }, PLDX: { g: 0.07, psr: 13, fy: 0 }, DWNX: { g: 0.02, psr: 5.5, fy: 1 }
 };
 export const STORY = {
   MVDA: 'Gegründet von einer Gamerin, die Grafikkarten zu besseren Taschenrechnern umbaute. Heute laufen fast alle KI-Rechenzentren auf Mvidia-Chips – die Lieferzeiten betragen Monate.',
@@ -193,7 +235,47 @@ export const STORY = {
   KRNH: 'Seit 1874 in Familienhand, solide Dividende, kaum Wachstum. Klein genug, um sie komplett zu kaufen.',
   RTST: 'Zyklischer Stahlkocher: leidet unter Billigimporten aus Fernost und jubelt über jeden Schutzzoll.',
   MDVO: 'Wachsender Diagnostik-Spezialist mit guten Margen. Ein beliebtes Ziel für Finanzinvestoren.',
-  NWDT: 'Volle Auftragsbücher dank Energiewende, aber Bauteile kommen aus Asien – Zölle treffen die Marge.'
+  NWDT: 'Volle Auftragsbücher dank Energiewende, aber Bauteile kommen aus Asien – Zölle treffen die Marge.',
+  OKRL: "Jede Bank und jede Airline speichert ihre Daten in Orakel-Datenbanken. Der Wechsel kostet so viel, dass kaum jemand ihn wagt.",
+  SLSF: "Erfand das Abo-Modell für Unternehmenssoftware. Wächst langsamer als früher und kauft dafür ständig Konkurrenten auf.",
+  ADOB: "Ohne Adobo-Programme gäbe es keine Werbung und keine Magazine. Die große Sorge: KI-Bildgeneratoren machen das Handwerk billiger.",
+  SPTF: "Die Musik-App mit 600 Millionen Nutzern. Nach Jahren mit Verlusten verdient sie endlich Geld – die Börse feiert jede Preiserhöhung.",
+  UBRX: "Vom Geldverbrenner zur Gewinnmaschine. Robotaxis könnten das Geschäft revolutionieren – oder überflüssig machen.",
+  ZLND: "Bestellt, anprobiert, zurückgeschickt: Retouren sind der größte Kostenblock. Hängt stark an der Kauflaune der Konsumenten.",
+  TSMK: "Fertigt die Chips für Mvidia, Pear und Co. Technisch kaum einholbar – aber jede geopolitische Spannung in Fernost drückt auf den Kurs.",
+  ASMR: "Baut Maschinen so groß wie ein Bus, ohne die kein moderner Chip entsteht. Exportverbote nach Fernost treffen den Umsatz direkt.",
+  INTL: "Der einstige Chip-König kämpft mit Verlusten und baut milliardenschwere Fabriken. Subventionen und Zölle entscheiden über das Comeback.",
+  AMDX: "Der ewige Zweite hinter Mvidia und Intal – mit Chips, die immer öfter besser sind. Entsprechend hoch die Erwartungen.",
+  INFN: "Steckt in jedem E-Auto und jedem Windrad. Läuft die Autoindustrie schlecht, spürt Infinion das sofort.",
+  MBNZ: "Der Stern auf der Haube verkauft sich vor allem in Asien und den USA – genau dort, wo Zölle drohen. Dafür gibt es eine hohe Dividende.",
+  PRSH: "Hohe Margen, treue Kunden – aber das Elektro-Geschäft läuft schleppend und China kauft weniger Luxusautos.",
+  BYDX: "Baut mehr Elektroautos als jeder andere und drängt nach Europa. Schutzzölle gegen Fernost sind das größte Risiko.",
+  GSAC: "Verdient an Börsengängen, Übernahmen und Handel. Gute Börsenjahre sind gute Goldmann-Jahre – und umgekehrt.",
+  BRKS: "Der legendäre Investor kauft seit Jahrzehnten ganze Firmen und behält sie für immer. Zahlt nie Dividende – und sitzt auf einem Berg Cash.",
+  MCHR: "Versichert die Versicherer. Hohe Zinsen bringen mehr Ertrag auf die Rücklagen, schwere Stürme kosten Milliarden.",
+  PAYP: "Fast jeder hat ein Konto, aber Apple Pay und Co. jagen Marktanteile. Billig bewertet, weil keiner an Wachstum glaubt.",
+  MCDO: "Burger gehen immer – auch in der Krise. Gehört eigentlich zu den größten Immobilienbesitzern der Welt.",
+  LVMX: "Über 70 Marken von Handtaschen bis Champagner. Hängt am Konsum reicher Chinesen und Amerikaner – Zölle treffen voll.",
+  WMRT: "Der größte Händler der Welt profitiert, wenn Kunden sparen müssen. Zölle auf Importe aus Fernost verteuern sein Sortiment.",
+  NKEE: "Lässt fast alles in Fernost produzieren. Jeder Zoll auf asiatische Importe frisst direkt in die Marge.",
+  STBX: "Ein Latte für sieben Euro: Funktioniert, solange die Kunden sich das leisten wollen. Ein neuer Chef soll das Wachstum zurückbringen.",
+  TTEN: "Verdient mit Öl und investiert in Wind und Solar. Hohe Dividende, schwankt mit dem Ölpreis.",
+  NEXE: "Baut Wind- und Solarparks auf Kredit. Steigende Zinsen machen jedes Projekt teurer – fallende Zinsen beflügeln.",
+  EONX: "Betreibt die Stromleitungen in halb Europa. Die Renditen sind vom Staat reguliert – sicher, aber langweilig.",
+  RWEX: "Vom Kohlekonzern zum Ökostrom-Riesen. Verdient, wenn der Strompreis hoch ist.",
+  LLLY: "Die Abnehmspritze hat Lilly zum wertvollsten Pharmakonzern der Welt gemacht. Jede Studie und jeder Preisdeckel bewegt den Kurs.",
+  JNJX: "Erhöht seit über 60 Jahren die Dividende. Klagen wegen Babypuder belasten seit Jahren.",
+  BAYR: "Eine teure Übernahme in den USA brachte Tausende Klagen. Die Dividende wurde auf fast null gekürzt – ein Sanierungsfall.",
+  MRCK: "Ältestes Pharmaunternehmen der Welt, mehrheitlich in Familienbesitz. Beliefert auch die Chipindustrie.",
+  CATX: "Gelbe Bagger auf jeder Baustelle der Welt. Ein Konjunkturbarometer: Läuft der Bau, läuft Caterpiller.",
+  BOEG: "Qualitätsprobleme, Streiks, Milliardenverluste – aber die Auftragsbücher reichen für ein Jahrzehnt. Ein Comeback-Kandidat.",
+  DHLX: "Transportiert den Welthandel. Zölle und schwacher Handel drücken die Mengen, der Onlinehandel stützt.",
+  SCHN: "Liefert Kühlung und Stromverteilung für KI-Rechenzentren. Einer der großen Profiteure des Datenbooms.",
+  VZNX: "Hohe Dividende, hohe Schulden, wenig Wachstum. Bewegt sich eher wie eine Anleihe – steigende Zinsen schaden.",
+  LINX: "Liefert Sauerstoff und Wasserstoff per Pipeline – mit Verträgen über 15 Jahre. Kann Preissteigerungen fast immer weitergeben.",
+  VNVX: "Besitzt über eine halbe Million Wohnungen, finanziert mit viel Schulden. Jede Zinserhöhung drückt auf die Bewertung.",
+  PLDX: "Vermietet die Hallen, aus denen der Onlinehandel liefert. Profitiert vom Boom des Versandhandels, leidet unter hohen Zinsen.",
+  DWNX: "Ein reiner Berlin-Wert: Mietendeckel-Debatten und Zinsen bestimmen den Kurs."
 };
 
 /* ---------- Wirtschaftliche Empfindlichkeiten ----------
@@ -202,7 +284,8 @@ export const STORY = {
 export const SECTOR_SENS = {
   tech: { rate: 1.4, infl: -0.3, cyc: 0.8 }, semi: { rate: 1.3, infl: -0.2, cyc: 1.3 }, auto: { rate: 0.6, infl: -0.5, cyc: 1.5 },
   fin: { rate: -0.8, infl: 0.2, cyc: 1.0 }, cons: { rate: 0.4, infl: 0.2, cyc: 0.6 }, energy: { rate: 0.2, infl: 1.2, cyc: 0.7 },
-  health: { rate: 0.5, infl: 0.2, cyc: 0.2 }, ind: { rate: 0.5, infl: 0.1, cyc: 1.2 }, tel: { rate: 0.9, infl: 0.1, cyc: 0.3 }, chem: { rate: 0.4, infl: -0.4, cyc: 1.3 }
+  health: { rate: 0.5, infl: 0.2, cyc: 0.2 }, ind: { rate: 0.5, infl: 0.1, cyc: 1.2 }, tel: { rate: 0.9, infl: 0.1, cyc: 0.3 }, chem: { rate: 0.4, infl: -0.4, cyc: 1.3 },
+  util: { rate: 1.1, infl: 0.3, cyc: 0.3 }, realty: { rate: 1.8, infl: 0.4, cyc: 0.7 }
 };
 export const COMPANY_SENS = {
   MVDA: { home: 'us', exp: 0.55, sc: 0.8 }, PEAR: { home: 'us', exp: 0.5, sc: 0.9 }, MHRD: { home: 'us', exp: 0.4, sc: 0.2 }, ABET: { home: 'us', exp: 0.45, sc: 0.1 },
@@ -213,7 +296,47 @@ export const COMPANY_SENS = {
   ABZZ: { home: 'eu', exp: 0.6, sc: 0.4 }, TTEL: { home: 'eu', exp: 0.2, sc: 0.3 }, QNTX: { home: 'us', exp: 0.3, sc: 0.5, rate: 2.5 }, SOLR: { home: 'eu', exp: 0.1, sc: 0.9, rate: 2.0 },
   NTFX: { home: 'us', exp: 0.5, sc: 0 }, JPMG: { home: 'us', exp: 0.2, sc: 0 }, VIZZ: { home: 'us', exp: 0.45, sc: 0 }, HRMZ: { home: 'eu', exp: 0.75, sc: 0.1, infl: 0.8 },
   RHST: { home: 'eu', exp: 0.3, sc: 0.2, cyc: 0.2 }, LUFZ: { home: 'eu', exp: 0.4, sc: 0.1, infl: -0.8 }, BSFA: { home: 'eu', exp: 0.55, sc: 0.3 }, CBZE: { home: 'us', exp: 0.3, sc: 0, rate: 1.8 },
-  KRNH: { home: 'eu', exp: 0.1, sc: 0.1, infl: 0.3 }, RTST: { home: 'eu', exp: 0.35, sc: 0.3, steel: 1 }, MDVO: { home: 'eu', exp: 0.5, sc: 0.3 }, NWDT: { home: 'eu', exp: 0.4, sc: 0.6, rate: 1.2 }
+  KRNH: { home: 'eu', exp: 0.1, sc: 0.1, infl: 0.3 }, RTST: { home: 'eu', exp: 0.35, sc: 0.3, steel: 1 }, MDVO: { home: 'eu', exp: 0.5, sc: 0.3 }, NWDT: { home: 'eu', exp: 0.4, sc: 0.6, rate: 1.2 },
+  OKRL: { home: "us", exp: 0.45, sc: 0.1 },
+  SLSF: { home: "us", exp: 0.35, sc: 0.05 },
+  ADOB: { home: "us", exp: 0.45, sc: 0.05 },
+  SPTF: { home: "eu", exp: 0.75, sc: 0.05 },
+  UBRX: { home: "us", exp: 0.35, sc: 0.2 },
+  ZLND: { home: "eu", exp: 0.6, sc: 0.7 },
+  TSMK: { home: "asia", exp: 0.8, sc: 0.3 },
+  ASMR: { home: "eu", exp: 0.85, sc: 0.3 },
+  INTL: { home: "us", exp: 0.5, sc: 0.4 },
+  AMDX: { home: "us", exp: 0.55, sc: 0.8 },
+  INFN: { home: "eu", exp: 0.75, sc: 0.4 },
+  MBNZ: { home: "eu", exp: 0.7, sc: 0.5 },
+  PRSH: { home: "eu", exp: 0.75, sc: 0.4 },
+  BYDX: { home: "asia", exp: 0.35, sc: 0.2 },
+  GSAC: { home: "us", exp: 0.4, sc: 0 },
+  BRKS: { home: "us", exp: 0.2, sc: 0.1 },
+  MCHR: { home: "eu", exp: 0.6, sc: 0 },
+  PAYP: { home: "us", exp: 0.45, sc: 0 },
+  MCDO: { home: "us", exp: 0.55, sc: 0.1, infl: 0.5 },
+  LVMX: { home: "eu", exp: 0.8, sc: 0.2, infl: 0.7 },
+  WMRT: { home: "us", exp: 0.15, sc: 0.6 },
+  NKEE: { home: "us", exp: 0.6, sc: 0.9 },
+  STBX: { home: "us", exp: 0.35, sc: 0.3 },
+  TTEN: { home: "eu", exp: 0.6, sc: 0.1 },
+  NEXE: { home: "us", exp: 0.05, sc: 0.6 },
+  EONX: { home: "eu", exp: 0.2, sc: 0.2 },
+  RWEX: { home: "eu", exp: 0.35, sc: 0.4 },
+  LLLY: { home: "us", exp: 0.4, sc: 0.2, infl: 0.6 },
+  JNJX: { home: "us", exp: 0.45, sc: 0.2 },
+  BAYR: { home: "eu", exp: 0.7, sc: 0.3 },
+  MRCK: { home: "eu", exp: 0.8, sc: 0.3 },
+  CATX: { home: "us", exp: 0.55, sc: 0.4 },
+  BOEG: { home: "us", exp: 0.5, sc: 0.4 },
+  DHLX: { home: "eu", exp: 0.7, sc: 0.2 },
+  SCHN: { home: "eu", exp: 0.75, sc: 0.4 },
+  VZNX: { home: "us", exp: 0.0, sc: 0.3 },
+  LINX: { home: "eu", exp: 0.7, sc: 0.1, infl: 0.6 },
+  VNVX: { home: "eu", exp: 0.0, sc: 0.0 },
+  PLDX: { home: "us", exp: 0.3, sc: 0.0 },
+  DWNX: { home: "eu", exp: 0.0, sc: 0.0 }
 };
 export const sensOf = x => Object.assign({ home: 'eu', exp: 0.4, sc: 0.3 }, SECTOR_SENS[x.sector] || { rate: 0.5, infl: 0, cyc: 1 }, COMPANY_SENS[x.id] || {});
 export const REGION = { eu: 'Europa', us: 'USA', asia: 'Fernost' };
@@ -271,9 +394,9 @@ export const REGIMES = {
   bull: { name: 'Bullenmarkt', mu: 0.18, vol: 0.85, infl: 2.4, dur: [30, 70], next: { side: 0.5, infl: 0.35, rec: 0.15 }, tilt: { tech: 0.05, semi: 0.1, cons: 0.03, ener: 0, prec: -0.05 }, desc: 'Steigende Kurse, gute Stimmung, niedrige Schwankungen. Wachstumswerte laufen besonders gut.' },
   side: { name: 'Seitwärtsphase', mu: 0.03, vol: 0.85, infl: 2.2, dur: [20, 50], next: { bull: 0.5, infl: 0.25, hike: 0.25 }, tilt: { health: 0.04, tel: 0.04 }, desc: 'Der Markt pendelt ohne klare Richtung. Dividenden und Zinsen tragen den Großteil der Rendite.' },
   infl: { name: 'Inflationsschub', mu: -0.02, vol: 1.1, infl: 5.0, dur: [20, 45], next: { hike: 0.7, side: 0.3 }, tilt: { energy: 0.15, fin: 0.05, tech: -0.1, semi: -0.1, ener: 0.2, prec: 0.15, metal: 0.1, agri: 0.1 }, desc: 'Preise steigen schneller als erwartet. Rohstoffe und Energie profitieren, teure Wachstumsaktien leiden.' },
-  hike: { name: 'Zinswende', mu: -0.06, vol: 1.2, infl: 3.0, dur: [15, 35], next: { rec: 0.55, side: 0.45 }, tilt: { fin: 0.08, tech: -0.12, energy: 0.0, ind: -0.04, prec: -0.05 }, desc: 'Die Zentralbank erhöht die Zinsen deutlich. Anleihen verlieren, Banken gewinnen, Hochbewertete fallen.' },
-  rec: { name: 'Rezession', mu: -0.28, vol: 1.6, infl: 1.2, dur: [15, 40], next: { recov: 1 }, tilt: { health: 0.1, cons: 0.06, tel: 0.06, auto: -0.15, ind: -0.1, fin: -0.08, ener: -0.2, metal: -0.15, prec: 0.12 }, desc: 'Die Wirtschaft schrumpft, Kurse fallen kräftig. Wer Geld übrig hat, kauft jetzt günstig nach.' },
-  recov: { name: 'Erholung', mu: 0.28, vol: 1.1, infl: 1.8, dur: [20, 45], next: { bull: 1 }, tilt: { auto: 0.15, ind: 0.1, semi: 0.1, fin: 0.08, metal: 0.1, ener: 0.08 }, desc: 'Nach dem Tief geht es schnell wieder aufwärts. Zyklische Werte erholen sich am stärksten.' }
+  hike: { name: 'Zinswende', mu: -0.06, vol: 1.2, infl: 3.0, dur: [15, 35], next: { rec: 0.55, side: 0.45 }, tilt: { fin: 0.08, tech: -0.12, energy: 0.0, ind: -0.04, prec: -0.05, realty: -0.12, util: -0.05 }, desc: 'Die Zentralbank erhöht die Zinsen deutlich. Anleihen verlieren, Banken gewinnen, Hochbewertete fallen.' },
+  rec: { name: 'Rezession', mu: -0.28, vol: 1.6, infl: 1.2, dur: [15, 40], next: { recov: 1 }, tilt: { health: 0.1, cons: 0.06, tel: 0.06, util: 0.06, realty: -0.06, auto: -0.15, ind: -0.1, fin: -0.08, ener: -0.2, metal: -0.15, prec: 0.12 }, desc: 'Die Wirtschaft schrumpft, Kurse fallen kräftig. Wer Geld übrig hat, kauft jetzt günstig nach.' },
+  recov: { name: 'Erholung', mu: 0.28, vol: 1.1, infl: 1.8, dur: [20, 45], next: { bull: 1 }, tilt: { auto: 0.15, ind: 0.1, semi: 0.1, fin: 0.08, metal: 0.1, ener: 0.08, realty: 0.08 }, desc: 'Nach dem Tief geht es schnell wieder aufwärts. Zyklische Werte erholen sich am stärksten.' }
 };
 
 /* ---------- Termine & Nachrichtenvorlagen ---------- */
@@ -286,7 +409,9 @@ export const SECTOR_EVENTS = [
   { sector: 'tech', title: 'EU-Kommission entscheidet über Digitalsteuer für Plattformen' },
   { sector: 'ind', title: 'Bundestag stimmt über Infrastruktur- und Verteidigungspaket ab' },
   { sector: 'cons', title: 'Einzelhandelsverband legt Weihnachtsbilanz vor' },
-  { sector: 'tel', title: 'Frequenzauktion für den neuen Mobilfunkstandard' }
+  { sector: 'tel', title: 'Frequenzauktion für den neuen Mobilfunkstandard' },
+  { sector: 'util', title: 'Netzagentur legt die erlaubten Renditen für Stromnetze fest' },
+  { sector: 'realty', title: 'Bundestag stimmt über schärfere Mietpreisbremse ab' }
 ];
 export const RUMORS = [
   { txt: '{n} prüft angeblich Übernahmeangebot eines Finanzinvestors', yes: '{n} bestätigt Übernahmeangebot mit {p} % Aufschlag', no: '{n} dementiert Übernahmegerüchte', up: [0.04, 0.12] },

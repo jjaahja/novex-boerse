@@ -50,6 +50,7 @@ function berlinNow() {
   return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) + now % 1000;
 }
 const round9 = (k, v) => typeof v === 'number' && !Number.isInteger(v) ? +v.toPrecision(9) : v;
+const round7 = (k, v) => typeof v === 'number' && !Number.isInteger(v) ? +v.toPrecision(7) : v;
 const round8 = (k, v) => typeof v === 'number' && !Number.isInteger(v) ? +v.toPrecision(8) : v;
 const utcDay = () => Math.floor(Date.now() / DAY);
 const tag = uid => 'u' + uid;
@@ -90,7 +91,7 @@ export class Exchange extends DurableObject {
     if (m) {
       if (m._usage && m._usage.day === utcDay()) this.usage = m._usage;
       delete m._usage;
-      for (const id in m.inst) { const x = m.inst[id]; x.c1 = []; x.cD = []; x.ts = []; } // auch von der Börse genommene Werte
+      for (const id in m.inst) { const x = m.inst[id]; x.c1 = []; x.cH = []; x.cD = []; x.ts = []; } // auch von der Börse genommene Werte
       for (const r of s.exec("SELECT v FROM blob WHERE k LIKE 'cc:%'").toArray()) { try { const o = JSON.parse(r.v); for (const id in o) if (m.inst[id]) Object.assign(m.inst[id], o[id]); } catch { } }
       for (const r of s.exec("SELECT k, v FROM blob WHERE k LIKE 'c:%'").toArray()) { // ältere Speicherform: eine Zeile je Wertpapier
         this.legacy = true; const id = r.k.slice(2); if (m.inst[id] && !m.inst[id].c1.length) { try { Object.assign(m.inst[id], JSON.parse(r.v)); } catch { } }
@@ -123,14 +124,14 @@ export class Exchange extends DurableObject {
   put(k, v) { this.sql.exec('INSERT INTO blob (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v', k, v); this.bump('wr'); }
   saveHot() {
     const M = E.M, inst = {};
-    for (const id in M.inst) { const { c1, cD, ts, ...rest } = M.inst[id]; inst[id] = rest; }
+    for (const id in M.inst) { const { c1, cH, cD, ts, ...rest } = M.inst[id]; inst[id] = rest; }
     this.put('market', JSON.stringify(Object.assign({}, M, { inst, _usage: this.usage }), round9));
     this.lastHot = Date.now(); this.hotDirty = false; this.touched = false;
   }
   saveCandles() {
     const ids = E.M.ids;
     for (let i = 0; i < ids.length; i += CHUNK) {
-      const o = {}; for (const id of ids.slice(i, i + CHUNK)) { const x = E.M.inst[id]; o[id] = { c1: x.c1, cD: x.cD, ts: x.ts }; }
+      const o = {}; for (const id of ids.slice(i, i + CHUNK)) { const x = E.M.inst[id]; o[id] = { c1: x.c1, cH: x.cH, cD: x.cD, ts: x.ts }; }
       this.put('cc:' + (i / CHUNK), JSON.stringify(o, round8));
     }
     if (this.legacy) { const n = this.sql.exec("SELECT COUNT(*) AS n FROM blob WHERE k LIKE 'c:%'").one().n; this.sql.exec("DELETE FROM blob WHERE k LIKE 'c:%'"); this.bump('wr', n); this.legacy = false; }
@@ -159,23 +160,35 @@ export class Exchange extends DurableObject {
   advance() { const steps = E.advanceTo(berlinNow()); if (steps) { this.hotDirty = true; this.candlesDirty = true; if (steps > 3) this.resync = true; } }
   send(ws, s) { try { ws.send(s); } catch { } }
   sendTo(uid, msg) { const l = this.ctx.getWebSockets(tag(uid)); if (!l.length) return; const s = JSON.stringify(msg, round9); for (const ws of l) this.send(ws, s); }
-  broadcast(msg) { const l = this.ctx.getWebSockets(); if (!l.length) return; const s = JSON.stringify(msg, round9); for (const ws of l) this.send(ws, s); }
+  broadcast(msg) { const l = this.ctx.getWebSockets(); if (!l.length) return; const s = JSON.stringify(msg, msg.type === 'tick' ? round7 : round9); for (const ws of l) this.send(ws, s); }
+  // Live-Takt im Kompaktformat: je Wertpapier nur Kurs, Tagesumsatz und laufende Minutenkerze.
+  // Selten Geändertes (Eröffnung, Hoch/Tief, Begründung, Quartalszahlen, Termine …) nur, wenn es sich geändert hat.
+  // seq: fortlaufende Nummer – verpasst der Browser einen Takt, lädt er den Stand neu.
   tickMsg() {
-    const M = E.M, d = {};
+    const M = E.M, d = {}, xs = {}, c = this.tc || (this.tc = { k: {}, s: {}, ts: {}, comp: {}, g: {} }), seq = (this.seq || 0) + 1, full = seq % 6 === 0;
+    const ix = M.inst.WELTIX, kb = ix && ix.c1.length ? ix.c1[ix.c1.length - 1][0] : 0; // gemeinsame Minute aller Kerzen
     for (const id of M.ids) {
-      const x = M.inst[id];
-      const o = { p: x.price, lc: x.lc, do: x.do, pc: x.pc, hi: x.hi, lo: x.lo, dv: x.dv, dt: x.dt, lq: x.liq, k: x.c1.slice(-2), cd: x.cD[x.cD.length - 1], ts: x.ts.slice(0, 8) };
-      if (x.cls === 'stock' || x.cls === 'cmd') { o.f = x.f; o.tr = x.tr; }
-      else if (x.cls === 'bond') Object.assign(o, { dirty: x.dirty, acc: x.acc, mdur: x.mdur, ytm: x.ytm, tri: x.tri, spr: x.spr, idio: x.idio, matured: x.matured, ci: x.ci });
-      else if (x.cls === 'etf') Object.assign(o, { nav: x.nav, prem: x.prem, ff: x.ff });
-      else if (x.cls === 'fund') Object.assign(o, { nav: x.nav, ff: x.ff });
-      if (x.why) o.why = x.why;
-      if (x.fin) { o.eps = x.eps; if ((this.sentFv || (this.sentFv = {}))[id] !== x.fin.fv) { o.fin = x.fin; this.sentFv[id] = x.fin.fv; } } // Quartalszahlen nur bei Änderung
-      if (x.cls === 'etf' || x.cls === 'fund') o.comp = x.comp;
-      d[id] = o;
+      const x = M.inst[id], k = x.c1[x.c1.length - 1], ex = {};
+      d[id] = k && k[0] === kb ? [x.price, Math.round(x.dv), Math.round(x.dt), k[1], k[2], k[3], Math.round(k[5])] : [x.price, Math.round(x.dv), Math.round(x.dt)];
+      if (k && k[0] !== kb) ex.k = k;
+      if (k && c.k[id] !== undefined && c.k[id] !== k[0] && x.c1.length > 1) ex.k0 = x.c1[x.c1.length - 2]; // gerade abgeschlossene Minute
+      if (k) c.k[id] = k[0];
+      const slow = [x.do, x.pc, x.hi, x.lo, Math.round(x.liq * 100), x.why ? x.why.t : 0, x.eps, x.cD.length ? x.cD[x.cD.length - 1][0] : 0].join('|');
+      if (c.s[id] !== slow) { c.s[id] = slow; Object.assign(ex, { do: x.do, pc: x.pc, hi: x.hi, lo: x.lo, lq: x.liq, why: x.why, eps: x.eps, cd: x.cD[x.cD.length - 1] }); }
+      // Umsätze: nur die seit dem letzten Takt neuen (meist einer)
+      const lastT = c.ts[id] || 0, nt = []; for (const t of x.ts) { if (t[0] <= lastT || nt.length >= 4) break; nt.push(t); } if (x.ts.length) c.ts[id] = x.ts[0][0];
+      if (nt.length) ex.tn = nt;
+      if (x.cls === 'bond') { Object.assign(ex, { acc: x.acc, ytm: x.ytm, dirty: x.dirty }); if (full) Object.assign(ex, { mdur: x.mdur, tri: x.tri, spr: x.spr, idio: x.idio, matured: x.matured, ci: x.ci }); }
+      else if (x.cls === 'etf') { Object.assign(ex, { nav: x.nav, prem: x.prem }); if (full) ex.ff = x.ff; }
+      else if (x.cls === 'fund') { ex.nav = x.nav; if (full) ex.ff = x.ff; }
+      if (x.comp && (x.cls === 'etf' || x.cls === 'fund')) { const cs = x.comp.map(q => q.id + q.c.toPrecision(6)).join(); if (c.comp[id] !== cs) { c.comp[id] = cs; ex.comp = x.comp; } }
+      if (x.fin && (this.sentFv || (this.sentFv = {}))[id] !== x.fin.fv) { ex.fin = x.fin; this.sentFv[id] = x.fin.fv; }
+      for (const q in ex) { xs[id] = ex; break; }
     }
-    const msg = { type: 'tick', t: M.t, isOpen: M.isOpen, lv: M.lv, r: M.r, slope: M.slope, U: M.U, week: M.week, lastClose: M.lastClose, eqMark: M.eqMark, news: M.news.slice(0, 15), d, resync: this.resync, bank: this.publicBank(), tickMs: this.tickMs(),
-      lz: M.lz, infl: M.infl, reg: M.reg, rp: M.rp, cb: M.cb, cpi: M.cpi, events: M.events, mac: this.macMsg(), fr: M.fr, pol: M.pol, ma: M.ma, idsV: M.idsV };
+    const news = M.news.filter(n => n.n > (this.newsN || 0)); if (M.news.length) this.newsN = Math.max(this.newsN || 0, M.news[0].n);
+    const msg = { type: 'tick', seq: this.seq = seq, kb, t: M.t, isOpen: M.isOpen, lv: M.lv, r: M.r, slope: M.slope, U: M.U, week: M.week, lastClose: M.lastClose, eqMark: M.eqMark, d, x: xs, news, resync: this.resync, tickMs: this.tickMs() };
+    const g = { bank: this.publicBank(), lz: M.lz, infl: M.infl, reg: M.reg, rp: M.rp, cb: M.cb, cpi: M.cpi, events: M.events, mac: this.macMsg(), fr: M.fr, pol: M.pol, ma: M.ma, idsV: M.idsV };
+    for (const key in g) { const j = JSON.stringify(g[key]); if (c.g[key] !== j || key === 'mac' && g.mac && g.mac.h) { c.g[key] = j; msg[key] = g[key]; } }
     this.resync = false;
     return msg;
   }
@@ -183,8 +196,8 @@ export class Exchange extends DurableObject {
   macMsg() { const m = E.M.mac; if (!m) return undefined; const { h, ...rest } = m; if (this.sentMacDay !== m.day) { this.sentMacDay = m.day; rest.h = h; } return rest; }
   marketForClient() {
     const M = E.M, inst = {};
-    for (const id in M.inst) { const x = M.inst[id]; inst[id] = Object.assign({}, x, { c1: x.c1.slice(-600), cD: x.cD.slice(-260), ts: x.ts.slice(0, 8) }); }
-    return Object.assign({}, M, { inst, sec: undefined }); // Geheimnisse (Überraschungen, Gerüchte, nächste Phase) bleiben auf dem Server
+    for (const id in M.inst) { const x = M.inst[id]; inst[id] = Object.assign({}, x, { c1: x.c1.slice(-120), cH: [], cD: x.cD.slice(-30), ts: x.ts.slice(0, 8) }); } // lange Verläufe lädt die Detailansicht bei Bedarf (/api/hist)
+    return Object.assign({}, M, { inst, sec: undefined, seq: this.seq || 0 }); // Geheimnisse (Überraschungen, Gerüchte, nächste Phase) bleiben auf dem Server
   }
   broadcastBoard() { this.lastBoard = Date.now(); this.broadcast({ type: 'board', board: this.board(), bank: this.publicBank() }); }
   // Nächsten Wecker setzen: Live-Takt nur bei offener Börse mit Zuschauern; sonst zur Eröffnung oder gar nicht.
@@ -360,6 +373,7 @@ export class Exchange extends DurableObject {
       const A = await this.auth(req); if (!A) return json({ error: 'Bitte anmelden.' }, 401);
       if (path === '/api/state') return new Response(JSON.stringify({ me: { name: A.name, uid: A.uid, admin: this.isAdmin(A) }, M: this.marketForClient(), acct: A, ins: E.insightsFor(A), bank: this.publicBank(), board: this.board(), tickMs: this.tickMs() }, round8), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
       if (path === '/api/board') return json({ board: this.board(), bank: this.publicBank() });
+      if (path === '/api/hist') { const x = E.M.inst[String(url.searchParams.get('id') || '')]; if (!x) return json({ error: 'Nicht gefunden.' }, 404); return new Response(JSON.stringify({ id: x.id, c1: x.c1, cH: x.cH || [], cD: x.cD.slice(-260) }, round8), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }); } // lange Kursverläufe nur bei Bedarf
       return json({ error: 'Nicht gefunden.' }, 404);
     }
     if (req.method !== 'POST') return json({ error: 'Methode nicht erlaubt.' }, 405);
@@ -427,7 +441,10 @@ export class Exchange extends DurableObject {
       else if (t === 'vote') err = E.vote(A, String(b.id), String(b.v));
       else if (t === 'strat') err = E.setStrategy(A, String(b.co), String(b.k));
       else if (t === 'ipo') err = E.ipo(A, String(b.co), n(b.frac));
+      else if (t === 'auto') err = E.setAuto(A, { id: n(b.id) || 0, tg: String(b.tg), ref: String(b.ref), k: String(b.k), f: n(b.f), oco: !!b.oco, trig: n(b.trig), tm: String(b.tm), dist: n(b.dist) });
+      else if (t === 'autodel') err = E.delAuto(A, n(b.id));
       else err = this.economy(A, b);
+      E.cleanAuto(A); // Auto-Orders verkaufter Positionen sofort entfernen
       const trade = ['order', 'cancel', 'deriv', 'close', 'exchange', 'bid', 'ipo', 'vote'].includes(t), online = this.ctx.getWebSockets().length > 0;
       if (trade && !err) { this.hotDirty = true; this.candlesDirty = true; this.touched = true; } // Kursimpakt sofort sichern
       const notes = this.inbox.get(A.uid) || []; this.inbox.delete(A.uid);
