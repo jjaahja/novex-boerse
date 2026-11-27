@@ -318,7 +318,7 @@ function genHistory(N, lastDay, ids) {
 export function addNews(txt, tone, ids, o = {}) {
   ids = ids ? (Array.isArray(ids) ? ids : [ids]) : [];
   M.news.unshift({ n: M.nseq++, t: M.t, txt, sub: o.sub || '', tone, ids, id: ids[0] || null, cat: o.cat || (ids.length ? 'company' : 'macro'), eff: o.eff === undefined ? null : o.eff, rumor: !!o.rumor, p: o.p === undefined ? null : o.p });
-  if (M.news.length > 200) M.news.length = 200;
+  if (M.news.length > 300) M.news.length = 300;
 }
 // Grund für die heutige Kursbewegung merken („Warum bewegt sich der Kurs?“)
 export function setWhy(x, txt, eff) { x.why = { t: M.t, txt, eff }; }

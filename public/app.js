@@ -150,7 +150,7 @@ async function applyTickInner(m) {
     if (k) { putCandle(x.c1, k, 900); feedHour(x, k); x.hi = Math.max(x.hi, k[2]); x.lo = Math.min(x.lo, k[3]); }
   }
   for (const n of (m.news || []).slice().reverse()) if (!M.news.some(o => o.n === n.n)) M.news.unshift(n);
-  M.news.sort((a, b) => b.n - a.n); if (M.news.length > 200) M.news.length = 200;
+  M.news.sort((a, b) => b.n - a.n); if (M.news.length > 300) M.news.length = 300;
   S.lastTick = Date.now();
   update();
 }

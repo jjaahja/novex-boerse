@@ -33,7 +33,7 @@ export function whyText(x) {
   if (x.cls === 'fx') return `${pctS(c, 2)} – Devisen schwanken mit Zinsunterschieden und Nachrichten.`;
   return `${pctS(c, 1)} heute.`;
 }
-export const CAT = { mine: 'Deine Order', earn: 'Quartalszahlen', macro: 'Makro & Zentralbank', politics: 'Politik & Zölle', ma: 'M&A & Übernahmen', sector: 'Rohstoffe', company: 'Unternehmen', rumor: 'Gerücht' };
+export const CAT = { mine: 'Deine Order', market: 'Marktbericht', earn: 'Quartalszahlen', macro: 'Makro & Zentralbank', politics: 'Politik & Zölle', ma: 'M&A & Übernahmen', sector: 'Rohstoffe', company: 'Unternehmen', rumor: 'Gerücht' };
 export function newsItem(n) {
   const ids = (n.ids || (n.id ? [n.id] : [])).filter(id => E.M.inst[id]);
   const d = dayStart(n.t) === dayStart(E.M.t) ? fTime(n.t) : fDate(n.t).slice(0, 6) + ' ' + fTime(n.t);
