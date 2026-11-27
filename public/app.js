@@ -1,4 +1,5 @@
 // NOVEX Börse – Browser-Einstieg: Anmeldung, Live-Verbindung, Navigation, Ereignisse
+import { BUILD } from './version.js';
 import { S, E, $, esc, toast, getJSON, post, actions, inputs, changes, setRefresh, berlinNow, act } from './ui/store.js';
 import { togglePop, hidePop } from './ui/glossary.js';
 import { hover } from './ui/chart.js';
@@ -80,6 +81,7 @@ async function loadState() {
     const r = await getJSON('/api/state');
     if (r.status === 401) { showAuth(); return; }
     if (r.status !== 200) { toast('Server nicht erreichbar.', 'dn'); return; }
+    if (checkBuild(r.data.b)) return;
     E.setMarket(r.data.M); S.seq = r.data.M.seq || 0; S.A = E.normalizeAccount(r.data.acct); S.ins = r.data.ins || { hints: [] }; S.BANK = r.data.bank; S.BOARD = r.data.board; S.ME = r.data.me; S.lastTick = Date.now();
   } finally { loading = false; }
 }
@@ -111,7 +113,18 @@ function feedHour(x, k) {
   if (!x.cH || !x.histT) return; const hb = Math.floor(k[0] / HOUR) * HOUR, l = x.cH[x.cH.length - 1];
   if (l && l[0] === hb) { l[2] = Math.max(l[2], k[2]); l[3] = Math.min(l[3], k[3]); l[4] = k[4]; } else if (!l || hb > l[0]) { x.cH.push([hb, k[1], k[2], k[3], k[4], k[5]]); if (x.cH.length > 120) x.cH.shift(); }
 }
+// Neue Version auf dem Server (Deploy, während der Tab offen war) → einmal neu laden, statt mit altem Code weiterzurechnen
+function checkBuild(b) {
+  if (!b || b === BUILD) return false;
+  let n = 0; try { n = +sessionStorage.getItem('novex-reload-' + b) || 0; sessionStorage.setItem('novex-reload-' + b, n + 1); } catch { }
+  if (n < 2) { location.reload(); return true; }
+  return false;
+}
 async function applyTick(m) {
+  if (checkBuild(m.b)) return;
+  try { await applyTickInner(m); } catch (e) { console.error(e); await loadState(); update(); } // unlesbarer Takt → vollständigen Stand laden
+}
+async function applyTickInner(m) {
   const M = E.M; if (!M) return;
   const gap = S.seq && m.seq && m.seq !== S.seq + 1; // verpasster Takt → Stand neu laden
   if (m.resync || gap || (M.isOpen && m.t - M.t > 3 * MIN)) { await loadState(); update(); return; }

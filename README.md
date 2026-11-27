@@ -79,6 +79,10 @@ Wrangler zeigt am Ende die Adresse, z. B. `https://novex-boerse.<dein-name>.work
 2. Ab dann wird jeder Push auf `main` automatisch gebaut und veröffentlicht. Konten und Kurse bleiben erhalten.
 3. Geheimnisse (`INVITE_CODE`, optional `ADMIN_USER`) bleiben wie bisher unter **Settings → Variables and Secrets**.
 
+## Nach Code-Änderungen
+
+Erhöhe in `public/version.js` die Kennung `BUILD`. Offene Browser-Tabs merken so nach dem Deploy, dass es eine neue Version gibt, und laden einmal neu – sonst würde alter Browser-Code mit neuem Server weiterrechnen.
+
 ## Lokal ausprobieren
 
 ```bash

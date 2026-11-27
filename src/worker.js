@@ -8,6 +8,7 @@
 // - Ein Nutzungszähler (Anfragen, geschriebene Zeilen) drosselt Takt und Speicherhäufigkeit, bevor ein Tageslimit erreicht wird.
 import { DurableObject } from 'cloudflare:workers';
 import * as E from '../public/market.js';
+import { BUILD } from '../public/version.js';
 
 const TICK_MS = 5000;               // Live-Takt bei offener Börse
 const HOT_SAVE_MS = 60000;          // Marktzustand sichern (zusätzlich sofort nach jedem Trade)
@@ -186,7 +187,7 @@ export class Exchange extends DurableObject {
       for (const q in ex) { xs[id] = ex; break; }
     }
     const news = M.news.filter(n => n.n > (this.newsN || 0)); if (M.news.length) this.newsN = Math.max(this.newsN || 0, M.news[0].n);
-    const msg = { type: 'tick', seq: this.seq = seq, kb, t: M.t, isOpen: M.isOpen, lv: M.lv, r: M.r, slope: M.slope, U: M.U, week: M.week, lastClose: M.lastClose, eqMark: M.eqMark, d, x: xs, news, resync: this.resync, tickMs: this.tickMs() };
+    const msg = { type: 'tick', b: BUILD, seq: this.seq = seq, kb, t: M.t, isOpen: M.isOpen, lv: M.lv, r: M.r, slope: M.slope, U: M.U, week: M.week, lastClose: M.lastClose, eqMark: M.eqMark, d, x: xs, news, resync: this.resync, tickMs: this.tickMs() };
     const g = { bank: this.publicBank(), lz: M.lz, infl: M.infl, reg: M.reg, rp: M.rp, cb: M.cb, cpi: M.cpi, events: M.events, mac: this.macMsg(), fr: M.fr, pol: M.pol, ma: M.ma, idsV: M.idsV };
     for (const key in g) { const j = JSON.stringify(g[key]); if (c.g[key] !== j || key === 'mac' && g.mac && g.mac.h) { c.g[key] = j; msg[key] = g[key]; } }
     this.resync = false;
@@ -371,7 +372,7 @@ export class Exchange extends DurableObject {
     if (req.method === 'GET') {
       if (path === '/api/session') { const A = await this.auth(req); return json({ user: A ? { name: A.name, admin: this.isAdmin(A) } : null, registration: !!String(this.env.INVITE_CODE || '').trim() }); }
       const A = await this.auth(req); if (!A) return json({ error: 'Bitte anmelden.' }, 401);
-      if (path === '/api/state') return new Response(JSON.stringify({ me: { name: A.name, uid: A.uid, admin: this.isAdmin(A) }, M: this.marketForClient(), acct: A, ins: E.insightsFor(A), bank: this.publicBank(), board: this.board(), tickMs: this.tickMs() }, round8), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+      if (path === '/api/state') return new Response(JSON.stringify({ b: BUILD, me: { name: A.name, uid: A.uid, admin: this.isAdmin(A) }, M: this.marketForClient(), acct: A, ins: E.insightsFor(A), bank: this.publicBank(), board: this.board(), tickMs: this.tickMs() }, round8), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
       if (path === '/api/board') return json({ board: this.board(), bank: this.publicBank() });
       if (path === '/api/hist') { const x = E.M.inst[String(url.searchParams.get('id') || '')]; if (!x) return json({ error: 'Nicht gefunden.' }, 404); return new Response(JSON.stringify({ id: x.id, c1: x.c1, cH: x.cH || [], cD: x.cD.slice(-260) }, round8), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }); } // lange Kursverläufe nur bei Bedarf
       return json({ error: 'Nicht gefunden.' }, 404);
