@@ -7,7 +7,7 @@
 // - Gespeichert wird nur, was sich geändert hat; Kerzen in wenigen großen Zeilen statt einer pro Wertpapier.
 // - Ein Nutzungszähler (Anfragen, geschriebene Zeilen) drosselt Takt und Speicherhäufigkeit, bevor ein Tageslimit erreicht wird.
 import { DurableObject } from 'cloudflare:workers';
-import * as E from '../public/engine.js';
+import * as E from '../public/market.js';
 
 const TICK_MS = 5000;               // Live-Takt bei offener Börse
 const HOT_SAVE_MS = 60000;          // Marktzustand sichern (zusätzlich sofort nach jedem Trade)
@@ -103,14 +103,16 @@ export class Exchange extends DurableObject {
     if (b) this.bank = JSON.parse(b);
     else { this.bank = { initial: cfg.reserve, reserve: cfg.reserve, escrow: 0, minted: 0, paid: 0, fees: 0, lux: Object.fromEntries(E.LUX.map(i => [i.id, i.supply])), league: [] }; this.bankDirty = true; }
     for (const it of E.LUX) if (this.bank.lux[it.id] === undefined) { this.bank.lux[it.id] = it.supply; this.bankDirty = true; }
-    for (const r of s.exec('SELECT uid, v FROM accounts').toArray()) { try { this.accts.set(r.uid, JSON.parse(r.v)); } catch { } }
+    for (const r of s.exec('SELECT uid, v FROM accounts').toArray()) { try { this.accts.set(r.uid, E.normalizeAccount(JSON.parse(r.v))); } catch { } }
     E.setEnv({
       accounts: () => this.accts.values(),
       note: (A, msg, tone) => this.note(A, msg, tone),
       dirty: A => this.dirty.add(A.uid),
       fee: amt => { if (amt > 0) { this.bank.reserve += amt; this.bank.fees += amt; this.bankDirty = true; } },
       event: (A, type, data) => this.onEvent(A, type, data),
-      week: w => this.settleLeague(w)
+      week: w => this.settleLeague(w),
+      pay: (A, amt, cat, label) => this.credit(A, amt, label, cat, false), // Zinsen aus der Reserve (Rendite, keine Einzahlung)
+      collect: amt => { if (amt > 0) { this.bank.reserve += amt; this.bank.fees += amt; this.bankDirty = true; } }
     });
     this.advance();
     this.wasOpen = E.M.isOpen;
@@ -142,7 +144,7 @@ export class Exchange extends DurableObject {
       const A = this.accts.get(uid); if (!A) continue;
       this.saveAcct(A);
       const notes = this.inbox.get(uid) || []; this.inbox.delete(uid);
-      this.sendTo(uid, { type: 'acct', acct: A, notes });
+      this.sendTo(uid, { type: 'acct', acct: A, notes, ins: E.insightsFor(A) });
     }
     this.dirty.clear();
     if (this.bankDirty) this.saveBank();
@@ -167,16 +169,20 @@ export class Exchange extends DurableObject {
       else if (x.cls === 'bond') Object.assign(o, { dirty: x.dirty, acc: x.acc, mdur: x.mdur, ytm: x.ytm, tri: x.tri, spr: x.spr, idio: x.idio, matured: x.matured, ci: x.ci });
       else if (x.cls === 'etf') Object.assign(o, { nav: x.nav, prem: x.prem, ff: x.ff });
       else if (x.cls === 'fund') Object.assign(o, { nav: x.nav, ff: x.ff });
+      if (x.why) o.why = x.why;
+      if (x.fin) { o.eps = x.eps; if ((this.sentFv || (this.sentFv = {}))[id] !== x.fin.fv) { o.fin = x.fin; this.sentFv[id] = x.fin.fv; } } // Quartalszahlen nur bei Änderung
+      if (x.cls === 'etf' || x.cls === 'fund') o.comp = x.comp;
       d[id] = o;
     }
-    const msg = { type: 'tick', t: M.t, isOpen: M.isOpen, lv: M.lv, r: M.r, slope: M.slope, U: M.U, week: M.week, lastClose: M.lastClose, eqMark: M.eqMark, news: M.news.slice(0, 12), d, resync: this.resync, bank: this.publicBank(), tickMs: this.tickMs() };
+    const msg = { type: 'tick', t: M.t, isOpen: M.isOpen, lv: M.lv, r: M.r, slope: M.slope, U: M.U, week: M.week, lastClose: M.lastClose, eqMark: M.eqMark, news: M.news.slice(0, 15), d, resync: this.resync, bank: this.publicBank(), tickMs: this.tickMs(),
+      lz: M.lz, infl: M.infl, reg: M.reg, rp: M.rp, cb: M.cb, cpi: M.cpi, events: M.events };
     this.resync = false;
     return msg;
   }
   marketForClient() {
     const M = E.M, inst = {};
     for (const id in M.inst) { const x = M.inst[id]; inst[id] = Object.assign({}, x, { c1: x.c1.slice(-600), cD: x.cD.slice(-260), ts: x.ts.slice(0, 8) }); }
-    return Object.assign({}, M, { inst });
+    return Object.assign({}, M, { inst, sec: undefined }); // Geheimnisse (Überraschungen, Gerüchte, nächste Phase) bleiben auf dem Server
   }
   broadcastBoard() { this.lastBoard = Date.now(); this.broadcast({ type: 'board', board: this.board(), bank: this.publicBank() }); }
   // Nächsten Wecker setzen: Live-Takt nur bei offener Börse mit Zuschauern; sonst zur Eröffnung oder gar nicht.
@@ -211,12 +217,14 @@ export class Exchange extends DurableObject {
     return { reserve: b.reserve, initial: b.initial, escrow: b.escrow, minted: b.minted, paid: b.paid, fees: b.fees, lux: b.lux, league: b.league.slice(0, 6), scarcity: this.scarcity(), bonusBase: this.bonusAmount(1), prizePool: E.r2(b.reserve * cfg.leagueShare), leagueShare: cfg.leagueShare, players: this.accts.size, maxUsers: cfg.maxUsers, start: cfg.start, relief: cfg.relief, cash };
   }
   note(A, msg, tone) { const l = this.inbox.get(A.uid) || []; l.push({ msg, tone: tone || '' }); if (l.length > 12) l.splice(0, l.length - 12); this.inbox.set(A.uid, l); this.dirty.add(A.uid); }
-  credit(A, amt, label) {
+  // Auszahlung aus der Reserve. flow = true: Prämie (Einzahlung, zählt nicht als Rendite); false: Zinsen (Rendite)
+  credit(A, amt, label, cat = 'prize', flow = true) {
     amt = E.r2(Math.min(amt, this.bank.reserve)); if (!(amt > 0)) return 0;
     this.bank.reserve -= amt; this.bank.paid += amt; this.bankDirty = true;
-    A.cash += amt; A.week.flow += amt;
-    A.hist.unshift({ t: E.M.t, id: '', nm: label, side: 'Gutschrift', q: 1, px: amt, amt, fee: 0, pnl: null }); if (A.hist.length > 300) A.hist.length = 300;
-    this.note(A, `${label}: +${E.fmtE(amt)}`, 'up'); this.dirty.add(A.uid);
+    A.cash += amt; E.book(A, cat, amt, label);
+    if (flow) { A.week.flow += amt; E.extFlow(A, amt); }
+    A.hist.unshift({ t: E.M.t, id: '', nm: label, side: cat === 'int' ? 'Zinsen' : 'Gutschrift', q: 1, px: amt, amt, fee: 0, pnl: null }); if (A.hist.length > 300) A.hist.length = 300;
+    this.note(A, `${label}: +${E.fmtE(amt)}`, cat === 'int' ? 'div' : 'up'); this.dirty.add(A.uid);
     return amt;
   }
   award(A, id) {
@@ -233,6 +241,11 @@ export class Exchange extends DurableObject {
     if (type === 'derivClose' && data && data.cost > 0 && data.pnl / data.cost >= 0.5) this.award(A, 'lever');
     if (type === 'coupon') this.award(A, 'coupon');
     if (type === 'fund') this.award(A, 'fund');
+    if (type === 'tier') { const t = E.TIERS[data.tier]; if (t) { this.note(A, `Aufgestiegen: ${t.name}! Neu freigeschaltet: ${t.perks.join(', ')}`, 'tier'); const r = E.TIER_REWARD[data.tier] || 0; if (r) this.credit(A, r, `Aufstieg zum ${t.name}`); } }
+    if (type === 'ath') this.note(A, 'Neues Allzeithoch deines Portfolios', 'ath');
+    if (['crisis', 'tenbagger', 'owner', 'passive100', 'drip'].includes(type)) this.award(A, type);
+    if (type === 'plan' && (A.stats.plans || 0) >= 5) this.award(A, 'plan');
+    if (type === 'fx') this.award(A, 'fx');
     if (type === 'equity') { // nur Verlaufspunkt: später gesammelt speichern; Faktor-Zertifikate ändern ihren Wert laufend → Konto mitschicken
       if (A.derivs.some(p => p.kind === 'fac')) this.dirty.add(A.uid); else this.lazy.add(A.uid);
       if (E.totals(A).total >= 1e6) this.award(A, 'million');
@@ -275,7 +288,7 @@ export class Exchange extends DurableObject {
       const lv = Number(b.level), L = E.LIC[lv];
       if (!L || lv <= (A.lic || 0)) return 'Diese Lizenz hast du schon.';
       if (E.availCash(A) < L.price) return `Die ${L.name} kostet ${E.fmtE(L.price)}. Verfügbar: ${E.fmtE(E.availCash(A))}.`;
-      A.cash -= L.price; A.week.flow -= L.price; A.lic = lv;
+      A.cash -= L.price; A.week.flow -= L.price; A.lic = lv; E.book(A, 'spend', -L.price, L.name); E.extFlow(A, -L.price);
       bank.reserve += L.price; bank.fees += L.price; this.bankDirty = true;
       A.hist.unshift({ t: M.t, id: '', nm: L.name, side: 'Lizenz', q: 1, px: L.price, amt: L.price, fee: 0, pnl: null });
       this.note(A, `${L.name} erworben`, 'up'); this.dirty.add(A.uid); return null;
@@ -286,7 +299,7 @@ export class Exchange extends DurableObject {
       if (b.type === 'luxbuy') {
         if (!(bank.lux[it.id] > 0)) return `${it.name} ist ausverkauft. Warte, bis jemand eins zurückgibt.`;
         if (E.availCash(A) < it.price) return `${it.name} kostet ${E.fmtE(it.price, 0)}. Verfügbar: ${E.fmtE(E.availCash(A))}.`;
-        A.cash -= it.price; A.lux[it.id] = (A.lux[it.id] || 0) + 1; A.week.flow -= it.price - back;
+        A.cash -= it.price; A.lux[it.id] = (A.lux[it.id] || 0) + 1; A.week.flow -= it.price - back; E.book(A, 'spend', -(it.price - back), it.name); E.extFlow(A, -(it.price - back));
         bank.lux[it.id]--; bank.escrow += back; bank.reserve += it.price - back; bank.fees += it.price - back;
         A.hist.unshift({ t: M.t, id: '', nm: it.name, side: 'Luxuskauf', q: 1, px: it.price, amt: it.price, fee: 0, pnl: null });
         this.note(A, `${it.name} gehört jetzt dir`, 'up');
@@ -343,7 +356,7 @@ export class Exchange extends DurableObject {
     if (req.method === 'GET') {
       if (path === '/api/session') { const A = await this.auth(req); return json({ user: A ? { name: A.name, admin: this.isAdmin(A) } : null, registration: !!String(this.env.INVITE_CODE || '').trim() }); }
       const A = await this.auth(req); if (!A) return json({ error: 'Bitte anmelden.' }, 401);
-      if (path === '/api/state') return new Response(JSON.stringify({ me: { name: A.name, uid: A.uid, admin: this.isAdmin(A) }, M: this.marketForClient(), acct: A, bank: this.publicBank(), board: this.board(), tickMs: this.tickMs() }, round8), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+      if (path === '/api/state') return new Response(JSON.stringify({ me: { name: A.name, uid: A.uid, admin: this.isAdmin(A) }, M: this.marketForClient(), acct: A, ins: E.insightsFor(A), bank: this.publicBank(), board: this.board(), tickMs: this.tickMs() }, round8), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
       if (path === '/api/board') return json({ board: this.board(), bank: this.publicBank() });
       return json({ error: 'Nicht gefunden.' }, 404);
     }
@@ -368,7 +381,7 @@ export class Exchange extends DurableObject {
       let uid;
       try { uid = this.sql.exec('INSERT INTO users (name, hash, salt, created) VALUES (?, ?, ?, ?) RETURNING id', name, hash, salt, Date.now()).one().id; this.bump('wr', 2); }
       catch { return json({ error: 'Dieser Name ist schon vergeben.' }, 409); }
-      const A = E.newAccount(uid, name, cfg.start); A.week.k = E.M.week;
+      const A = E.newAccount(uid, name, cfg.start); A.week.k = E.M.week; E.book(A, 'start', cfg.start, 'Startkapital');
       this.accts.set(uid, A); this.bank.minted += cfg.start; this.bankDirty = true; this.dirty.add(uid);
       this.note(A, `Willkommen bei NOVEX! Dein Startkapital: ${E.fmtE(cfg.start)}`, 'up');
       return json({ ok: true }, 200, { 'Set-Cookie': await this.newSession(uid) });
@@ -399,14 +412,20 @@ export class Exchange extends DurableObject {
       else if (t === 'cancel') err = E.cancelOrder(A, n(b.id));
       else if (t === 'deriv') err = E.openDeriv(A, { kind: b.kind, und: String(b.und), dir: n(b.dir), lev: n(b.lev), cp: b.cp, exp: n(b.exp), K: n(b.K), cfdLev: n(b.cfdLev), fac: n(b.fac), budget: n(b.budget), margin: n(b.margin), sl: n(b.sl), tp: n(b.tp) });
       else if (t === 'close') err = E.M.isOpen ? E.closeDeriv(A, n(b.pid), n(b.frac)) : 'Hebelprodukte sind nur zu Börsenzeiten handelbar (Mo–Fr 08:00–22:00).';
+      else if (t === 'drip') err = E.setDrip(A, !!b.on);
+      else if (t === 'credit') err = E.setCredit(A, !!b.on);
+      else if (t === 'plan') err = E.addPlan(A, { iid: String(b.iid), amt: n(b.amt), freq: b.freq, day: n(b.day) });
+      else if (t === 'unplan') err = E.delPlan(A, n(b.id));
+      else if (t === 'deposit') err = E.openDeposit(A, n(b.months), n(b.amt));
+      else if (t === 'exchange') err = E.exchange(A, String(b.from), String(b.to), n(b.amt));
       else err = this.economy(A, b);
-      const trade = ['order', 'cancel', 'deriv', 'close'].includes(t), online = this.ctx.getWebSockets().length > 0;
+      const trade = ['order', 'cancel', 'deriv', 'close', 'exchange'].includes(t), online = this.ctx.getWebSockets().length > 0;
       if (trade && !err) { this.hotDirty = true; this.candlesDirty = true; this.touched = true; } // Kursimpakt sofort sichern
       const notes = this.inbox.get(A.uid) || []; this.inbox.delete(A.uid);
       if (this.dirty.has(A.uid) || !err) { this.saveAcct(A); this.dirty.delete(A.uid); }
       if (online && trade && !err) this.broadcast(this.tickMsg());
       if (online && !trade && !err) this.broadcastBoard();
-      return json({ ok: !err, error: err || undefined, acct: A, notes, bank: this.publicBank() }, err ? 400 : 200);
+      return json({ ok: !err, error: err || undefined, acct: A, notes, ins: E.insightsFor(A), bank: this.publicBank() }, err ? 400 : 200);
     }
     if (path === '/api/admin') {
       if (!this.isAdmin(A)) return json({ error: 'Nur für den Administrator.' }, 403);
