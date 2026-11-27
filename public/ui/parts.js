@@ -63,3 +63,18 @@ export function upcoming(days = 21, onlyMine = false) {
   return onlyMine ? out.filter(e => e.mine) : out;
 }
 export function phaseLine() { const r = E.M.reg; if (!r) return ''; return `${REGIMES[r.k].name}`; }
+// Kursverlauf seit dem Kaufzeitpunkt in passender Auflösung: heute gekauft → Minuten, bis ca. eine Woche → Stunden, sonst Tage.
+// t0: Kaufzeitpunkt, px0: Kurs beim Kauf (wird als erster Punkt gesetzt, damit die Linie genau beim Einstieg beginnt)
+export function sinceBars(x, t0, px0) {
+  const M = E.M, now = M.t, MINU = 60000, HOUR = 3600000, today = dayStart(now);
+  let bars = [], gran = 'day';
+  if (dayStart(t0) === today) { gran = 'min'; bars = x.c1.filter(k => k[0] >= Math.floor(t0 / MINU) * MINU); }
+  else if (now - t0 <= 8 * DAY && x.cH && x.cH.length && x.cH[0][0] <= t0) { gran = 'hour'; bars = x.cH.filter(k => k[0] >= Math.floor(t0 / HOUR) * HOUR); }
+  if (gran === 'day') { bars = x.cD.filter(k => k[0] >= dayStart(t0)); if (M.isOpen && (!bars.length || bars[bars.length - 1][0] < today)) bars = bars.concat([[today, x.do, x.hi, x.lo, x.price, x.dv]]); }
+  bars = bars.map(k => k.slice());
+  if (px0 > 0 && (!bars.length || bars[0][0] > t0 - (gran === 'min' ? MINU : gran === 'hour' ? HOUR : DAY))) bars.unshift([t0, px0, px0, px0, px0, 0]);
+  else if (px0 > 0 && bars.length) bars[0][1] = px0;
+  const last = bars[bars.length - 1]; if (!last || last[4] !== x.price) bars.push([Math.max(now, last ? last[0] + 1 : now), x.price, x.price, x.price, x.price, 0]);
+  if (bars.length === 1) bars.unshift([t0, bars[0][1], bars[0][1], bars[0][1], bars[0][1], 0]);
+  return { bars, gran };
+}

@@ -12,6 +12,7 @@ import * as Progress from './ui/views/progress.js';
 import * as Order from './ui/views/order.js';
 import * as Macro from './ui/views/macro.js';
 import * as Companies from './ui/views/companies.js';
+import * as DerivPos from './ui/views/derivpos.js';
 const { fDate, fTime, dayStart, nextOpenFrom, MIN } = E;
 
 S.toast = toast; S.berlin = berlinNow;
@@ -33,34 +34,35 @@ const BNAV = [['home', 'Übersicht'], ['markt', 'Markt'], ['news', 'News'], ['ko
 let WS = null, wsRetry = 1000, hideTimer = null, loading = false;
 
 /* ---------- Navigation ---------- */
-const validRoute = r => !!r && (VIEWS[r] || r === 'hebel' || (r.startsWith('i-') && E.M && E.M.inst[r.slice(2)]));
+const isDetail = r => r.startsWith('i-') || r.startsWith('p-'); // Wertpapier- oder Hebelposition
+const validRoute = r => !!r && (VIEWS[r] || r === 'hebel' || (r.startsWith('i-') && E.M && E.M.inst[r.slice(2)]) || /^p-\d+$/.test(r));
 export function go(route) {
   if (!validRoute(route)) route = 'home';
   if (route === 'hebel') { S.UI.mkt = 'lever'; route = 'markt'; }
   const from = S.UI.route; (S.scrollPos || (S.scrollPos = {}))[from] = window.scrollY; // Scroll-Position merken
-  if (!route.startsWith('i-') && route !== S.UI.route) S.UI.back = route;
-  if (route.startsWith('i-') && !S.UI.route.startsWith('i-')) S.UI.back = S.UI.route;
+  if (!isDetail(route) && route !== S.UI.route) S.UI.back = route;
+  if (isDetail(route) && !isDetail(S.UI.route)) S.UI.back = S.UI.route;
   S.UI.route = route; hover.id = null; hidePop(); S.qa = null;
   // Detailansichten bekommen einen eigenen Verlaufseintrag: „Zurück“ im Browser oder am Handy führt zur Liste zurück
-  try { if (location.hash.slice(1) !== route) { if (route.startsWith('i-') && !from.startsWith('i-')) history.pushState(null, '', '#' + route); else history.replaceState(null, '', '#' + route); } } catch { }
+  try { if (location.hash.slice(1) !== route) { if (isDetail(route) && !isDetail(from)) history.pushState(null, '', '#' + route); else history.replaceState(null, '', '#' + route); } } catch { }
   buildView();
-  const back = from.startsWith('i-') && !route.startsWith('i-') && S.scrollPos[route] !== undefined;
+  const back = isDetail(from) && !isDetail(route) && S.scrollPos[route] !== undefined;
   window.scrollTo(0, back ? S.scrollPos[route] : 0);
 }
 S.go = go;
 function navHTML(bottom) {
-  const r = S.UI.route, act0 = r.startsWith('i-') ? S.UI.back : r, badge = S.A && S.A.bonus.day !== dayStart(berlinNow());
+  const r = S.UI.route, act0 = isDetail(r) ? S.UI.back : r, badge = S.A && S.A.bonus.day !== dayStart(berlinNow());
   const active = bottom && ['makro', 'firmen', 'fortschritt'].includes(act0) ? 'mehr' : act0;
   return (bottom ? BNAV : NAV).map(([k, l]) => `<button data-go="${k}" class="${active === k ? 'on' : ''}" ${active === k ? 'aria-current="page"' : ''}>${bottom ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>` : ''}${l}${(k === 'fortschritt' || (bottom && k === 'mehr')) && badge ? '<span class="badge" aria-label="Tagesbonus verfügbar"></span>' : ''}</button>`).join('');
 }
 function buildNav() { $('#tabs').innerHTML = navHTML(false); $('#bnav').innerHTML = navHTML(true); }
 function buildView() {
   buildNav(); const r = S.UI.route, v = $('#view');
-  v.innerHTML = r.startsWith('i-') ? Detail.render(r.slice(2)) : VIEWS[r].render();
+  v.innerHTML = r.startsWith('i-') ? Detail.render(r.slice(2)) : r.startsWith('p-') ? DerivPos.render(r.slice(2)) : VIEWS[r].render();
   update();
 }
 S.rebuild = buildView;
-function updateView() { const r = S.UI.route; try { if (r.startsWith('i-')) Detail.update(r.slice(2)); else VIEWS[r].update(); } catch (e) { console.error(e); } }
+function updateView() { const r = S.UI.route; try { if (r.startsWith('i-')) Detail.update(r.slice(2)); else if (r.startsWith('p-')) DerivPos.update(r.slice(2)); else VIEWS[r].update(); } catch (e) { console.error(e); } }
 S.redraw = updateView;
 function update() {
   if (!S.booted) return;

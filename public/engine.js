@@ -833,7 +833,7 @@ export function openDeriv(A, d) {
     const q = d.kind === 'ko' ? koQuote(e.p, e.n, 1) : optQuote(e.p, e.n, 1), cost = e.n * q.px;
     if (cost > av + 1e-6) return 'Nicht genug Guthaben.';
     applyTrade(u, q.hd, q.Q, true); A.cash -= cost;
-    const pos = Object.assign({ pid: A.seq++, n: e.n, cost, t: M.t, entryPx: q.px }, e.p, d.kind === 'opt' ? { hu: q.hu } : {});
+    const pos = Object.assign({ pid: A.seq++, n: e.n, cost, t: M.t, entryPx: q.px, S0: u.price }, e.p, d.kind === 'opt' ? { hu: q.hu } : {});
     A.derivs.push(pos);
     logHist(A, { t: M.t, id: u.id, nm: derivName(pos), side: 'Kauf', q: e.n, px: q.px, amt: cost, fee: 0, pnl: null });
     ENV.note(A, `Gekauft: ${fmt(e.n, 0)} × ${derivName(pos)} zu ${fmtD(q.px)}`, 'up');
@@ -847,7 +847,7 @@ export function openDeriv(A, d) {
     if (e.cost > av + 1e-6) return 'Nicht genug Guthaben.';
     const Q = d.fac * e.n * FAC_PX, Se = u.price * avgRatio(u, d.dir, Q);
     applyTrade(u, d.dir, Q, true); A.cash -= e.cost;
-    const pos = { pid: A.seq++, kind: 'fac', und: u.id, dir: d.dir, F: d.fac, n: e.n, val: FAC_PX, ref: Se, cost: e.cost, t: M.t, entryPx: e.px };
+    const pos = { pid: A.seq++, kind: 'fac', und: u.id, dir: d.dir, F: d.fac, n: e.n, val: FAC_PX, ref: Se, cost: e.cost, t: M.t, entryPx: e.px, S0: Se };
     A.derivs.push(pos);
     logHist(A, { t: M.t, id: u.id, nm: derivName(pos), side: 'Kauf', q: e.n, px: e.px, amt: e.cost, fee: 0, pnl: null });
     ENV.note(A, `Gekauft: ${fmt(e.n, 0)} × ${derivName(pos)} zu ${fmtD(e.px)}`, 'up');
@@ -863,7 +863,7 @@ export function openDeriv(A, d) {
     const Q = d.margin * d.cfdLev; if (Q > maxQ(u)) return 'Position übersteigt die gesamte Markttiefe des Basiswerts.';
     const S = u.price, units = Q / (S * q2e(u)), Se = S * avgRatio(u, d.dir, Q);
     applyTrade(u, d.dir, Q, true); A.cash -= d.margin;
-    const pos = { pid: A.seq++, kind: 'cfd', und: u.id, dir: d.dir, units, entry: Se, margin: d.margin, lev: d.cfdLev, sl, tp, fin: 0, t: M.t, cost: d.margin };
+    const pos = { pid: A.seq++, kind: 'cfd', und: u.id, dir: d.dir, units, entry: Se, margin: d.margin, lev: d.cfdLev, sl, tp, fin: 0, t: M.t, cost: d.margin, S0: Se };
     A.derivs.push(pos);
     logHist(A, { t: M.t, id: u.id, nm: derivName(pos), side: d.dir > 0 ? 'Long' : 'Short', q: units, px: Se, amt: d.margin, fee: 0, pnl: null });
     ENV.note(A, `${derivName(pos)} eröffnet zu ${fmtPx(u, Se)}`, d.dir > 0 ? 'up' : 'dn');

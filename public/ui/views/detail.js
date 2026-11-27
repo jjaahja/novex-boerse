@@ -2,20 +2,21 @@
 import { S, E, esc, sc, pctS, signE, act, actions, inputs, $ } from '../store.js';
 import { info } from '../glossary.js';
 import { drawChart, drawBars } from '../chart.js';
-import { av, subOf, whyText, newsItem, row, CLS, isEtc } from '../parts.js';
+import { av, subOf, whyText, newsItem, row, CLS, isEtc, sinceBars } from '../parts.js';
 import { openOrder, openReview, openAuto } from './order.js';
 const { fmt, fmtE, fmtBig, fmtPx, fmtQty, dig, fDate, fTime, chg, dayStart, posValue, SECTORS, STORY, OWNER, ownerLevel, members, bookP, isBook, marginal, maxQ, qAtLimit, unitVal, q2e, bidAsk, rateOf } = E;
 const RANGES = [['1T', '1T'], ['1W', '1W'], ['1M', '1M'], ['1J', '1J'], ['Max', 'Max']];
 
 export function render(id) {
   const x = E.I(id), U = S.UI; if (!x) return '<p class="empty">Nicht gefunden.</p>';
+  { const held = S.A.pos[id] && S.A.pos[id].t0; if (!U.rangeSet) U.range = held ? 'Kauf' : '1T'; else if (U.range === 'Kauf' && !held) U.range = '1T'; } // Depotwerte starten mit „Seit Kauf“
   if (x.delisted) return `<div class="stack"><button class="x" data-go="${U.back}" aria-label="Zurück">←</button><h1 class="h1">${esc(x.name)}</h1><p class="lead">Von der Börse genommen: ${esc(x.delisted.by)} hat das Unternehmen am ${fDate(x.delisted.t)} zu ${fmt(x.delisted.P || x.price, 2)} € je Aktie übernommen.</p>${S.A.pe.some(c => c.id === id) ? '<button class="btn" data-go="firmen">Zu deinem Unternehmen</button>' : ''}</div>`;
   return `<div class="grid2"><div class="stack" style="gap:0">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:18px"><button class="x" data-go="${U.back}" aria-label="Zurück">←</button>${av(x)}<div style="min-width:0"><h1 class="h1" style="font-size:22px">${esc(x.name)}</h1><span class="small fg2">${esc(subOf(x))}${x.isin ? ' · ' + x.isin : ''}</span></div></div>
     <div id="d-me"></div>
     <section class="hero"><span class="big" id="d-px">–</span><span class="delta" id="d-ch"></span><div class="why" id="d-why"></div></section>
     <div class="chart-wrap"><canvas id="d-chart" class="chart" aria-label="Kursverlauf"></canvas></div>
-    <div class="ranges">${RANGES.map(r => `<button data-a="drange" data-v="${r[0]}" class="${U.range === r[0] ? 'on' : ''}">${r[1]}</button>`).join('')}<span class="sp"></span><button data-a="dmarks" id="d-mk" class="${U.marks !== false ? 'on' : ''}" aria-pressed="${U.marks !== false}" hidden>Meine Marker</button><button data-a="dcandle" class="${U.candle ? 'on' : ''}" aria-pressed="${U.candle}">Kerzen</button></div>
+    <div class="ranges">${S.A.pos[id] && S.A.pos[id].t0 ? `<button data-a="drange" data-v="Kauf" class="${U.range === 'Kauf' ? 'on' : ''}">Seit Kauf</button>` : ''}${RANGES.map(r => `<button data-a="drange" data-v="${r[0]}" class="${U.range === r[0] ? 'on' : ''}">${r[1]}</button>`).join('')}<span class="sp"></span><button data-a="dmarks" id="d-mk" class="${U.marks !== false ? 'on' : ''}" aria-pressed="${U.marks !== false}" hidden>Meine Marker</button><button data-a="dcandle" class="${U.candle ? 'on' : ''}" aria-pressed="${U.candle}">Kerzen</button></div>
     <div class="btns" style="margin:22px 0 8px" id="d-act">${actionsHTML(x)}</div>
     <section class="sec" id="d-auto-sec" hidden><h2>Absicherung & Auto-Orders ${info('autosl')}</h2><div id="d-auto"></div></section>
     <div id="d-hint"></div>
@@ -38,7 +39,9 @@ function actionsHTML(x) {
   return '';
 }
 function bars(x, range) {
-  const today = dayStart(E.M.t);
+  const today = dayStart(E.M.t), p = S.A.pos[x.id];
+  if (range === 'Kauf' && p && p.t0) return sinceBars(x, p.t0, null);
+  if (range === 'Kauf') range = '1T';
   if (range === '1T') { const t = x.c1.filter(k => k[0] >= today); return t.length > 5 ? t : x.c1.slice(-840); }
   if (range === '1W') { const h = (x.cH || []).filter(k => k[0] >= E.M.t - 7 * 864e5); if (h.length >= 8) return h; }
   const d = x.cD.concat(E.M.isOpen ? [[today, x.do, x.hi, x.lo, x.price, x.dv]] : []);
@@ -52,7 +55,7 @@ export function update(id) {
   { const d = x.price - x.pc, abs = x.cls === 'bond' ? fmt(Math.abs(d), 2) + ' Pkt.' : fmtPx(x, Math.abs(d)); $('#d-ch').innerHTML = `<span class="${sc(c)}">${d > 0 ? '+' : d < 0 ? '−' : ''}${abs} (${pctS(c)})</span> <span class="fg2">heute ${info('today')}</span>`; }
   $('#d-why').innerHTML = `<b>Warum?</b><span>${esc(whyText(x))}</span>`;
   if (S.ensureHist) S.ensureHist(x.id);
-  const b = bars(x, U.range), hourly = U.range === '1W' && b.length && b.length > 7, p = A.pos[x.id], showMk = p && U.marks !== false;
+  const sb = U.range === 'Kauf' && A.pos[x.id] && A.pos[x.id].t0 ? sinceBars(x, A.pos[x.id].t0, null) : null, b = sb ? sb.bars : bars(x, U.range), hourly = sb ? sb.gran === 'hour' : U.range === '1W' && b.length && b.length > 7, p = A.pos[x.id], showMk = p && U.marks !== false;
   const mk = $('#d-mk'); if (mk) mk.hidden = !p;
   const lines = [], marks = [];
   if (showMk) {
@@ -60,7 +63,7 @@ export function update(id) {
     for (const o of (A.auto || []).filter(o => o.tg === 'pos' && o.ref === x.id)) { const v = E.trigOf(o); lines.push({ v, label: `${o.k === 'tp' ? 'TP' : o.k === 'tr' ? 'Trailing' : 'SL'} ${fmt(v, dig(x))}`, tone: o.k === 'tp' ? 'up' : 'dn' }); }
     for (const h of A.hist) if (h.id === x.id && h.px > 0 && /Kauf|Verkauf|Sparplan|Wiederanlage|Stop|Take|Trailing|Zwangs/.test(h.side)) marks.push({ t: h.t, px: h.px, buy: /Kauf|Sparplan|Wiederanlage/.test(h.side) && !/Verkauf/.test(h.side) });
   }
-  drawChart($('#d-chart'), b, { candle: U.candle, digits: dig(x), daily: U.range !== '1T' && !hourly, hourly, ref: U.range === '1T' ? x.pc : undefined, fmtV: v => fmtPx(x, v), lines, marks });
+  drawChart($('#d-chart'), b, { candle: U.candle, digits: dig(x), daily: sb ? sb.gran === 'day' : U.range !== '1T' && !hourly, hourly, ref: U.range === '1T' ? x.pc : undefined, fmtV: v => fmtPx(x, v), lines, marks });
   $('#d-me').innerHTML = meHTML(x);
   autoSec(x);
   const act = $('#d-act'), ah = actionsHTML(x); if (act.dataset.h !== ah) { act.innerHTML = ah; act.dataset.h = ah; }
@@ -196,7 +199,7 @@ function bookHTML(x) {
 }
 function tsHTML(x) { return x.ts.length ? `<div class="tbl"><table><tbody>${x.ts.slice(0, 8).map(t => `<tr><td class="fg2">${fTime(t[0])}</td><td class="${t[3] > 0 ? 'up' : 'dn'}">${fmt(t[1], dig(x))}</td><td>${fmtBig(t[2])}${t[4] ? ' · Spieler' : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="empty">Noch keine Umsätze.</p>'; }
 
-actions.drange = el => { S.UI.range = el.dataset.v; el.parentElement.querySelectorAll('[data-a="drange"]').forEach(b => b.classList.toggle('on', b === el)); S.redraw(); };
+actions.drange = el => { S.UI.range = el.dataset.v; S.UI.rangeSet = true; el.parentElement.querySelectorAll('[data-a="drange"]').forEach(b => b.classList.toggle('on', b === el)); S.redraw(); };
 actions.dcandle = el => { S.UI.candle = !S.UI.candle; el.classList.toggle('on', S.UI.candle); el.setAttribute('aria-pressed', S.UI.candle); S.redraw(); };
 actions.dearn = el => { S.UI.earn = el.dataset.v; el.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === el)); S.redraw(); };
 actions.dbuy = el => openOrder(el.dataset.v, 'buy');

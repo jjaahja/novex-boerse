@@ -71,7 +71,7 @@ export function update() {
       + (open ? `<div class="qmenu"><button class="btn sm" data-a="dbuy" data-v="${id}">Kaufen</button><button class="btn sm ghost" data-a="dsell" data-v="${id}">Verkaufen</button>${E.autoBlocked(x) ? '' : `<button class="btn sm ghost" data-a="dauto" data-v="${id}">Stop-Loss / Take-Profit</button>`}<button class="btn sm ghost" data-go="i-${id}">Details</button></div>` : '');
   }).join('') : `<p class="empty">Noch keine Wertpapiere. Unter <button class="link" data-go="markt">Markt</button> findest du Aktien, ETFs und mehr – ein Sparplan auf den WELTIX-ETF ist ein guter Start.</p>`;
   $('#h-der-sec').hidden = !A.derivs.length;
-  $('#h-der').innerHTML = A.derivs.map(p => { const u = E.I(p.und), v = derivValue(p), g = v - p.cost; return `<button class="r" data-go="hebel">${av(u)}<span style="min-width:0"><span class="nm" style="display:block">${esc(derivName(p))}</span><span class="sub" style="display:block">Einsatz ${fmtE(p.cost)}</span></span><span></span><span class="val"><b>${fmtE(v)}</b><small class="${sc(g)}">${pctS(p.cost ? g / p.cost : 0)}</small></span></button>`; }).join('');
+  $('#h-der').innerHTML = A.derivs.map(p => { const u = E.I(p.und), v = derivValue(p), g = v - p.cost; return `<button class="r" data-go="p-${p.pid}">${av(u)}<span style="min-width:0"><span class="nm" style="display:block">${esc(derivName(p))}</span><span class="sub" style="display:block">Einsatz ${fmtE(p.cost)}</span></span><span></span><span class="val"><b>${fmtE(v)}</b><small class="${sc(g)}">${pctS(p.cost ? g / p.cost : 0)}</small></span></button>`; }).join('');
   // Tagesbonus
   const claim = A.bonus.day !== dayStart(S.berlin());
   $('#h-bonus').hidden = !claim;
