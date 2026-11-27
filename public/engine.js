@@ -518,7 +518,7 @@ export function book(A, cat, amt, txt) {
   A.flows.unshift({ t: M.t, cat, amt: r2(amt), txt: txt || '' }); if (A.flows.length > 300) A.flows.length = 300;
 }
 // Anteilswert für zeitgewichtete Rendite (Ein- und Auszahlungen verfälschen die Performance nicht)
-export const unitNav = (A, T) => (A.tw && A.tw.u > 0 ? (T === undefined ? totals(A).total : T) / A.tw.u : 100);
+export const unitNav = (A, T) => { const v = T === undefined ? totals(A).total : typeof T === 'object' ? T.total : T; return A.tw && A.tw.u > 0 && isFinite(v) ? v / A.tw.u : 100; };
 export function extFlow(A, X) { // nach der Buchung aufrufen
   const T = totals(A).total, before = (T - X) / A.tw.u;
   if (before > 1e-6) A.tw.u += X / before; else A.tw.u = Math.max(T, 1) / 100;

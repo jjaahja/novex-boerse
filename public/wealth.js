@@ -170,7 +170,9 @@ export function analyze(A) {
   const verdicts = [];
   if (!sec.length) verdicts.push('Noch kein Depot: Dein Geld liegt auf dem Verrechnungskonto und bekommt Zinsen, aber keine Rendite vom Markt.');
   else {
-    verdicts.push(effN < 3 ? `Klumpenrisiko: Dein Depot hängt im Kern an ${fmt(effN, 1)} Positionen. Fällt eine davon, spürst du es stark.` : effN < 8 ? `Mittlere Streuung: wie etwa ${fmt(effN, 0)} gleich große Positionen.` : `Breit gestreut: wie etwa ${fmt(effN, 0)} gleich große Positionen. Einzelne Ausreißer fallen kaum ins Gewicht.`);
+    const invW = rows.reduce((a, r) => a + r.v, 0) / total, posTxt = effN < 1.5 ? 'einer einzigen Position' : `etwa ${fmt(effN, 0)} Positionen`;
+    if (invW < 0.2) verdicts.push(`Erst ${fmt(invW * 100, 0)} % deines Vermögens sind investiert – der Rest liegt sicher, aber renditearm auf dem Konto.`);
+    verdicts.push(effN < 3 ? `Klumpenrisiko: Dein Depot hängt an ${posTxt}. Fällt eine davon, spürst du es stark.` : effN < 8 ? `Mittlere Streuung: wie etwa ${fmt(effN, 0)} gleich große Positionen.` : `Breit gestreut: wie etwa ${fmt(effN, 0)} gleich große Positionen. Einzelne Ausreißer fallen kaum ins Gewicht.`);
     if (top && top.v / total > 0.25) verdicts.push(`${top.x.name} macht ${fmt(top.v / total * 100, 0)} % deines Vermögens aus.`);
   }
   verdicts.push(vol < 0.08 ? `Geringes Risiko: Erwartete Jahresschwankung um ±${fmt(vol * 100, 0)} %.` : vol < 0.2 ? `Mittleres Risiko: Erwartete Jahresschwankung um ±${fmt(vol * 100, 0)} %.` : `Hohes Risiko: Erwartete Jahresschwankung um ±${fmt(vol * 100, 0)} % – ein schlechtes Jahr kann dich viel kosten.`);

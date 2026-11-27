@@ -12,6 +12,18 @@ Ein gemeinsamer, in Echtzeit laufender Markt mit erfundenen Unternehmen (Mvidia,
 | Rohstoffe | Gold, Silber, Brent-Öl, Erdgas, Kupfer, Weizen (in US-Dollar) |
 | Hebelprodukte | Turbos (Knock-out), Faktor-Zertifikate, Optionsscheine, CFDs auf Index, Aktien, Devisen und Rohstoffe |
 
+## Was der Markt alles kann
+
+- **Neobroker-Oberfläche:** Übersicht, Markt, News, Konto, Fortschritt. Hell und dunkel, für Handy und Desktop. Jede Kennzahl hat ein ⓘ mit einer Erklärung in Alltagssprache.
+- **Warum bewegt sich der Kurs?** Jede Aktie zeigt den Grund ihrer Bewegung, z. B. „+6,4 % nach starken Q3-Zahlen“.
+- **Quartalszahlen:** Jedes Unternehmen berichtet vierteljährlich (Umsatz, Gewinn je Aktie, Marge, Ausblick) gegen die Erwartung der Analysten. Übertroffen, getroffen oder verfehlt bewegt Kurs und Umsatz. Mit Terminkalender und Balkendiagramm Erwartung gegen Ergebnis.
+- **Nachrichten** filterbar nach Mein Portfolio, Quartalszahlen, Makro & Zentralbank, Sektoren, Gerüchten (unbestätigt, mit späterer Auflösung).
+- **Wirtschaftszyklen:** Bullenmarkt, Seitwärtsphase, Inflation, Zinswende, Rezession, Erholung. Die Zentralbank entscheidet alle sechs Wochen über den Leitzins, monatlich kommen Inflationsdaten.
+- **Geld-System:** Verrechnungskonto mit Zinsen zum Leitzins (täglich berechnet, monatlich gutgeschrieben, bis 100.000 €), Festgeld, Fremdwährungskonten (USD, CHF, GBP) mit schwankenden Kursen, Sparpläne, automatische Dividenden-Wiederanlage, Wertpapierkredit mit Risikoanzeige und Zwangsverkauf bei Unterdeckung. Jede Buchung steht im Geldfluss.
+- **Stufen:** Kleinanleger → Aktiver Trader → Fondsmanager → Investor → Finanz-Tycoon. Jede Stufe schaltet Werkzeuge, Festgeld-Laufzeiten, Kreditrahmen und niedrigere Gebühren frei.
+- **Großaktionär:** Ab 1 %, 5 % und 25 % eines Unternehmens gibt es Vorteile (Analystentendenz, Dividendenbonus).
+- **Depot-Analyse:** Aufteilung, Währungen, Streuung, Beta, Schwankung und Vergleich mit dem WELTIX (zeitgewichtete Rendite).
+
 Neue Produkte, die nach dem ersten Start hinzukommen, werden beim nächsten Deploy automatisch in den laufenden Markt eingefügt. Konten und Kurse bleiben dabei erhalten.
 
 ## Was du brauchst
@@ -51,6 +63,12 @@ npx wrangler deploy
 
 Wrangler zeigt am Ende die Adresse, z. B. `https://novex-boerse.<dein-name>.workers.dev`. Diese Adresse und den Einladungscode schickst du deinen Freunden. Eine eigene Domain kannst du im Cloudflare-Dashboard unter Workers → novex-boerse → Domains hinzufügen.
 
+## Mit GitHub automatisch veröffentlichen
+
+1. Im Cloudflare-Dashboard: **Workers & Pages → novex-boerse → Settings → Builds → Connect** und das GitHub-Repository `novex-boerse` wählen, Branch `main`.
+2. Ab dann wird jeder Push auf `main` automatisch gebaut und veröffentlicht. Konten und Kurse bleiben erhalten.
+3. Geheimnisse (`INVITE_CODE`, optional `ADMIN_USER`) bleiben wie bisher unter **Settings → Variables and Secrets**.
+
 ## Lokal ausprobieren
 
 ```bash
@@ -84,7 +102,7 @@ Geld ist knapp. Neues Geld entsteht nur auf diesen Wegen:
 
 1. **Startkapital** beim Eröffnen des Kontos. Die Anzahl der Konten ist begrenzt (`MAX_USERS`), und man braucht den Einladungscode.
 2. **Tagesbonus**: einmal pro Kalendertag abholen. Eine Serie an Folgetagen steigert ihn bis zum 1,9-Fachen ab Tag 7. Ein verpasster Tag setzt die Serie zurück.
-3. **Erfolge**: 10 einmalige Prämien von 500 € bis 10.000 €, z. B. erste Kuponzahlung, Hebelgewinn über 50 %, Millionär.
+3. **Erfolge**: 17 einmalige Prämien von 500 € bis 10.000 €, z. B. erste Kuponzahlung, Hebelgewinn über 50 %, Millionär.
 4. **Wochenliga**: Jeden Montag um 0:00 Uhr bekommen die drei besten Wochenrenditen 50/30/20 % des Topfs. Teilnahme ab 3 Trades, Preisgeld nur bei positiver Rendite. Boni und Ausgaben zählen nicht zur Rendite.
 5. **Insolvenzhilfe**: unter 1.000 € Vermögen und ohne offene Hebelpositionen, höchstens einmal pro Woche.
 6. **Handeln**: Gewinne am Markt. Das ist der einzige unbegrenzte Weg, aber er braucht Können und birgt Risiko.
@@ -130,8 +148,12 @@ Dazu kommen pro Spieler einige Dutzend Anfragen für Anmelden, Orders und Seiten
 
 ## Aufbau
 
-- `public/engine.js`: Marktmodell, Orderbuch, Preisbildung, Derivate und Kontologik. Wird im Browser (Vorschauen) und im Worker (verbindliche Ausführung) identisch verwendet.
-- `public/app.js`, `public/index.html`: Oberfläche.
+- `public/data.js`: Stammdaten (Unternehmen, Anleihen, Fonds, Stufen, Marktphasen, Erfolge).
+- `public/engine.js`: Marktmodell, Orderbuch, Preisbildung, Derivate und Kontologik.
+- `public/events.js`: Marktphasen, Zentralbank, Inflation, Quartalszahlen, Dividenden, Gerüchte.
+- `public/wealth.js`: Zinsen, Festgeld, Sparpläne, Devisentausch, Kredit, Stufen, Depot-Analyse.
+- Diese Module laufen im Browser (Vorschauen) und im Worker (verbindliche Ausführung) identisch.
+- `public/app.js`, `public/ui/`: Oberfläche (eine Datei je Ansicht), `public/index.html`: Gestaltung.
 - `src/worker.js`: Worker und Durable Object `Exchange`. Es enthält Konten, Sitzungen, Zentralbank, Wochenliga und Echtzeit-Verteilung per WebSocket (alle 5 Sekunden, nur solange jemand online ist).
 
 **Markt:**
