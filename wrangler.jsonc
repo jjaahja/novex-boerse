@@ -1,0 +1,21 @@
+{
+  // NOVEX Börse – Cloudflare Worker mit statischen Dateien und einem Durable Object
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "novex-boerse",
+  "main": "src/worker.js",
+  "compatibility_date": "2025-06-01",
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+  "durable_objects": { "bindings": [{ "name": "EXCHANGE", "class_name": "Exchange" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Exchange"] }],
+  "observability": { "enabled": true },
+  "vars": {
+    "START_CAPITAL": "10000",    // Startkapital je neuem Konto (€)
+    "BANK_RESERVE": "1000000",   // Feste Reserve der Zentralbank für alle Prämien (€)
+    "DAILY_BONUS": "250",        // Tagesbonus bei voller Reserve (€)
+    "RELIEF_AMOUNT": "2000",     // Insolvenzhilfe (€)
+    "MAX_USERS": "30",           // Maximale Spielerzahl
+    "LEAGUE_SHARE": "0.01",      // Anteil der Reserve als wöchentliches Preisgeld
+    "ADMIN_USER": ""             // Spielername mit Verwaltungsrechten (Konten löschen)
+  }
+  // Einladungscode als Secret setzen:  npx wrangler secret put INVITE_CODE
+}
