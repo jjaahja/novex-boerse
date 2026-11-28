@@ -651,6 +651,7 @@ function fillOrder(A, o) {
 }
 const okNum = (v, max = 1e15) => typeof v === 'number' && isFinite(v) && v > 0 && v <= max;
 export function placeOrder(A, s) {
+  if (A.halt > M.t) return `Handelsstopp der Finanzaufsicht bis ${new Date(A.halt).toISOString().slice(8, 10)}.${new Date(A.halt).toISOString().slice(5, 7)}. (Insider-Verdacht).`;
   const x = M.inst[s.iid];
   if (!x || !isTradable(x)) return 'Dieses Wertpapier ist nicht börslich handelbar.';
   if (s.side !== 'buy' && s.side !== 'sell') return 'Ungültige Orderrichtung.';
@@ -699,6 +700,7 @@ export function cancelOrder(A, id) {
   o.status = 'gestrichen'; o.note = 'vom Kunden gelöscht'; ENV.dirty(A); return null;
 }
 export function placeFundOrder(A, iid, side, val) {
+  if (A.halt > M.t) return `Handelsstopp der Finanzaufsicht bis ${new Date(A.halt).toISOString().slice(8, 10)}.${new Date(A.halt).toISOString().slice(5, 7)}. (Insider-Verdacht).`;
   const x = M.inst[iid]; if (!x || x.cls !== 'fund') return 'Unbekannter Fonds.';
   if (A.orders.filter(isOpen).length >= 50) return 'Maximal 50 offene Orders.';
   if (side === 'buy') {
@@ -829,6 +831,7 @@ export function estDeriv(d) {
   return { Q, units, Se, liq: Se - d.dir * 0.5 * d.margin / (units * fx), move: permRatio(u, d.dir, Q) - 1, tooBig: Q > maxQ(u) };
 }
 export function openDeriv(A, d) {
+  if (A.halt > M.t) return `Handelsstopp der Finanzaufsicht bis ${new Date(A.halt).toISOString().slice(8, 10)}.${new Date(A.halt).toISOString().slice(5, 7)}. (Insider-Verdacht).`;
   const u = M.inst[d.und];
   if (!isUnd(u)) return 'Ungültiger Basiswert.';
   if (!M.isOpen) return 'Hebelprodukte sind nur zu Börsenzeiten handelbar (täglich 08:00–22:00).';
