@@ -32,6 +32,15 @@ Ein gemeinsamer, in Echtzeit laufender Markt mit erfundenen Unternehmen (Mvidia,
   - Später bringst du es per Börsengang zurück an die Börse.
   - Vier kleine Nebenwerte sind realistische erste Ziele.
 - **Absicherung & Auto-Orders:** Stop-Loss, Take-Profit und Trailing-Stop lassen sich nachträglich für Aktien, ETFs, Anleihen, Hebelprodukte und Fremdwährung einrichten. Teilmengen und OCO sind möglich. Zielkurs, Abstand und erwarteter Gewinn sind live verknüpft, die Linien erscheinen im Chart.
+- **Ventures – eigenes Startup:**
+  - Gründung ab 2.500 € in sechs Geschäftsmodellen: SaaS, B2C-Plattform, Fintech, DeepTech, CleanTech, Biotech. Hyperscaling ist nur bei digitalen Modellen möglich, physische wachsen über CapEx und Patente.
+  - Autopilot im Tagesgeschäft, Board-Meeting jedes Startup-Quartal (5 Handelstage, rund um den Börsengang langsamer), ruhige Entscheidungs-Inbox.
+  - Unit Economics: CAC, LTV, Churn, Product-Market Fit, Burn, Runway.
+  - Markt-Duell gegen gelistete Konzerne: Deren Quartalszahlen und Kurse leiden real.
+  - Rivalen reagieren (Preiskampf, Kopie, Lobby, Übernahmeangebot), bei Marktdominanz greift die Regierung ein.
+  - VC-Runden mit Term Sheets, Cap Table, Führungskräfte gegen Gehalt oder ESOP, Gründerkredit über das Depot.
+  - Börsengang als echte Aktie im Depot (Lock-up, Beleihung 55 %), danach CEO mit Guidance, Rückkauf und Dividende.
+  - Im Nettovermögen zählt das Startup bis zum Börsengang mit Illiquiditätsabschlag (60 / 75 / 85 %).
 - **Depot-Analyse:** Aufteilung, Währungen, Streuung, Beta, Schwankung und Vergleich mit dem WELTIX (zeitgewichtete Rendite).
 
 Neue Produkte, die nach dem ersten Start hinzukommen, werden beim nächsten Deploy automatisch in den laufenden Markt eingefügt. Konten und Kurse bleiben dabei erhalten.
@@ -170,6 +179,8 @@ Dazu kommen pro Spieler einige Dutzend Anfragen für Anmelden, Orders und Seiten
 - `public/politics.js`: Politik-Storylines, Zölle, Steuern, Regulierung.
 - `public/credit.js`: Wertpapierkredit, Margin Call, Unternehmenskredit.
 - `public/ma.js`: Beteiligungen, Übernahmen, eigene Unternehmen, Börsengang.
+- `public/company.js`: gemeinsames Unternehmens-Fundament (Sektor-Umsätze, Peer-Multiples, Rivalen-Profile, Index-Bereinigung).
+- `public/venture.js`: Startup-Simulation (Ventures).
 - `docs/ARCHITEKTUR.md`: Architektur und Umsetzungsplan.
 - Diese Module laufen im Browser (Vorschauen) und im Worker (verbindliche Ausführung) identisch.
 - `public/app.js`, `public/ui/`: Oberfläche (eine Datei je Ansicht), `public/index.html`: Gestaltung.

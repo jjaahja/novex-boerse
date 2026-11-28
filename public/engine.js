@@ -546,6 +546,7 @@ export function reservedUnits(A, iid, exceptId) { let r = 0; for (const o of A.o
 // Beleihungsquote (Loan-to-Value) je Wertpapier: sichere Anlagen hoch, schwankende niedrig
 export function ltvOf(x) {
   if (!x || x.delisted) return 0;
+  if (x.player) return 0.55; // börsennotiertes Spieler-Startup: Standard-Beleihung ab dem Börsengang
   if (x.cls === 'bond') {
     if (x.matured) return 0; const r = x.rating || '', ig = /^A/.test(r), bbb = /^BBB/.test(r);
     if (!x.linked) return r === 'AAA' ? 0.85 : ig ? 0.8 : bbb ? 0.65 : 0.4; // Staatsanleihen

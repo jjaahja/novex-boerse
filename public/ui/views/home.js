@@ -62,6 +62,7 @@ export function update() {
   $('#h-figs').innerHTML = `<div><span class="label">Depot ${info('invested')}</span><b>${fmtE(T.invested)}</b><span class="small fg2">Aktien, ETFs, Anleihen, Hebel</span></div>
     <div><span class="label">Verrechnungskonto ${info('cash')}</span><b class="${T.cash < 0 ? 'dn' : ''}">${fmtE(T.cash)}</b><span class="small fg2">${T.cash < 0 ? 'Wertpapierkredit genutzt' : `+ ${fmtE(T.dep + T.fxv, 0)} Festgeld & Währung`}</span></div>
     ${T.pe > 0 || A.pe.length ? `<div><span class="label">Beteiligungen ${info('evmult')}</span><b>${fmtE(T.pe, 0)}</b><span class="small fg2">${A.pe.length} eigene${A.pe.length === 1 ? 's Unternehmen' : ' Unternehmen'}</span></div>` : ''}
+    ${T.vent > 0 ? `<div><span class="label">Startup (illiquide) ${info('liqdisc')}</span><b>${fmtE(T.vent, 0)}</b><span class="small fg2">liquide: ${fmtE(T.liquid, 0)}</span></div>` : ''}
     ${T.debt > 0 ? `<div><span class="label">Kredite ${info('credit')}</span><b class="dn">−${fmtE(T.debt, 0)}</b><span class="small fg2">${T.loans > 0 ? 'inkl. Unternehmenskredit' : 'Wertpapierkredit'}</span></div>` : `<div><span class="label">Stufe ${info('tier')}</span><b>${esc(TIERS[A.tier || 0].name)}</b></div>`}`;
   const ids = Object.keys(A.pos).sort((a, b) => posValue(b, A.pos[b]) - posValue(a, A.pos[a]));
   $('#h-pos').innerHTML = ids.length ? ids.map(id => {
