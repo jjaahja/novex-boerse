@@ -9,11 +9,11 @@ import { addTradingDays, scheduleReport, payDividend, qLabel } from './events.js
 const PRICE = { low: { arpu: 0.8, conv: 1.3, churn: 0.85, name: 'Günstig' }, normal: { arpu: 1, conv: 1, churn: 1, name: 'Marktüblich' }, premium: { arpu: 1.25, conv: 0.7, churn: 1.2, name: 'Premium' } };
 const GROWTH = { lean: 0.12, normal: 0.25, aggressive: 0.45 };
 const RD_NEED = { saas: 8000, b2c: 6000, fintech: 10000, deeptech: 16000, cleantech: 16000, biotech: 0 };
-const OPEX_K = [0.30, 0.30, 0.24, 0.20]; // Team- und Verwaltungskosten in % vom Umsatz je Phase
+const OPEX_K = [0.40, 0.40, 0.33, 0.28]; // Team- und Verwaltungskosten in % vom Rohertrag je Phase (margenschwache Modelle haben schlankere Teams)
 const TRIAL = [{ name: 'Präklinik', cost: 6000, p: 0.75 }, { name: 'Phase I', cost: 60000, p: 0.7 }, { name: 'Phase II', cost: 600000, p: 0.6 }, { name: 'Phase III & Zulassung', cost: 4000000, p: 0.75 }];
 const PIPE = [300000, 3000000, 25000000, 150000000];                // Bewertung der Wirkstoff-Pipeline je erreichter Studienphase
 const TICKET = [0.3, 0.6, 1, 1.3];                                  // erst kleine Kunden (Mittelstand), später Konzerne
-const HUSTLE = { saas: 2.5, b2c: 700, fintech: 160, deeptech: 0.9, cleantech: 0.7, biotech: 0.6 }; // vom Gründer selbst gewonnene Kunden je Quartal
+const HUSTLE = { saas: 3.2, b2c: 700, fintech: 160, deeptech: 0.9, cleantech: 0.7, biotech: 0.6 }; // vom Gründer selbst gewonnene Kunden je Quartal
 export { PRICE, GROWTH, TRIAL, PIPE };
 export const vm = v => BIZ_MODELS[v.model];
 export const vstage = v => VENTURE_STAGES[v.stage];
@@ -41,7 +41,7 @@ export function hyperReady(v) { const m = vm(v); if (!m.hyper) return false; con
 function unitNoHyper(v) { const h = v.hyper; v.hyper = { on: false }; const u = unit(v); v.hyper = h; return u; }
 // Quartalskosten (Team, Infrastruktur, Führungskräfte) – ohne Marketing und F&E
 export function opexQ(v) {
-  let base = (900 * (1 + v.stage) + OPEX_K[Math.min(v.stage, 3)] * v.arr / 4) * (ex(v, 'cfo').opex || 1) * (ex(v, 'coo').opex || 1); // wächst mit dem Geschäft, ohne Sprung beim Phasenwechsel
+  let base = (900 * (1 + v.stage) + OPEX_K[Math.min(v.stage, 3)] * v.arr / 4 * unit(v).gm) * (ex(v, 'cfo').opex || 1) * (ex(v, 'coo').opex || 1); // wächst mit dem Geschäft, ohne Sprung beim Phasenwechsel
   for (const r in v.execs || {}) if (!v.execs[r].esop) base += EXEC_PAY[Math.min(v.stage, 3)] * EXECS[r].a.find(a => a.k === v.execs[r].k).pay;
   return base + (v.salary || 0);
 }
@@ -54,7 +54,7 @@ export function valuation(v) {
   const m = vm(v), last = v.q.length ? v.q[v.q.length - 1] : null, prev = v.q.length > 1 ? v.q[v.q.length - 2] : null;
   const g = last && prev && prev.arr > 0 ? last.arr / prev.arr - 1 : 0.3;
   const peer = clamp(peerPS(v.sector) / 4, 0.6, 2), cfo = ex(v, 'cfo').val || 1;
-  const mult = m.mult * clamp(1 + 2.2 * g, 0.5, 3.2) * (0.5 + 0.5 * v.pmf) * rateFactor(m.sens.rate) * peer * cfo * (1 + (v.pr || 0)) * (v.down || 1);
+  const mult = m.mult * (1 + 0.8 * m.moat) * clamp(1 + 1.8 * g, 0.5, 2.5) * (0.5 + 0.5 * v.pmf) * rateFactor(m.sens.rate) * peer * cfo * (1 + (v.pr || 0)) * (v.down || 1);
   let V = v.arr * mult;
   if (m.trial && v.trial && v.trial.phase < 4) V = Math.max(V, PIPE[v.trial.phase] * (0.5 + v.pmf) * clamp(0.3 + v.trial.prog, 0.3, 1.3) * rateFactor(m.sens.rate));
   return Math.max(V, Math.max(0, v.cash) + (v.cap ? v.cap.level * m.cap.cost * 0.4 : 0));
@@ -159,6 +159,8 @@ function dayStep(A, v) {
   if (v.stage < 2 && v.status === 'private_startup') newC += f * HUSTLE[v.model] * (1 + 2 * v.pmf) * (v.stage === 0 ? 1 : 0.5) * (approvedNow(v) ? 1 : 0.4);
   newC += v.customers * f * (0.05 * v.pmf * v.pmf * (0.4 + m.net) + (u.share > 0.2 ? 0.12 * m.net * (u.share - 0.2) : 0)) * (v.growthPen && v.growthPen > v.qi ? 0.7 : 1);
   if (!approved) newC = Math.min(newC, Math.max(0, 2 + v.trial.phase - v.customers)); // vor der Zulassung nur Lizenz- und Forschungspartner
+  if (m.trial && approved) newC += v.customers * f * 0.3; // Markteinführung: Ärzte und Kliniken verschreiben das zugelassene Produkt weiter
+  newC *= Math.pow(Math.max(0, 1 - u.share), 1.6); // Sättigung: je voller das Segment, desto schwerer neue Kunden
   const churnC = v.customers * u.churn * f;
   const c0 = v.customers, c1 = Math.max(0, Math.min(capacity(v), c0 + newC - churnC)), added = Math.max(0, c1 - (c0 - churnC));
   v.arpuB = c1 > 0 ? ((c0 - churnC > 0 ? (c0 - churnC) * (v.arpuB || u.arpuNew / u.priceF) : 0) + added * u.arpuNew / u.priceF) / Math.max(1e-9, Math.max(0, c0 - churnC) + added) : (v.arpuB || 0);
@@ -275,7 +277,7 @@ function government(A, v, u) {
 function offers(A, v, u) {
   const next = VC_ROUNDS.find(r => !v.rounds.includes(r.k));
   const ri = next ? VC_ROUNDS.indexOf(next) : -1, okTrial = !!next && vm(v).trial && v.trial && (v.trial.phase >= 4 ? v.arr >= next.arr : v.trial.phase >= ri && (ri > 0 || v.rdSum >= 2000));
-  if (next && !v.inbox.some(i => i.k === 'vc') && (okTrial || (v.arr >= next.arr && v.pmf >= next.pmf * (vm(v).hyper ? 1 : 0.75)))) {
+  if (next && !v.inbox.some(i => i.k === 'vc') && (okTrial || (v.arr >= next.arr * (vm(v).hyper ? 1 : 0.6) && v.pmf >= next.pmf * (vm(v).hyper ? 1 : 0.75)))) {
     const V = valuation(v), cfo = ex(v, 'cfo').val || 1, inv = pick(VC_NAMES);
     const hiPre = r2(V * 1.35 * cfo), loPre = r2(V * 0.95 * cfo), dHi = next.dil[0], dLo = next.dil[1];
     const tgt = r2(v.arr * (next.k === 'seed' ? 4 : 2.6));
@@ -283,6 +285,11 @@ function offers(A, v, u) {
       { k: 'hi', label: `Hohe Bewertung: ${fmtE(hiPre, 0)} vor Geld, ${fmt(dHi * 100, 0)} % abgeben → ${fmtE(hiPre * dHi / (1 - dHi), 0)}`, desc: `Ziel: ${fmtE(tgt, 0)} ARR in 4 Quartalen` },
       { k: 'lo', label: `Moderat: ${fmtE(loPre, 0)} vor Geld, ${fmt(dLo * 100, 0)} % abgeben → ${fmtE(loPre * dLo / (1 - dLo), 0)}`, desc: 'Keine harten Ziele' },
       { k: 'no', label: 'Ablehnen (Bootstrapping)' }], def: 2, data: { round: next.k, name: next.name, inv, hiPre, loPre, dHi, dLo, tgt } });
+  }
+  // Förderbank: Industrie, Energie und Biotech bekommen regelmäßig nicht verwässernde Zuschüsse (Schlüsseltechnologien)
+  if (vm(v).subsidy && v.qi - (v.grantQ ?? -99) >= 4 && v.qi >= 2 && !v.inbox.some(i => i.k === 'grant')) {
+    const g = r2(Math.max(15000, Math.min(v.arr * 0.6, 50e6)) * (subsidyActive(v) ? 1.5 : 1));
+    addInbox(v, { k: 'grant', title: 'Förderbank bietet Zuschuss an', text: `Für ${vm(v).sub} gibt es ${fmtE(g, 0)} aus dem Programm für Schlüsseltechnologien – ohne Anteile abzugeben. Bedingung: Ihr investiert in Kapazität und Arbeitsplätze im Inland.`, opts: [{ k: 'yes', label: `Annehmen (+${fmtE(g, 0)})` }, { k: 'no', label: 'Ablehnen' }], def: 0, data: { g } });
   }
   if (v.stage >= 1 && Math.random() < 0.25 && !v.inbox.some(i => i.k === 'deal')) {
     const n = Math.max(1, Math.round(v.customers * 0.15)), add = r2(n * u.arpu);
@@ -316,6 +323,7 @@ function decideItem(A, v, it, k, auto) {
   if (it.k === 'pricewar') { if (o === 'match') v.fx.push({ k: 'arpu', m: 0.9, until: v.qi + 3 }); else if (o === 'hold') v.customers *= 0.92; else { const c = r2(Math.max(1000, v.cash * 0.08)); v.cash -= c; v.pmf = clamp(v.pmf + 0.04, 0, 1); } }
   if (it.k === 'lobby') { if (o === 'counter') v.cash -= r2(Math.max(0, v.cash) * 0.05); else if (Math.random() < 0.5) { v.reg = { until: v.qi + 4 }; addNews(`Neue Auflagen für ${vm(v).sub}`, -1, x ? [x.id] : [], { cat: 'politics', sub: `Die Lobbyarbeit hat gewirkt – ${v.name} muss strengere Regeln erfüllen. Das kostet Marge.` }); } }
   if (it.k === 'antitrust') { if (o === 'concede') { v.growthPen = v.qi + 4; v.fx.push({ k: 'arpu', m: 0.95, until: v.qi + 4 }); v.reg = { until: v.qi + 4 }; } else { v.cash -= r2(Math.max(0, v.cash) * 0.05); if (Math.random() < 0.45) { const fine = r2(v.arr * 0.1); v.cash -= fine; v.fx.push({ k: 'arpu', m: 0.9, until: v.qi + 4 }); addNews(`Strafe gegen ${v.name}: ${fmtE(fine, 0)}`, -1, [], { cat: 'politics', sub: 'Das Gericht sieht Marktmissbrauch. Dazu kommen Auflagen für die Preisgestaltung.' }); } else addNews(`${v.name} gewinnt vor Gericht`, 1, [], { cat: 'politics', sub: 'Die Vorwürfe wurden fallen gelassen.' }); } }
+  if (it.k === 'grant') { v.grantQ = v.qi; if (o === 'yes') { v.cash += d.g; addNews(`Förderung: ${v.name} erhält ${fmtE(d.g, 0)}`, 1, [], { cat: 'politics', sub: 'Die Förderbank unterstützt Investitionen in Schlüsseltechnologien.' }); ENV.note(A, `Zuschuss über ${fmtE(d.g, 0)} erhalten.`, 'up'); } }
   if (it.k === 'deal' && o === 'yes') { v.customers += d.n; v.fx.push({ k: 'arpu', m: 0.93, until: v.qi + 4 }); }
   if (it.k === 'tariff') { v.tarDone = 1; if (o === 'move') { const c = r2(Math.max(2000, v.arr * 0.15)); v.cash -= c; v.tarShield = 1; } else v.fx.push({ k: 'conv', m: 0.85, until: v.qi + 3 }); }
   ENV.dirty(A); return null;
