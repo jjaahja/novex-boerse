@@ -10,13 +10,17 @@ const PRICE = { low: { arpu: 0.8, conv: 1.3, churn: 0.85, name: 'Günstig' }, no
 const GROWTH = { lean: 0.12, normal: 0.25, aggressive: 0.45 };
 const RD_NEED = { saas: 8000, b2c: 6000, fintech: 10000, deeptech: 16000, cleantech: 16000, biotech: 0 };
 const OPEX_K = [0.40, 0.40, 0.33, 0.28]; // Team- und Verwaltungskosten in % vom Rohertrag je Phase (margenschwache Modelle haben schlankere Teams)
-const TRIAL = [{ name: 'Präklinik', cost: 6000, p: 0.75 }, { name: 'Phase I', cost: 60000, p: 0.7 }, { name: 'Phase II', cost: 600000, p: 0.6 }, { name: 'Phase III & Zulassung', cost: 4000000, p: 0.75 }];
+const TRIAL = [{ name: 'Präklinik', cost: 6000, p: 0.75, minQ: 2 }, { name: 'Phase I', cost: 60000, p: 0.7, minQ: 3 }, { name: 'Phase II', cost: 600000, p: 0.65, minQ: 5 }, { name: 'Phase III & Zulassung', cost: 4000000, p: 0.75, minQ: 6 }]; // minQ: Mindestdauer in Quartalen – Studien lassen sich nicht beliebig beschleunigen
 const PIPE = [300000, 3000000, 25000000, 150000000];                // Bewertung der Wirkstoff-Pipeline je erreichter Studienphase
 const TICKET = [0.3, 0.6, 1, 1.3];                                  // erst kleine Kunden (Mittelstand), später Konzerne
+const SAL_MAX = [800, 2500, 10000, 30000];                          // marktübliches Gründergehalt je Quartal und Phase (mehr akzeptieren die Investoren nicht)
+export const salaryOf = v => Math.min(v.salary || 0, SAL_MAX[Math.min(v.stage, 3)]);
 const HUSTLE = { saas: 3.2, b2c: 700, fintech: 160, deeptech: 0.9, cleantech: 0.7, biotech: 0.6 }; // vom Gründer selbst gewonnene Kunden je Quartal
-export { PRICE, GROWTH, TRIAL, PIPE };
+export { PRICE, GROWTH, TRIAL, PIPE, SAL_MAX };
 export const vm = v => BIZ_MODELS[v.model];
 export const vstage = v => VENTURE_STAGES[v.stage];
+// Dauer eines Startup-Quartals in Handelstagen: Phase × Branchentempo ab dem Scale-Up (Hardware, Energie und Pharma haben längere Zyklen)
+export const qDays = v => v.status === 'public_listed' ? 63 : Math.max(3, Math.round(vstage(v).qd * (v.stage >= 2 || vm(v).trial ? vm(v).pace || 1 : 1))); // Garage & Traction: wöchentliches Board-Meeting (Pharma folgt dem Studienkalender)
 const qName = qi => `Q${qi % 4 + 1} J${Math.floor(qi / 4) + 1}`;
 
 /* ---------- Kennzahlen (Browser und Server) ---------- */
@@ -43,11 +47,21 @@ function unitNoHyper(v) { const h = v.hyper; v.hyper = { on: false }; const u = 
 export function opexQ(v) {
   let base = (900 * (1 + v.stage) + OPEX_K[Math.min(v.stage, 3)] * v.arr / 4 * unit(v).gm) * (ex(v, 'cfo').opex || 1) * (ex(v, 'coo').opex || 1); // wächst mit dem Geschäft, ohne Sprung beim Phasenwechsel
   for (const r in v.execs || {}) if (!v.execs[r].esop) base += EXEC_PAY[Math.min(v.stage, 3)] * EXECS[r].a.find(a => a.k === v.execs[r].k).pay;
-  return base + (v.salary || 0);
+  return base + hyperTeam(v) + capOpex(v) + salaryOf(v);
 }
-export function spendQ(v) { const g = GROWTH[v.growth] || GROWTH.normal, h = v.hyper && v.hyper.on ? 3 : 1; return Math.max(0, v.cash) * Math.min(0.9, g * h); }
+// Wachstumsbudget: wird beim Board-Meeting (oder bei Strategiewechsel) aus der Kasse festgelegt und dann im Quartal ausgegeben – auch wenn die Kasse schrumpft
+export const budgetRate = v => Math.min(0.95, (GROWTH[v.growth] || GROWTH.normal) * (v.hyper && v.hyper.on ? 3 : 1));
+// Aggressives Wachstum und Hyperscaling binden Ausgaben an den Umsatzplan statt an die Kasse (Teams, Verträge, Werbebuchungen) – reichen Kasse und Unit Economics nicht, droht die Pleite
+const FLOOR = { lean: 0, normal: 0, aggressive: 0.35 };
+export const budgetFloor = v => Math.max(FLOOR[v.growth] || 0, v.hyper && v.hyper.on ? 1 : 0) * v.arr / 4;
+export function setBudget(v) { v.budget = Math.max(Math.max(0, v.cash) * budgetRate(v), budgetFloor(v)); v.budgetLeft = v.budget; }
+export function spendQ(v) { return v.budget === undefined ? Math.max(Math.max(0, v.cash) * budgetRate(v), budgetFloor(v)) : v.budget; }
+// Hyperscaling baut Fixkosten auf (Leute, Server, Büros), die nicht sofort wieder verschwinden
+export const hyperTeam = v => (v.hyperCost || 0);
+// Fabriken, Anlagen und Labore kosten laufend Personal und Wartung – wer zu früh ausbaut, trägt hohe Fixkosten
+export const capOpex = v => (v.capexSum || 0) * 0.05;
 export function burnM(v) { const u = unit(v), net = v.arr / 4 * u.gm - opexQ(v) - spendQ(v); return Math.max(0, -net / 3); } // pro Startup-Monat
-export function runway(v) { const b = burnM(v); return b > 0 ? Math.max(0, v.cash) / b : Infinity; }
+export function runway(v) { if (v.cash <= 0) return 0; const b = burnM(v); return b > 0 ? v.cash / b : Infinity; }
 // Modellbewertung: ARR × Multiple (Peers, Wachstum, PMF, Zinsen) – nie unter der Kasse
 export function valuation(v) {
   if (!v || v.status === 'failed') return 0;
@@ -80,7 +94,7 @@ export function found(A, b) {
     hyper: { on: false, since: 0 }, cap: m.cap ? { level: 1, building: 0, qLeft: 0, cost: m.cap.cost } : null, trial: m.trial ? { phase: 0, prog: 0 } : null, rdSum: 0,
     tamBase: sectorRev(m.sector), rivals, w, lost: {}, lastShare: 0, capt: { founder: 1, esop: 0, inv: [] }, execs: {}, fx: [], inbox: [], q: [], cur: blankCur(), board: 70, rounds: [], target: null, seq: 1, news: 0 };
   addNews(`Neues Startup: ${name} will den Markt für ${m.sub} aufmischen`, 0, rivals.slice(0, 2), { cat: 'company', sub: `Gegründet von ${A.name} mit ${fmtE(amt, 0)} Startkapital. Gegner sind etablierte Konzerne wie ${rivals.map(id => I(id).name).slice(0, 2).join(' und ')}.` });
-  ENV.note(A, `${name} ist gegründet! Erstes Board-Meeting in ${vstage(A.venture).qd} Handelstagen.`, 'tier'); ENV.event(A, 'founder'); ENV.dirty(A); return null;
+  ENV.note(A, `${name} ist gegründet! Erstes Board-Meeting in ${qDays(A.venture)} Handelstagen.`, 'tier'); ENV.event(A, 'founder'); ENV.dirty(A); return null;
 }
 const blankCur = () => ({ rev: 0, gross: 0, opex: 0, mkt: 0, rd: 0, capex: 0, newC: 0, churnC: 0, days: 0 });
 const own = A => { const v = A.venture; return v && v.status === 'private_startup' ? v : null; };
@@ -93,7 +107,7 @@ export function fund(A, amt) {
 }
 export function vSetStrategy(A, b) {
   const v = A.venture; if (!v || v.status === 'failed' || v.status === 'exited') return 'Kein aktives Unternehmen.';
-  if (b.growth && GROWTH[b.growth]) v.growth = b.growth;
+  if (b.growth && GROWTH[b.growth]) { v.growth = b.growth; setBudget(v); }
   if (b.price && PRICE[b.price]) v.price = b.price;
   if (b.rd !== undefined) { const r = Number(b.rd); if (r >= 0 && r <= 1) v.rd = r; }
   if (b.salary !== undefined) { const s = Number(b.salary); if (s >= 0 && s <= 1e7) v.salary = r2(s); }
@@ -102,7 +116,7 @@ export function vSetStrategy(A, b) {
 export function setHyper(A, on) {
   const v = own(A); if (!v) return 'Kein Startup.';
   if (on && !vm(v).hyper) return `${vm(v).name} ist nicht hyperscale-fähig: ${vm(v).why}`;
-  v.hyper = { on: !!on, since: on ? v.qi : 0 };
+  v.hyper = { on: !!on, since: on ? v.qi : 0 }; setBudget(v);
   if (on) ENV.note(A, hyperReady(v) ? 'Hyperscaling gezündet: Das Marketingbudget verdreifacht sich.' : 'Achtung, Premature Scaling: Product-Market Fit oder Unit Economics reichen noch nicht – Kunden springen schnell wieder ab.', hyperReady(v) ? 'up' : 'dn');
   ENV.dirty(A); return null;
 }
@@ -144,12 +158,14 @@ export function campaign(A, b) {
 
 /* ---------- Tagesgeschäft (Autopilot) ---------- */
 function dayStep(A, v) {
-  const m = vm(v), u = unit(v), f = 1 / Math.max(1, v.status === 'public_listed' ? 63 : vstage(v).qd);
-  const spend = spendQ(v) * f, rdS = spend * v.rd, mktS = spend - rdS;
-  const opex = (opexQ(v) - (v.salary || 0)) * f; // Gründergehalt separat (nur wenn Geld da ist)
+  const m = vm(v), u = unit(v), f = 1 / qDays(v);
+  if (v.budget === undefined) setBudget(v);
+  const commit = budgetFloor(v) * f, spend = Math.max(Math.min(v.budget * f, Math.max(0, v.cash + v.arr / 4 * f)), Math.min(commit, v.budget * f)), rdS = spend * v.rd, mktS = spend - rdS; // frei verfügbares Budget nur mit Geld, gebundene Ausgaben laufen weiter
+  v.budgetLeft -= spend; if (v.hyper && v.hyper.on) v.cur.hyp = (v.cur.hyp || 0) + spend;
+  const opex = (opexQ(v) - salaryOf(v)) * f; // Gründergehalt separat (nur wenn Geld da ist)
   // F&E: Product-Market Fit und Qualität (bei Biotech: Studienfortschritt)
   v.rdSum += rdS;
-  if (m.trial) { const T = TRIAL[Math.min(v.trial.phase, 3)]; if (v.trial.phase < 4) v.trial.prog = Math.min(1.2, v.trial.prog + rdS / T.cost * (ex(v, 'cto').pmf || 1)); v.pmf = clamp(v.pmf + f * 0.04 * (v.trial.phase >= 4 ? 1 : 0.3), 0, 1); }
+  if (m.trial) { const T = TRIAL[Math.min(v.trial.phase, 3)]; if (v.trial.phase < 4) v.trial.prog = Math.min(1.2, v.trial.prog + Math.min(rdS / T.cost * (ex(v, 'cto').pmf || 1), f / T.minQ)); v.pmf = clamp(v.pmf + f * 0.04 * (v.trial.phase >= 4 ? 1 : 0.3), 0, 1); }
   else { const pT = 0.25 + 0.75 * (1 - Math.exp(-v.rdSum / (RD_NEED[v.model] * Math.pow(1 + v.arr / 2e6, 0.35)))); v.pmf = clamp(v.pmf + f * 0.35 * (ex(v, 'cto').pmf || 1) * (pT * (0.6 + 0.4 * v.quality) - v.pmf) , 0.05, 1); }
   const stress = v.hyper && v.hyper.on ? 0.07 * (ex(v, 'cto').stress || 1) : 0;
   v.quality = clamp(v.quality + f * (0.05 * (1 - v.quality) + (ex(v, 'cto').quality || 0) - stress + 0.04 * (v.rd - 0.4)), 0.3, 1.15);
@@ -167,7 +183,7 @@ function dayStep(A, v) {
   v.customers = c1;
   v.arr = v.customers * (v.arpuB || 0) * u.priceF * (approved ? 1 : 0.6);
   const rev = v.arr / 4 * f, gross = rev * u.gm;
-  if (v.salary > 0 && v.cash > 0) { const s = Math.min(v.cash, v.salary * f); A.cash += s; v.cash -= s; v.cur.opex += s; v.paid = (v.paid || 0) + s; book(A, 'venture', r2(s), `Gründergehalt ${v.name}`); }
+  if (salaryOf(v) > 0 && v.cash > 0) { const s = Math.min(v.cash, salaryOf(v) * f); A.cash += s; v.cash -= s; v.cur.opex += s; v.paid = (v.paid || 0) + s; book(A, 'venture', r2(s), `Gründergehalt ${v.name}`); }
   v.cash += gross - opex - spend;
   Object.assign(v.cur, { rev: v.cur.rev + rev, gross: v.cur.gross + gross, opex: v.cur.opex + opex, mkt: v.cur.mkt + mktS, rd: v.cur.rd + rdS, newC: v.cur.newC + newC, churnC: v.cur.churnC + churnC, days: v.cur.days + 1 });
 }
@@ -176,7 +192,7 @@ hook('open', () => {
     const v = A.venture; if (!v || (v.status !== 'private_startup' && v.status !== 'public_listed')) continue;
     dayStep(A, v);
     if (v.status === 'public_listed') { const x = I(v.listedId); if (x && x.fin) x.fin.rev = v.arr / 4; }
-    else if (++v.day >= vstage(v).qd) board(A, v);
+    else if (++v.day >= qDays(v)) board(A, v);
     ENV.dirty(A);
   }
 });
@@ -192,12 +208,16 @@ function board(A, v) {
   v.q.push({ q: qName(v.qi), t: M.t, rev: c.rev, gross: c.gross, ebit, arr: v.arr, cust: v.customers, newC: c.newC, churnC: c.churnC, cash: v.cash, gm: u.gm, cac: u.cac, ltv: u.ltv, churn: u.churn, pmf: v.pmf, share: u.share, board: v.board, val: valuation(v) });
   if (v.q.length > 12) v.q.shift();
   v.qi++; v.day = 0; v.cur = blankCur(); v.pr = 0;
+  // Hyperscaling-Team: wächst mit, solange skaliert wird, und baut sich danach nur langsam ab
+  v.hyperCost = (v.hyperCost || 0) * 0.5 + 0.2 * (c.hyp || 0);
   v.fx = (v.fx || []).filter(e => e.until > v.qi);
   // Kapazitätsausbau, Studien
   if (v.cap && v.cap.building && --v.cap.qLeft <= 0) { v.cap.building = 0; v.cap.level++; ENV.note(A, `${v.name}: Neue Kapazität ist in Betrieb (Stufe ${v.cap.level}).`, 'up'); }
   if (v.trial && v.trial.phase < 4 && v.trial.prog >= 1) trialReadout(A, v);
+  setBudget(v); // Budget für das neue Quartal
   // Phase
-  const ns = VENTURE_STAGES.reduce((k, s, i) => (v.arr >= s.min && (i < 3 || v.qi >= IPO_MIN_QUARTERS) ? i : k), 0);
+  const ipoOk = v.qi >= IPO_MIN_QUARTERS && (v.arr >= (m.ipoArr || VENTURE_STAGES[3].min) || (m.trial && v.trial && v.trial.phase >= 3 && v.trial.prog >= 0.4 && valuation(v) >= 2.5e8)); // Biotech darf vor der Zulassung an die Börse
+  const ns = ipoOk ? 3 : VENTURE_STAGES.reduce((k, s, i) => (i < 3 && v.arr >= s.min ? i : k), 0);
   if (ns !== v.stage) { const up = ns > v.stage; v.stage = ns; ENV.note(A, `${v.name} ${up ? 'erreicht' : 'fällt zurück in'} die Phase „${vstage(v).name}“.`, up ? 'tier' : 'dn'); if (up) addNews(`${v.name} wächst: ${fmtBig(v.arr)} € Jahresumsatz`, 1, [], { cat: 'company', sub: `Das Startup von ${A.name} ist jetzt in der Phase „${vstage(v).name}“.` }); }
   // Erfolge
   if (v.pmf >= 0.8) ENV.event(A, 'pmf'); if (v.arr >= 1e6) ENV.event(A, 'arr1m'); if (valuation(v) >= 1e9) ENV.event(A, 'unicorn');
@@ -213,11 +233,13 @@ function board(A, v) {
 }
 function trialReadout(A, v) {
   const T = TRIAL[v.trial.phase], ok = Math.random() < T.p + 0.15 * (v.pmf - 0.5);
+  const dead = !ok && v.trial.phase >= 2 && Math.random() < 0.3; // der Wirkstoff ist gescheitert – zurück auf Anfang mit neuem Kandidaten
   if (ok) { v.trial.phase++; v.trial.prog = 0; v.pmf = clamp(v.pmf + 0.12, 0, 1); }
+  else if (dead) { v.trial.phase = 1; v.trial.prog = 0; v.pmf = clamp(v.pmf - 0.2, 0.1, 1); v.down = (v.down || 1) * 0.7; }
   else v.trial.prog = 0.35;
   const done = v.trial.phase >= 4;
-  addNews(ok ? `${v.name}: ${T.name} erfolgreich${done ? ' – Zulassung erteilt' : ''}` : `${v.name}: ${T.name} verfehlt das Studienziel`, ok ? 1 : -1, [], { cat: 'company', sub: ok ? (done ? 'Das Medikament darf verkauft werden. Patente schützen es für Jahre.' : `Nächster Schritt: ${TRIAL[v.trial.phase].name}.`) : 'Ein Teil der Studie muss wiederholt werden – das kostet Zeit und Geld.' });
-  ENV.note(A, ok ? `${T.name} bestanden!${done ? ' Dein Produkt ist zugelassen.' : ''}` : `${T.name} gescheitert – Studie wird teilweise wiederholt.`, ok ? 'tier' : 'dn');
+  addNews(ok ? `${v.name}: ${T.name} erfolgreich${done ? ' – Zulassung erteilt' : ''}` : dead ? `${v.name}: Wirkstoff scheitert in ${T.name}` : `${v.name}: ${T.name} verfehlt das Studienziel`, ok ? 1 : -1, [], { cat: 'company', sub: ok ? (done ? 'Das Medikament darf verkauft werden. Patente schützen es für Jahre.' : `Nächster Schritt: ${TRIAL[v.trial.phase].name}.`) : dead ? 'Der Kandidat wird eingestellt. Mit einem Nachfolger beginnt die klinische Entwicklung neu – die Bewertung bricht ein.' : 'Ein Teil der Studie muss wiederholt werden – das kostet Zeit und Geld.' });
+  ENV.note(A, ok ? `${T.name} bestanden!${done ? ' Dein Produkt ist zugelassen.' : ''}` : dead ? `${T.name}: Wirkstoff gescheitert – ihr startet mit einem neuen Kandidaten in Phase I.` : `${T.name} gescheitert – Studie wird teilweise wiederholt.`, ok ? 'tier' : 'dn');
 }
 function bankrupt(A, v) {
   v.status = 'failed'; v.failedT = M.t;
@@ -286,10 +308,16 @@ function offers(A, v, u) {
       { k: 'lo', label: `Moderat: ${fmtE(loPre, 0)} vor Geld, ${fmt(dLo * 100, 0)} % abgeben → ${fmtE(loPre * dLo / (1 - dLo), 0)}`, desc: 'Keine harten Ziele' },
       { k: 'no', label: 'Ablehnen (Bootstrapping)' }], def: 2, data: { round: next.k, name: next.name, inv, hiPre, loPre, dHi, dLo, tgt } });
   }
+  // Brückenfinanzierung: Bestandsinvestoren retten eine leere Kasse – teuer (Verwässerung, Abschlag), aber besser als die Insolvenz
+  if (v.cash < 0 && v.capt.inv.length && v.board >= 25 && v.qi - (v.bridgeQ ?? -99) >= 4 && !v.inbox.some(i => i.k === 'bridge')) {
+    const amt = r2(-v.cash + opexQ(v) * 2), dil = r2(clamp(amt / Math.max(1, valuation(v) * 0.6), 0.05, 0.35) * 1000) / 1000;
+    addInbox(v, { k: 'bridge', title: 'Investoren bieten Brückenfinanzierung an', text: `Eure Investoren würden ${fmtE(amt, 0)} nachschießen, damit ${v.name} nicht insolvent wird – gegen ${fmt(dil * 100, 1)} % der Anteile und einen Bewertungsabschlag. Danach ist der Spielraum für weitere Rettungen erst einmal aufgebraucht.`, opts: [{ k: 'yes', label: `Annehmen (+${fmtE(amt, 0)}, ${fmt(dil * 100, 1)} % abgeben)` }, { k: 'no', label: 'Ablehnen' }], def: 1, data: { amt, dil } });
+  }
   // Förderbank: Industrie, Energie und Biotech bekommen regelmäßig nicht verwässernde Zuschüsse (Schlüsseltechnologien)
-  if (vm(v).subsidy && v.qi - (v.grantQ ?? -99) >= 4 && v.qi >= 2 && !v.inbox.some(i => i.k === 'grant')) {
-    const g = r2(Math.max(15000, Math.min(v.arr * 0.6, 50e6)) * (subsidyActive(v) ? 1.5 : 1));
-    addInbox(v, { k: 'grant', title: 'Förderbank bietet Zuschuss an', text: `Für ${vm(v).sub} gibt es ${fmtE(g, 0)} aus dem Programm für Schlüsseltechnologien – ohne Anteile abzugeben. Bedingung: Ihr investiert in Kapazität und Arbeitsplätze im Inland.`, opts: [{ k: 'yes', label: `Annehmen (+${fmtE(g, 0)})` }, { k: 'no', label: 'Ablehnen' }], def: 0, data: { g } });
+  if (vm(v).subsidy && v.qi - (v.grantQ ?? -99) >= 4 && v.qi >= 2 && (v.grants || 0) < 4 && !v.inbox.some(i => i.k === 'grant')) {
+    const own = (v.rdSum + (v.capexSum || 0)) - (v.grantBase || 0); // Förderung nur als Zuschuss zu eigenen Investitionen (Matching)
+    const g = r2(Math.min(Math.max(4000, own * 0.6, v.arr * 0.15), 50e6) * (subsidyActive(v) ? 1.5 : 1));
+    addInbox(v, { k: 'grant', title: 'Förderbank bietet Zuschuss an', text: `Für ${vm(v).sub} gibt es ${fmtE(g, 0)} aus dem Programm für Schlüsseltechnologien – ohne Anteile abzugeben. Bedingung: Ihr investiert in Kapazität und Arbeitsplätze im Inland.`, opts: [{ k: 'yes', label: `Annehmen (+${fmtE(g, 0)})` }, { k: 'no', label: 'Ablehnen' }], def: 1, data: { g } });
   }
   if (v.stage >= 1 && Math.random() < 0.25 && !v.inbox.some(i => i.k === 'deal')) {
     const n = Math.max(1, Math.round(v.customers * 0.15)), add = r2(n * u.arpu);
@@ -323,7 +351,8 @@ function decideItem(A, v, it, k, auto) {
   if (it.k === 'pricewar') { if (o === 'match') v.fx.push({ k: 'arpu', m: 0.9, until: v.qi + 3 }); else if (o === 'hold') v.customers *= 0.92; else { const c = r2(Math.max(1000, v.cash * 0.08)); v.cash -= c; v.pmf = clamp(v.pmf + 0.04, 0, 1); } }
   if (it.k === 'lobby') { if (o === 'counter') v.cash -= r2(Math.max(0, v.cash) * 0.05); else if (Math.random() < 0.5) { v.reg = { until: v.qi + 4 }; addNews(`Neue Auflagen für ${vm(v).sub}`, -1, x ? [x.id] : [], { cat: 'politics', sub: `Die Lobbyarbeit hat gewirkt – ${v.name} muss strengere Regeln erfüllen. Das kostet Marge.` }); } }
   if (it.k === 'antitrust') { if (o === 'concede') { v.growthPen = v.qi + 4; v.fx.push({ k: 'arpu', m: 0.95, until: v.qi + 4 }); v.reg = { until: v.qi + 4 }; } else { v.cash -= r2(Math.max(0, v.cash) * 0.05); if (Math.random() < 0.45) { const fine = r2(v.arr * 0.1); v.cash -= fine; v.fx.push({ k: 'arpu', m: 0.9, until: v.qi + 4 }); addNews(`Strafe gegen ${v.name}: ${fmtE(fine, 0)}`, -1, [], { cat: 'politics', sub: 'Das Gericht sieht Marktmissbrauch. Dazu kommen Auflagen für die Preisgestaltung.' }); } else addNews(`${v.name} gewinnt vor Gericht`, 1, [], { cat: 'politics', sub: 'Die Vorwürfe wurden fallen gelassen.' }); } }
-  if (it.k === 'grant') { v.grantQ = v.qi; if (o === 'yes') { v.cash += d.g; addNews(`Förderung: ${v.name} erhält ${fmtE(d.g, 0)}`, 1, [], { cat: 'politics', sub: 'Die Förderbank unterstützt Investitionen in Schlüsseltechnologien.' }); ENV.note(A, `Zuschuss über ${fmtE(d.g, 0)} erhalten.`, 'up'); } }
+  if (it.k === 'grant') { v.grantQ = v.qi; if (o === 'yes') { v.cash += d.g; v.grants = (v.grants || 0) + 1; v.grantBase = v.rdSum + (v.capexSum || 0); addNews(`Förderung: ${v.name} erhält ${fmtE(d.g, 0)}`, 1, [], { cat: 'politics', sub: 'Die Förderbank unterstützt Investitionen in Schlüsseltechnologien.' }); ENV.note(A, `Zuschuss über ${fmtE(d.g, 0)} erhalten.`, 'up'); } }
+  if (it.k === 'bridge') { v.bridgeQ = v.qi; if (o === 'yes') { for (const key of ['founder', 'esop']) v.capt[key] *= 1 - d.dil; for (const i of v.capt.inv) i.pct *= 1 - d.dil; const lead = v.capt.inv[v.capt.inv.length - 1]; lead.pct += d.dil; v.cash += d.amt; v.down = (v.down || 1) * 0.85; v.board = clamp(v.board - 5, 0, 100); addNews(`${v.name} erhält Brückenfinanzierung`, -1, [], { cat: 'ma', sub: `Die Investoren schießen ${fmtE(d.amt, 0)} nach. Die Bewertung leidet.` }); ENV.note(A, `Brückenfinanzierung: +${fmtE(d.amt, 0)}, Verwässerung ${fmt(d.dil * 100, 1)} %.`, 'dn'); } }
   if (it.k === 'deal' && o === 'yes') { v.customers += d.n; v.fx.push({ k: 'arpu', m: 0.93, until: v.qi + 4 }); }
   if (it.k === 'tariff') { v.tarDone = 1; if (o === 'move') { const c = r2(Math.max(2000, v.arr * 0.15)); v.cash -= c; v.tarShield = 1; } else v.fx.push({ k: 'conv', m: 0.85, until: v.qi + 3 }); }
   ENV.dirty(A); return null;

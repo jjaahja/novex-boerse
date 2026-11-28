@@ -36,6 +36,8 @@ Ein gemeinsamer, in Echtzeit laufender Markt mit erfundenen Unternehmen (Mvidia,
   - Gründung ab 2.500 € in sechs Geschäftsmodellen: SaaS, B2C-Plattform, Fintech, DeepTech, CleanTech, Biotech. Hyperscaling ist nur bei digitalen Modellen möglich, physische wachsen über CapEx und Patente.
   - Autopilot im Tagesgeschäft, Board-Meeting jedes Startup-Quartal (5 Handelstage, rund um den Börsengang langsamer), ruhige Entscheidungs-Inbox.
   - Unit Economics: CAC, LTV, Churn, Product-Market Fit, Burn, Runway.
+  - Unterschiedlich lange Wege zur Börse: B2C und Fintech schnell (ca. 3–4 Monate), SaaS mittel, DeepTech und CleanTech länger (Fabriken, Anlagen), Biotech lang und riskant (Studien mit Mindestdauer, Wirkstoffe können scheitern).
+  - Pleite durch Fehlentscheidungen möglich: verfrühtes Hyperscaling, aggressives Tempo ohne Unit Economics, zu früher Kapazitätsausbau (laufende Anlagenkosten), ignorierte Inbox. Bestandsinvestoren bieten notfalls eine teure Brückenfinanzierung an.
   - Markt-Duell gegen gelistete Konzerne: Deren Quartalszahlen und Kurse leiden real.
   - Rivalen reagieren (Preiskampf, Kopie, Lobby, Übernahmeangebot), bei Marktdominanz greift die Regierung ein.
   - VC-Runden mit Term Sheets, Cap Table, Führungskräfte gegen Gehalt oder ESOP, Gründerkredit über das Depot.

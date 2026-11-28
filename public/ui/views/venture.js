@@ -32,7 +32,7 @@ export function update() {
   if (modeOf(v) !== S.vMode) { S.rebuild(); return; } // Gründung, Börsengang, Exit oder Insolvenz: andere Ansicht
   if (!v || v.status !== 'private_startup') { if (v && v.status === 'public_listed') ceoUpdate(v); else foundUpdate(); return; }
   const m = E.vm(v), u = E.unit(v), st = E.vstage(v), V = E.valuation(v), rw = E.runway(v), mine = E.founderPct(v) * V;
-  const left = Math.max(0, st.qd - v.day);
+  const left = Math.max(0, E.qDays(v) - v.day);
   $('#v-head').innerHTML = `<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px"><div><span class="label">${esc(m.name)} · ${esc(SECTORS[m.sector])}</span><h1 class="h1" style="margin:2px 0 0">${esc(v.name)}</h1></div>
       <div style="text-align:right"><span class="pill ${v.stage >= 3 ? 'ok' : 'n'}">${esc(st.name)}</span><div class="small fg2" style="margin-top:4px">Board-Meeting in ${left} Handelstag${left === 1 ? '' : 'en'} · ${E.vm(v).hyper ? 'hyperscale-fähig' : 'wächst über CapEx'}</div></div></div>
     <div class="figs"><div><span class="label">ARR ${info('arr')}</span><b>${big(v.arr)}</b><span class="small fg2">MRR ${big(v.arr / 12)}</span></div>
@@ -53,7 +53,7 @@ export function update() {
   // Wachstum: Hyperscaling oder Kapazität
   if (m.hyper) {
     const ready = E.hyperReady(v), on = v.hyper.on;
-    $('#v-hyp').innerHTML = `<div class="setting" style="border:0;padding:0"><div class="t"><b>Hyperscaling ${on ? '<span class="pill ' + (ready ? 'ok' : 'crit') + '">' + (ready ? 'aktiv' : 'Premature Scaling') + '</span>' : ''}</b><small>Verdreifacht das Marketingbudget. ${m.why}</small></div><button class="toggle ${on ? 'on' : ''}" data-a="vhyper" aria-pressed="${on}" aria-label="Hyperscaling"></button></div>
+    $('#v-hyp').innerHTML = `<div class="setting" style="border:0;padding:0"><div class="t"><b>Hyperscaling ${on ? '<span class="pill ' + (ready ? 'ok' : 'crit') + '">' + (ready ? 'aktiv' : 'Premature Scaling') + '</span>' : ''}</b><small>Verdreifacht das Marketingbudget und bindet Ausgaben in Höhe des Umsatzes. Das aufgebaute Team kostet weiter, auch wenn du wieder bremst${E.hyperTeam(v) > 0 ? ` (derzeit ${fmtE(E.hyperTeam(v), 0)} / Quartal)` : ''}. ${m.why}</small></div><button class="toggle ${on ? 'on' : ''}" data-a="vhyper" aria-pressed="${on}" aria-label="Hyperscaling"></button></div>
       <div class="lines" style="margin-top:8px"><div><span>PMF ≥ 80 %</span><b class="${v.pmf >= 0.8 ? 'up' : 'dn'}">${v.pmf >= 0.8 ? 'erfüllt' : pctx(v.pmf)}</b></div><div><span>LTV / CAC ≥ 3</span><b class="${u.ratio >= 3 ? 'up' : 'dn'}">${u.ratio >= 3 ? 'erfüllt' : fmt(u.ratio, 1)}</b></div><div><span>Marktanteil für Netzwerkeffekt ${info('network')}</span><b>${pctx(u.share, 1)} / 20 %</b></div></div>
       ${on && !ready ? `<p class="warn" style="margin-top:8px">Premature Scaling ${info('premature')}: Kunden springen sofort wieder ab, die Runway schmilzt.</p>` : ''}`;
   } else {
@@ -61,15 +61,15 @@ export function update() {
     $('#v-hyp').innerHTML = `<p class="note" style="margin:0 0 8px">${esc(m.why)} ${info('capex')}</p>
       <div class="lines"><div><span>Kapazität (Stufe ${v.cap.level})</span><b>${fmt(v.customers, 0)} / ${fmt(cap, 0)} Kunden</b></div>
       ${v.trial ? `<div><span>Studie</span><b>${v.trial.phase >= 4 ? 'zugelassen' : `${esc(E.TRIAL[v.trial.phase].name)} · ${pctx(Math.min(1, v.trial.prog))}`}</b></div>` : ''}
-      <div><span>Burggraben ${info('moat')}</span><b>${m.moat >= 0.7 ? 'tief' : 'mittel'}</b></div></div>
+      ${E.capOpex(v) > 0 ? `<div><span>Laufende Anlagenkosten</span><b>${fmtE(E.capOpex(v), 0)} / Quartal</b></div>` : ''}<div><span>Burggraben ${info('moat')}</span><b>${m.moat >= 0.7 ? 'tief' : 'mittel'}</b></div></div>
       <div style="margin-top:10px"><span class="meter"><i class="${v.customers / cap > 0.85 ? 'warn' : 'ok'}" style="width:${Math.min(100, v.customers / cap * 100).toFixed(0)}%"></i></span></div>
       <button class="btn sm ${v.customers / cap > 0.7 ? '' : 'ghost'}" style="margin-top:10px" data-a="vcap" ${v.cap.building ? 'disabled' : ''}>${v.cap.building ? `Ausbau läuft (${v.cap.qLeft} Quartal${v.cap.qLeft > 1 ? 'e' : ''})` : `Kapazität ausbauen · ${fmtE(E.capCost(v), 0)}${sub ? ' (gefördert)' : ''}`}</button>`;
   }
   // Strategie
-  $('#v-strat').innerHTML = `<div class="stack" style="gap:10px"><div><span class="label">Tempo (Anteil der Kasse fürs Wachstum je Quartal)</span><div class="seg" style="margin-top:6px">${[['lean', 'Schlank'], ['normal', 'Ausgewogen'], ['aggressive', 'Aggressiv']].map(([k, l]) => `<button data-a="vset" data-f="growth" data-v="${k}" class="${v.growth === k ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+  $('#v-strat').innerHTML = `<div class="stack" style="gap:10px"><div><span class="label">Tempo (Anteil der Kasse fürs Wachstum je Quartal)</span><div class="seg" style="margin-top:6px">${[['lean', 'Schlank'], ['normal', 'Ausgewogen'], ['aggressive', 'Aggressiv']].map(([k, l]) => `<button data-a="vset" data-f="growth" data-v="${k}" class="${v.growth === k ? 'on' : ''}">${l}</button>`).join('')}</div>${v.growth === 'aggressive' ? '<small class="fg2" style="display:block;margin-top:6px">Aggressiv bindet mindestens 35 % des Umsatzes an Ausgaben – auch wenn die Kasse leer ist.</small>' : ''}<small class="fg2" style="display:block;margin-top:2px">Budget dieses Quartal: ${fmtE(E.spendQ(v), 0)}</small></div>
     <div><span class="label">Preismodell</span><div class="seg" style="margin-top:6px">${Object.entries(E.PRICE).map(([k, p]) => `<button data-a="vset" data-f="price" data-v="${k}" class="${v.price === k ? 'on' : ''}">${p.name}</button>`).join('')}</div></div>
     <label class="field"><span>Budget-Aufteilung: <b id="v-rdv">${pctx(v.rd)} F&E</b> · ${pctx(1 - v.rd)} Vertrieb</span><input type="range" id="v-rd" min="0" max="100" step="5" value="${Math.round(v.rd * 100)}"></label>
-    <div class="row2"><label class="field"><span>Gründergehalt je Quartal</span><input class="inp" id="v-sal" inputmode="decimal" value="${fmt(v.salary || 0, 0)}"></label><label class="field"><span>Kapital einlegen ${info('credit')}</span><input class="inp" id="v-amt" inputmode="decimal" placeholder="z. B. 2.000"></label></div>
+    <div class="row2"><label class="field"><span>Gründergehalt je Quartal (max. ${fmtE(E.SAL_MAX[Math.min(v.stage, 3)], 0)})</span><input class="inp" id="v-sal" inputmode="decimal" value="${fmt(v.salary || 0, 0)}"></label><label class="field"><span>Kapital einlegen ${info('credit')}</span><input class="inp" id="v-amt" inputmode="decimal" placeholder="z. B. 2.000"></label></div>
     <div class="btns"><button class="btn sm ghost" data-a="vsal">Gehalt speichern</button><button class="btn sm" data-a="vfund">Einlegen</button></div>
     <p class="note" style="margin:0">Einlagen kosten keine Anteile. Reicht dein Guthaben nicht, nutzt du deinen Wertpapierkredit – das Depot wird zur Gründer-Finanzierung.</p></div>`;
   // Markt-Duell
@@ -127,16 +127,18 @@ function foundHTML(v) {
   const prev = v ? (v.status === 'failed' ? `<div class="alert" style="margin-bottom:16px"><div class="t"><b>${esc(v.name)} ist insolvent</b>Die Beteiligung ist verloren, Schulden bleiben dir nicht. Gründe neu – mit dem Wissen von heute.</div></div>` : `<div class="alert amb" style="margin-bottom:16px"><div class="t"><b>${esc(v.name)} wurde verkauft</b>Exit für ${fmtE(v.exitPrice || 0, 0)} – dein Anteil: ${fmtE(v.exitMine || 0, 0)}.</div></div>`) : '';
   return `<div class="stack" style="gap:16px"><div><h1 class="h1">Ventures</h1><p class="lead" style="margin:6px 0 0">Gründe dein eigenes Startup, kämpfe um Marktanteile gegen die Börsenkonzerne und bring es an die Börse. Den Rest deines Geldes handelst du parallel weiter.</p></div>${prev}
     <div class="mgrid" id="v-models"></div>
-    <div class="grid2"><div class="stack"><div class="row2"><label class="field"><span>Name deines Startups</span><input class="inp" id="v-name" maxlength="28" placeholder="z. B. Nimbus AI"></label><label class="field"><span>Startkapital (ab ${fmtE(VENTURE_MIN, 0)})</span><input class="inp" id="v-start" inputmode="decimal" value="4.000"></label></div>
+    <div class="grid2"><div class="stack"><div class="row2"><label class="field"><span>Name deines Startups</span><input class="inp" id="v-name" maxlength="28" placeholder="z. B. Nimbus AI"></label><label class="field"><span>Startkapital (ab ${fmtE(VENTURE_MIN, 0)})</span><input class="inp" id="v-start" inputmode="decimal" value="4000"></label></div>
       <div class="lines" id="v-fprev"></div><button class="btn" data-a="vfound">Gründung prüfen</button></div>
       <aside><p class="note">Im Nettovermögen zählt dein Startup mit Abschlag ${info('liqdisc')}: 60 % in der Garage, 75 % in der Traction-Phase, 85 % im Scale-Up – erst nach dem Börsengang voll. Empfehlung: 3.000–5.000 € gründen, den Rest weiter an der Börse anlegen.</p></aside></div></div>`;
 }
+// Typische Dauer bis zur Börsenreife bei gutem Spiel (Simulation, Handelstage in Echtzeit)
+const ROAD = { b2c: 'schnell, ca. 3–4 Monate', fintech: 'schnell, ca. 3–4 Monate', saas: 'mittel, ca. 4–5 Monate', deeptech: 'länger, ca. 5–7 Monate', cleantech: 'lang, ca. 6–8 Monate', biotech: 'lang und riskant, ca. 7–10 Monate' };
 function foundUpdate() {
   const sel = S.UI.vModel || 'saas';
   $('#v-models').innerHTML = Object.entries(BIZ_MODELS).map(([k, m]) => `<div style="cursor:pointer;${sel === k ? 'outline:2px solid var(--fg);outline-offset:-2px;border-radius:10px;padding-left:12px' : ''}" data-a="vmodel" data-v="${k}" role="button" tabindex="0" aria-pressed="${sel === k}">
       <span class="label">${esc(SECTORS[m.sector])} · <span class="pill ${m.hyper ? 'ok' : 'n'}">${m.hyper ? 'Hyperscaling möglich' : 'wächst über CapEx'}</span></span><b style="font-size:16px">${esc(m.name)}</b><span class="small fg2">${esc(m.sub)}</span>
       <span class="small" style="margin-top:6px"><span class="up">+</span> ${esc(m.pro)}</span><span class="small"><span class="dn">−</span> ${esc(m.con)}</span><span class="small fg2" style="margin-top:4px">${esc(m.why)}</span>
-      <span class="small fg2" style="margin-top:4px">Gegner: ${E.rivalsOf(m.sector).map(x => esc(x.name)).join(', ')}</span></div>`).join('');
+      <span class="small" style="margin-top:4px">Weg zur Börse: <b>${ROAD[k] || ''}</b></span><span class="small fg2" style="margin-top:4px">Gegner: ${E.rivalsOf(m.sector).map(x => esc(x.name)).join(', ')}</span></div>`).join('');
   const amt = parseNum(($('#v-start') || {}).value), av = E.availCash(S.A, undefined, true);
   if ($('#v-fprev')) $('#v-fprev').innerHTML = `<div><span>Verfügbares Guthaben</span><b>${fmtE(av, 0)}</b></div><div><span>Bleibt zum Handeln</span><b class="${av - amt < 0 ? 'dn' : ''}">${fmtE(av - (amt || 0), 0)}</b></div><div><span>Anrechnung im Nettovermögen anfangs</span><b>${fmtE((amt || 0) * 0.6, 0)} (60 %)</b></div>`;
 }
