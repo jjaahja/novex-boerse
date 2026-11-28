@@ -182,7 +182,13 @@ export const ACH = [
   { id: 'owner', name: 'Großaktionär', desc: 'Besitze 1 % eines Unternehmens.', reward: 5000 },
   { id: 'million', name: 'Millionär', desc: 'Erreiche 1 Mio. € Gesamtvermögen.', reward: 10000 },
   { id: 'takeover', name: 'Übernahme-Profi', desc: 'Übernimm ein komplettes Unternehmen und nimm es von der Börse.', reward: 50000 },
-  { id: 'ipo', name: 'Börsengang', desc: 'Bring ein eigenes Unternehmen wieder an die Börse.', reward: 50000 }
+  { id: 'ipo', name: 'Börsengang', desc: 'Bring ein eigenes Unternehmen wieder an die Börse.', reward: 50000 },
+  { id: 'founder', name: 'Gründer', desc: 'Gründe dein eigenes Startup.', reward: 500 },
+  { id: 'pmf', name: 'Product-Market Fit', desc: 'Erreiche 80 % Product-Market Fit.', reward: 2500 },
+  { id: 'arr1m', name: 'Erste Million', desc: 'Erreiche 1 Mio. € wiederkehrenden Jahresumsatz (ARR).', reward: 10000 },
+  { id: 'unicorn', name: 'Einhorn', desc: 'Dein Startup wird mit mindestens 1 Mrd. € bewertet.', reward: 50000 },
+  { id: 'ownipo', name: 'Glocke geläutet', desc: 'Bring dein eigenes Startup an die Börse.', reward: 50000 },
+  { id: 'exit', name: 'Exit', desc: 'Verkaufe dein Startup an einen Konzern.', reward: 25000 }
 ];
 
 /* ---------- Fundamentaldaten & Geschichten ----------
@@ -338,7 +344,7 @@ export const COMPANY_SENS = {
   PLDX: { home: "us", exp: 0.3, sc: 0.0 },
   DWNX: { home: "eu", exp: 0.0, sc: 0.0 }
 };
-export const sensOf = x => Object.assign({ home: 'eu', exp: 0.4, sc: 0.3 }, SECTOR_SENS[x.sector] || { rate: 0.5, infl: 0, cyc: 1 }, COMPANY_SENS[x.id] || {});
+export const sensOf = x => Object.assign({ home: 'eu', exp: 0.4, sc: 0.3 }, SECTOR_SENS[x.sector] || { rate: 0.5, infl: 0, cyc: 1 }, COMPANY_SENS[x.id] || {}, x.sens || {});
 export const REGION = { eu: 'Europa', us: 'USA', asia: 'Fernost' };
 
 /* ---------- Politik: Storylines mit Vorlauf ----------
@@ -421,3 +427,46 @@ export const RUMORS = [
 ];
 
 
+
+/* ---------- Ventures: Spieler-Startups ----------
+   Zeit: ein Startup-Quartal dauert je nach Phase 5–21 Handelstage, nach dem Börsengang gilt der normale Quartalstakt.
+   Geldwerte pro Startup-Jahr (ARR = Jahresumsatz aus laufenden Verträgen). */
+export const BIZ_MODELS = {
+  saas: { name: 'B2B Enterprise SaaS', sub: 'KI & Software für Unternehmen', sector: 'tech', hyper: true, why: 'Software kostet pro zusätzlichem Kunden fast nichts (Grenzkosten nahe null). Wachstum begrenzen nur Vertrieb und Kapital.', pro: 'Treue Kunden (niedriger Churn), hohe Bruttomarge, planbare Umsätze', con: 'Langsame Verkaufszyklen am Anfang, teure Kundengewinnung', gm: 0.80, churn: 0.035, cac: 3000, arpu: 6000, conv: 0.75, net: 0.6, tam: 1.5e9, mult: 9, matM: 0.32, moat: 0.35, sens: { rate: 1.5, cons: 0.2, tar: 0.1, reg: 0.4 } },
+  b2c: { name: 'B2C Consumer-Plattform', sub: 'App, Community, Marktplatz für Endkunden', sector: 'tech', hyper: true, why: 'Jeder neue Nutzer macht die Plattform für alle anderen wertvoller (Netzwerkeffekt), Server kosten pro Nutzer nur Cent.', pro: 'Explosives Nutzerwachstum, starke Netzwerkeffekte', con: 'Hoher Marketing- und Server-Burn, Kunden springen bei schlechter Konsumlaune ab', gm: 0.60, churn: 0.16, cac: 9, arpu: 36, conv: 1.0, net: 1.0, tam: 2e9, mult: 6, matM: 0.25, moat: 0.25, sens: { rate: 1.3, cons: 1.0, tar: 0.1, reg: 0.7 } },
+  fintech: { name: 'Fintech / Marktplatz', sub: 'Zahlungen, Kredite, Handel – Verdienst über Transaktionen', sector: 'fin', hyper: true, why: 'Digitale Transaktionen skalieren fast ohne Zusatzkosten. Mehr Händler ziehen mehr Kunden an und umgekehrt.', pro: 'Verdient an jedem Umsatz mit (Take-Rate), profitiert von Zinsen und Boomphasen', con: 'Bei Dominanz drohen Regulierung und Kartellverfahren', gm: 0.55, churn: 0.07, cac: 45, arpu: 160, conv: 0.9, net: 0.8, tam: 1.2e9, mult: 7, matM: 0.30, moat: 0.3, sens: { rate: -0.2, cons: 0.6, tar: 0.1, reg: 1.0 } },
+  deeptech: { name: 'DeepTech / Hardware', sub: 'Chips, Robotik, Sensoren', sector: 'semi', hyper: false, why: 'Jedes Gerät muss gebaut werden: Fabriken, Lieferketten und Importzölle begrenzen das Tempo. Wachstum kommt stufenweise über Investitionen (CapEx).', pro: 'Starke Patente (Burggraben), hohe Margen im Reifestadium, Subventionen', con: 'Kapazität muss erst gebaut werden, Zölle verteuern Bauteile', gm: 0.38, churn: 0.025, cac: 12000, arpu: 30000, conv: 0.8, net: 0.1, tam: 2e9, mult: 7, matM: 0.42, moat: 0.75, cap: { unit: 40, cost: 25000, q: 1 }, subsidy: ['semi', 'ind', 'tech'], sens: { rate: 0.9, cons: 0.2, tar: 1.0, reg: 0.2 } },
+  cleantech: { name: 'CleanTech / Energie', sub: 'Speicher, Wasserstoff, Solar- und Windtechnik', sector: 'energy', hyper: false, why: 'Anlagen und Projekte brauchen Material, Genehmigungen und Finanzierung – Wachstum kommt Projekt für Projekt.', pro: 'Lange Lieferverträge, starke Subventionen, Preissetzungsmacht bei hohen Energiepreisen', con: 'Sehr zinsempfindlich, Zölle auf Komponenten aus Fernost', gm: 0.32, churn: 0.02, cac: 15000, arpu: 40000, conv: 0.8, net: 0.05, tam: 2e9, mult: 6, matM: 0.38, moat: 0.6, cap: { unit: 30, cost: 40000, q: 1 }, subsidy: ['energy', 'ind'], sens: { rate: 1.6, cons: 0.1, tar: 0.7, reg: 0.3 } },
+  biotech: { name: 'Biotech / Pharma', sub: 'Wirkstoffe, Diagnostik, Medizintechnik', sector: 'health', hyper: false, why: 'Klinische Studien und Zulassungen bestimmen das Tempo – kein Geld der Welt beschleunigt eine Studie beliebig.', pro: 'Patentschutz für viele Jahre, sehr hohe Margen nach der Zulassung', con: 'Umsatz erst nach erfolgreicher Studie, Rückschläge möglich', gm: 0.75, churn: 0.02, cac: 20000, arpu: 60000, conv: 0.7, net: 0.05, tam: 1.5e9, mult: 9, matM: 0.45, moat: 0.9, cap: { unit: 25, cost: 60000, q: 2 }, trial: true, subsidy: ['health'], sens: { rate: 1.0, cons: 0, tar: 0.2, reg: 0.5 } }
+};
+// Phasen: ARR-Schwelle, Liquiditätsfaktor fürs Nettovermögen, Beleihungsquote, Dauer eines Startup-Quartals in Handelstagen
+export const VENTURE_STAGES = [
+  { k: 'garage', name: 'Garage & Bootstrapping', min: 0, liq: 0.60, ltv: 0, qd: 5, base: 900 },
+  { k: 'traction', name: 'Traction & Disruption', min: 100000, liq: 0.75, ltv: 0, qd: 5, base: 30000 },
+  { k: 'scale', name: 'Scale-Up & Hyperscaling', min: 10000000, liq: 0.85, ltv: 0.20, qd: 10, base: 600000 },
+  { k: 'ipo', name: 'Börsenreif', min: 60000000, liq: 0.85, ltv: 0.20, qd: 21, base: 2500000 }
+];
+export const VENTURE_MIN = 2500, VENTURE_SHARES = 1e8, IPO_MIN_QUARTERS = 4;
+// Führungskräfte: zwei Archetypen je Rolle; Kosten je Startup-Quartal (skaliert mit Phase) oder Anteile (ESOP)
+export const EXECS = {
+  cto: { name: 'CTO / Produkt', a: [{ k: 'vision', name: '10x-Visionär', desc: 'PMF wächst schneller, F&E wirkt stärker – aber teurer und chaotischer.', fx: { pmf: 1.5, quality: -0.01 }, pay: 1.3 }, { k: 'eff', name: 'Effizienz-Experte', desc: 'Hält die Produktqualität stabil, halbiert den Stress beim Hyperscaling.', fx: { quality: 0.03, stress: 0.5 }, pay: 1 }] },
+  growth: { name: 'VP Growth / Vertrieb', a: [{ k: 'vision', name: 'Growth-Hacker', desc: 'Kundengewinnung 25 % günstiger, Kunden etwas weniger treu.', fx: { cac: 0.75, churn: 1.1 }, pay: 1.2 }, { k: 'eff', name: 'Key-Account-Profi', desc: 'Etwas günstiger und deutlich treuere Kunden.', fx: { cac: 0.9, churn: 0.85 }, pay: 1 }] },
+  cfo: { name: 'CFO / Deal-Maker', a: [{ k: 'vision', name: 'Deal-Maker', desc: '15 % höhere Bewertungen in Finanzierungsrunden und bei Übernahmeangeboten.', fx: { val: 1.15 }, pay: 1.2 }, { k: 'eff', name: 'Kostencontroller', desc: 'Fixkosten 15 % niedriger, längere Cash Runway.', fx: { opex: 0.85 }, pay: 1 }] },
+  coo: { name: 'COO / Operations', a: [{ k: 'vision', name: 'Scale-Architekt', desc: 'Neue Kapazität ist ein Quartal schneller fertig und 20 % größer.', fx: { capQ: -1, capU: 1.2 }, pay: 1.2 }, { k: 'eff', name: 'Lean-Manager', desc: 'Fixkosten 10 % niedriger, Bruttomarge +3 Punkte.', fx: { opex: 0.9, gm: 0.03 }, pay: 1 }] }
+};
+export const EXEC_PAY = [4000, 45000, 220000, 450000]; // Gehalt je Startup-Quartal nach Phase
+export const EXEC_ESOP = 0.03;                       // alternativ: 3 % Anteile aus dem Gründeranteil
+export const VC_ROUNDS = [
+  { k: 'seed', name: 'Seed', arr: 40000, pmf: 0.45, dil: [0.12, 0.2] },
+  { k: 'a', name: 'Series A', arr: 900000, pmf: 0.6, dil: [0.15, 0.22] },
+  { k: 'b', name: 'Series B', arr: 7000000, pmf: 0.7, dil: [0.12, 0.2] },
+  { k: 'c', name: 'Series C', arr: 25000000, pmf: 0.75, dil: [0.1, 0.16] }
+];
+export const VC_NAMES = ['Sequoja Capital', 'Andreesen Horowitzz', 'Index Venturs', 'Accell Partners', 'Lakestar Ventures', 'Earlybird Capital', 'Balderton Kapital', 'Point Nein', 'HV Kapital', 'Northzone Partners'];
+// Kampagnen gegen einen Rivalen: Kosten als Anteil der Startup-Kasse (mindestens), Wirkung über 2 Quartale
+export const CAMPAIGNS = {
+  price: { name: 'Preisbrecher-Offensive', desc: 'Kampfpreise und Wechselprämien: 40 % mehr Neukunden, ARPU −12 % für zwei Quartale. Der Rivale verliert Kunden – und schlägt oft mit einem Preiskampf zurück.', cost: 0.15 },
+  poach: { name: 'Talent-Abwerbung', desc: 'Du wirbst Schlüsselleute ab: PMF +6 Punkte, der Rivale verliert an Innovationskraft.', cost: 0.12 },
+  patent: { name: 'Patent-Offensive', desc: 'Du sicherst Technologie ab und klagst: Churn −20 % für zwei Quartale, beim Rivalen kostet das Gewinn. Stärker bei DeepTech und Biotech.', cost: 0.12 },
+  pr: { name: 'PR- & Narrativ-Kampagne', desc: 'Medien, Konferenzen, Influencer: Kundengewinnung 25 % günstiger für zwei Quartale, Bewertung +10 % bis zur nächsten Runde.', cost: 0.1 }
+};

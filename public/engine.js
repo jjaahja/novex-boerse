@@ -234,6 +234,14 @@ function buildMissing() {
   FUNDS.forEach((d, i) => { if (has(d.id)) return; put({ id: d.id, cls: 'fund', name: d.name, aa: d.aa, ter: d.ter, av: d.av, type: d.type, comp: compOf(d.comp).map(c => ({ id: c.id, c: c.w * d.px / bpx(I(c.id)) })), ff: 1, price: d.px, nav: d.px, desc: d.desc, isin: isin(d.id, 110 + i), volA: d.type === 'Rentenfonds' ? 0.05 : 0.15, sprd: 0 }); });
   return added;
 }
+// Neue Aktie zur Laufzeit an die Börse bringen (Börsengang eines Spieler-Startups)
+export function addStock(d) {
+  const x = { id: d.id, cls: 'stock', name: d.name, sector: d.sector, shares: d.shares, beta: d.beta, vol: d.vol, advPct: d.advPct || 0.006, dy: 0, desc: d.desc || '', isin: isin(d.id, 900 + M.ids.length), f: d.price, tr: 0, liq: 1, price: d.price, eps: d.eps, spr: 0, volA: d.vol, core: false, sens: d.sens, player: d.player };
+  x.spr = clamp(0.00035 * Math.sqrt(1e9 / Math.max(1e4, x.advPct * x.shares * x.price)), 0.00004, 0.004);
+  addInst(x);
+  const sg = SIG_S; x.idv = Math.sqrt(Math.max(0.01, x.vol * x.vol - Math.pow(x.beta * SIG_M, 2) - sg * sg)); x.var = VS * VS * (Math.pow(x.beta * SIG_M, 2) + sg * sg + x.idv * x.idv);
+  return x;
+}
 // now: Berliner Ortszeit in ms (als UTC kodiert)
 export function createWorld(now) {
   let t0 = dayStart(now) - DAY; while (!isTradingDay(t0)) t0 -= DAY; // letzter Handelstag vor heute
@@ -508,7 +516,7 @@ export function normalizeAccount(A) {
   d('agg', { div: 0, int: 0, cpn: 0, prize: 0, fee: 0, pnl: 0, fx: 0, debt: 0 }); d('flows', []);
   d('drip', false); d('credit', false); d('plans', []); d('deps', []); d('intAcc', 0); d('intMonth', 0);
   d('tier', 0); d('tierMax', 0); d('stats', { trades: 0, limitFills: 0 }); if (A.stats.plans === undefined) A.stats.plans = 0;
-  d('ath', 0); d('pe', []); d('loans', []); d('mc', null); d('votes', {}); d('auto', []); d('feed', []);
+  d('ath', 0); d('pe', []); d('loans', []); d('mc', null); d('votes', {}); d('auto', []); d('feed', []); d('venture', null);
   if (!A.tw || !(A.tw.u > 0)) { let T = A.cash; for (const id in A.pos) if (M && M.inst[id]) T += posValue(id, A.pos[id]); A.tw = { u: Math.max(T, 1) / 100 }; }
   return A;
 }
@@ -552,7 +560,7 @@ export const LTV_FX = 0.9, LTV_DEP = 0.95;
 // Beleihungswert: Summe aus Wert × Beleihungsquote (Wertpapiere, Fremdwährung, Festgeld)
 export function lombardValue(A) {
   let v = 0; for (const id in A.pos) { const x = M.inst[id]; if (x) v += posValue(id, A.pos[id]) * ltvOf(x); }
-  return v + fxValue(A) * LTV_FX + depValue(A) * LTV_DEP;
+  return v + fxValue(A) * LTV_FX + depValue(A) * LTV_DEP + (ENV.ventLV ? ENV.ventLV(A) : 0); // Startup: 0–20 % je Phase
 }
 export const creditLimit = A => (A.credit ? lombardValue(A) : 0);
 export const creditRate = A => (M.lz === undefined ? M.r : M.lz) + ((TIERS[A.tierMax || 0] || TIERS[0]).margin ?? 0.03);
@@ -572,9 +580,9 @@ export function totals(A) {
   for (const id in A.pos) sec += posValue(id, A.pos[id]);
   for (const p of A.derivs) der += derivValue(p);
   for (const o of A.orders) if (o.type === 'fund' && isOpen(o) && o.side === 'buy') pend += o.amount;
-  const lux = luxValue(A), fxv = fxValue(A), dep = depValue(A), pe = peValue(A), loans = loanTotal(A), lomb = Math.max(0, -A.cash);
+  const lux = luxValue(A), fxv = fxValue(A), dep = depValue(A), pe = peValue(A), loans = loanTotal(A), lomb = Math.max(0, -A.cash), vent = ENV.ventVal ? ENV.ventVal(A) : 0;
   const cashAll = A.cash + fxv + dep + pend; // Verrechnungskonto, Fremdwährung, Festgeld, unterwegs
-  return { cash: A.cash, fxv, dep, sec, der, pend, lux, pe, loans, lomb, invested: sec + der, cashAll, debt: lomb + loans, gross: Math.max(0, A.cash) + sec + der + pend + lux + fxv + dep + pe, total: A.cash + sec + der + pend + lux + fxv + dep + pe - loans };
+  return { cash: A.cash, fxv, dep, sec, der, pend, lux, pe, loans, lomb, invested: sec + der, cashAll, debt: lomb + loans, gross: Math.max(0, A.cash) + sec + der + pend + lux + fxv + dep + pe + vent, vent, liquid: A.cash + sec + der + pend + fxv + dep, total: A.cash + sec + der + pend + lux + fxv + dep + pe + vent - loans };
 }
 // Aktien und ETFs auch in Bruchstücken (4 Nachkommastellen), Anleihen in 1.000-€-Schritten
 export function roundQty(x, q) { if (!(q > 0)) return 0; if (x.cls === 'bond') return Math.floor(q / 1000 + 1e-6) * 1000; if (x.cls === 'fund') return Math.floor(q * 1e6 + 1e-6) / 1e6; return Math.floor(q * 1e4 + 1e-6) / 1e4; }
@@ -599,6 +607,7 @@ export function maxBuyQty(x, budget, limitPx, A, noFee) {
 }
 // Sofortige Ausführung zum Marktpreis ohne Orderbuch-Eintrag (Sparplan, Dividenden-Wiederanlage, Zwangsverkauf)
 export function executeMarket(A, x, side, qty, o = {}) {
+  if (side === 'sell' && A.pos[x.id] && A.pos[x.id].lock > M.t) return null; // Lock-up nach dem Börsengang
   const e = estimateExchange(x, side, qty, 0, A, o.noFee); if (!e.q) return null;
   const dir = side === 'buy' ? 1 : -1;
   applyTrade(x, dir, e.Q, true);
@@ -650,6 +659,7 @@ export function placeOrder(A, s) {
   if (s.type === 'market' && !M.isOpen) return 'Die Börse ist geschlossen. Market-Orders gehen nur von 08:00 bis 22:00 Uhr; Limit- und Stop-Orders kannst du jetzt schon aufgeben.';
   if (needS) { if (s.side === 'buy' && s.stop <= x.price) return 'Stop-Buy muss über dem aktuellen Kurs liegen.'; if (s.side === 'sell' && s.stop >= x.price) return 'Stop-Loss muss unter dem aktuellen Kurs liegen.'; }
   if (A.orders.filter(isOpen).length >= 50) return 'Maximal 50 offene Orders.';
+  if (s.side === 'sell' && A.pos[x.id] && A.pos[x.id].lock > M.t) return `Lock-up: Deine Gründeraktien sind bis ${fDate(A.pos[x.id].lock)} gesperrt.`;
   if (s.side === 'sell') { const p = A.pos[x.id], have = p ? p.qty - reservedUnits(A, x.id) : 0; if (qty > have + 1e-9) return `Nicht genug Bestand (verfügbar: ${fmtQty(x, Math.max(0, have))})`; }
   else {
     let need;

@@ -133,11 +133,14 @@ function report(x) {
   const fin = x.fin, pre = (M.sec && M.sec.pre[x.id]) || drawPre(x);
   // Konjunktur und Politik (Zölle, Steuern, Strafen): Analysten preisen nur einen Teil ein
   const mac = macroRevFactor(x), padj = clamp(x.padj || 0, -0.6, 0.6); x.padj = 0;
-  const revE = fin.rev * (1 + fin.g / 4) * (1 + 0.5 * mac), rev = revE * (1 + pre.rs + 0.5 * mac);
-  const epsE0 = fin.eps >= 0 ? fin.eps * (1 + fin.g / 4 * 0.9) : fin.eps * 0.96, epsE = epsE0 * (1 + mac + 0.5 * padj);
-  const eps = (epsE0 + Math.abs(epsE0) * pre.s) * (1 + 2 * mac + padj);
+  let revE = fin.rev * (1 + fin.g / 4) * (1 + 0.5 * mac), rev = revE * (1 + pre.rs + 0.5 * mac);
+  const epsE0 = fin.eps >= 0 ? fin.eps * (1 + fin.g / 4 * 0.9) : fin.eps * 0.96;
+  let epsE = epsE0 * (1 + mac + 0.5 * padj), eps = (epsE0 + Math.abs(epsE0) * pre.s) * (1 + 2 * mac + padj);
+  // Börsennotiertes Spieler-Startup: echte Zahlen aus der Startup-Simulation, Erwartung = eigene Guidance (falls abgegeben)
+  const vr = x.player && ENV.ventReport ? ENV.ventReport(x) : null;
+  if (vr) { rev = vr.rev; eps = vr.eps; revE = vr.revE; epsE = vr.epsE; }
   const sur = epsE ? (eps - epsE) / Math.abs(epsE) : pre.s, verdict = sur > 0.02 ? 'beat' : sur < -0.02 ? 'miss' : 'inline';
-  const j = clamp((0.9 * clamp(sur, -0.5, 0.5) + 0.5 * pre.rs + (pre.guid === 'up' ? 0.03 : pre.guid === 'down' ? -0.045 : 0) + 0.012 * gauss()) * Math.sqrt(x.vol / 0.3), -0.3, 0.3);
+  const j = clamp((0.9 * clamp(sur, -0.5, 0.5) + 0.5 * (vr ? clamp(rev / revE - 1, -0.3, 0.3) : pre.rs) + (pre.guid === 'up' ? 0.03 : pre.guid === 'down' ? -0.045 : 0) + 0.012 * gauss()) * Math.sqrt(x.vol / 0.3), -0.3, 0.3);
   x.f *= Math.exp(j); x.tr = 0; x.price = x.f; x.vb = 3.5;
   const q = qLabel(fin.nq), yoy = fin.hist.length >= 4 ? rev / fin.hist[fin.hist.length - 4].rev - 1 : NaN;
   const h = { q, end: fin.nq, date: dayStart(M.t), revE, rev, epsE, eps, margin: eps * x.shares / rev * 1.3, guid: pre.guid, verdict, move: j, sum: '' };
@@ -157,7 +160,7 @@ function report(x) {
 
 /* ---------- Dividenden ---------- */
 export function ownerLevel(share) { let lv = null; for (const o of OWNER) if (share >= o.min) lv = o; return lv; }
-function payDividend(x, dps, q) {
+export function payDividend(x, dps, q) {
   if (!(dps > 0) || !(x.price > dps * 2)) return;
   const ex = 1 - dps / x.price;
   for (const y of all()) if (y.cls === 'etf' || y.cls === 'fund') for (const c of y.comp) if (c.id === x.id) c.c /= ex; // thesaurierend: Fonds legen die Dividende wieder an
