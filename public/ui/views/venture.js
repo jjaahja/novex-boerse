@@ -17,23 +17,55 @@ export function render() {
   const v = S.A.venture; S.vMode = modeOf(v); S.UI.vd = null;
   if (!v || v.status === 'failed' || v.status === 'exited') return foundHTML(v);
   if (v.status === 'public_listed') return ceoHTML(v);
-  return `<div class="grid2"><div class="stack" style="gap:0">
-    <div id="v-head"></div>
-    <section class="sec"><h2>Firmen-Puls</h2><div id="v-pulse"></div></section>
-    <section class="sec"><h2>Unit Economics</h2><div class="lines" id="v-unit"></div></section>
-    <section class="sec"><h2>Strategy War Room ${info('fcconf')}</h2><div class="vwar" id="v-war"></div></section>
-    <section class="sec"><h2>Gründer-Sprints ${info('sprint')}</h2><div id="v-spr"></div></section>
-    <section class="sec"><h2>Markt-Duell ${info('segment')}</h2><div id="v-duel"></div></section>
-    <section class="sec"><h2>Board-Berichte · Plan vs. Ist ${info('planist')}</h2><canvas class="bars" id="v-bars" aria-label="ARR je Quartal"></canvas><div class="tbl vq" id="v-q" style="margin-top:8px"></div></section>
-  </div><aside class="stack">
-    <section class="sec" style="border-top:0;padding-top:0"><h2 id="v-inbox-h">Entscheidungen</h2><div id="v-inbox"></div></section>
-    <section class="sec"><h2>Firmen-Ticker</h2><ul class="vtick" id="v-tick"></ul></section>
-    <section class="sec"><h2>Finanzierung</h2><div id="v-fund"></div></section>
-    <section class="sec"><h2>Cap Table ${info('captable')}</h2><div id="v-cap"></div></section>
-    <section class="sec"><h2>Führungsteam</h2><div id="v-exec"></div></section>
-    <section class="sec" id="v-ipo-sec" hidden><h2>Börsengang ${info('ipo')}</h2><div id="v-ipo"></div></section>
-  </aside></div>`;
+  const tab = S.UI.vTab || 'cockpit', T = (k, html) => `<div data-vtab="${k}" ${tab === k ? '' : 'hidden'}>${html}</div>`;
+  return `<div id="v-head"></div>
+    <div class="vtabs" role="tablist">${[['cockpit', 'Cockpit & Produkt'], ['market', 'Markt & Rivalen'], ['team', 'Team, Cap Table & Finanzen']].map(([k, l]) => `<button role="tab" data-a="vtab" data-v="${k}" class="${tab === k ? 'on' : ''}" aria-selected="${tab === k}">${l}</button>`).join('')}</div>
+    ${T('cockpit', `<div class="grid2"><div class="stack" style="gap:0">
+      <section class="sec" style="border-top:0"><h2>Laufende Maßnahmen ${info('sprint')}</h2><div id="v-clk"></div></section>
+      <section class="sec"><h2>Produktbaum ${info('ptree')}</h2><div id="v-tree"></div></section>
+      <section class="sec"><h2>Strategy War Room ${info('fcconf')}</h2><div class="vwar" id="v-war"></div></section>
+      <section class="sec"><h2>Board-Berichte · Plan vs. Ist ${info('planist')}</h2><canvas class="bars" id="v-bars" aria-label="ARR je Quartal"></canvas><div class="tbl vq" id="v-q" style="margin-top:8px"></div></section>
+    </div><aside class="stack">
+      <section class="sec" style="border-top:0;padding-top:0"><h2>Hintergrund & Risiken ${info('cyc')}</h2><div id="v-cyc"></div></section>
+      <section class="sec"><h2>Firmen-Puls</h2><div id="v-pulse"></div></section>
+      <section class="sec"><h2>Unit Economics</h2><div class="lines" id="v-unit"></div></section>
+      <section class="sec"><h2>Firmen-Ticker</h2><ul class="vtick" id="v-tick"></ul></section>
+    </aside></div>`)}
+    ${T('market', `<div class="grid2"><div class="stack" style="gap:0">
+      <section class="sec" style="border-top:0"><h2>Markt-Duell ${info('segment')}</h2><div id="v-duel"></div></section>
+    </div><aside class="stack"><section class="sec" style="border-top:0;padding-top:0"><h2>Taktische Züge ${info('focus')}</h2><div id="v-spr"></div></section></aside></div>`)}
+    ${T('team', `<div class="grid2"><div class="stack" style="gap:0">
+      <section class="sec" style="border-top:0"><h2 id="v-inbox-h">Entscheidungen</h2><div id="v-inbox"></div></section>
+      <section class="sec"><h2>Führungsteam</h2><div id="v-exec"></div></section>
+    </div><aside class="stack">
+      <section class="sec" style="border-top:0;padding-top:0"><h2>Board & Finanzierung ${info('mandate')}</h2><div id="v-fund"></div></section>
+      <section class="sec"><h2>Cap Table ${info('captable')}</h2><div id="v-cap"></div></section>
+      <section class="sec" id="v-ipo-sec" hidden><h2>Börsengang ${info('ipo')}</h2><div id="v-ipo"></div></section>
+    </aside></div>`)}`;
 }
+actions.vtab = el => { S.UI.vTab = el.dataset.v; document.querySelectorAll('[data-vtab]').forEach(d => { d.hidden = d.dataset.vtab !== el.dataset.v; }); document.querySelectorAll('.vtabs button').forEach(b => { const on = b.dataset.v === el.dataset.v; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); }); update(); };
+
+/* ---------- Fokus-Leiste (mit Vorschau beim Hovern über eine Aktion) ---------- */
+const focusBar = v => `<div class="vfoc" id="v-focus"><span>Fokus ${info('focus')}</span><span class="segs">${Array.from({ length: E.FOCUS.max }, (_, i) => `<i class="${i < (v.focus || 0) ? 'on' : ''}"></i>`).join('')}</span><b>${v.focus || 0} / ${E.FOCUS.max}</b><span class="small">+${(v.debt || 0) > 0.5 || (v.moral ?? 1) < 0.4 ? 1 : 2} je Handelstag</span></div>`;
+function focusPreview(cost) {
+  const box = $("#v-focus"), v = S.A && S.A.venture; if (!box || !v) return; const segs = box.querySelectorAll('.segs i'), f = v.focus || 0;
+  segs.forEach((el, i) => { el.classList.toggle('pv', cost > 0 && i < f && i >= f - cost); el.classList.toggle('miss', cost > f && i >= f && i < cost); });
+}
+document.addEventListener('mouseover', ev => { const t = ev.target.closest && ev.target.closest('[data-fc]'); focusPreview(t ? +t.dataset.fc : 0); const c = ev.target.closest && ev.target.closest('[data-cp]'); document.querySelectorAll('.vclk.hov').forEach(x => { if (!c || x.id !== 'clk-' + c.dataset.cp) x.classList.remove('hov'); }); if (c) { const el = document.getElementById('clk-' + c.dataset.cp); if (el) el.classList.add('hov'); } });
+/* ---------- Nächster sinnvoller Schritt (verschwindet, sobald man im Flow ist) ---------- */
+function nextStep(v) {
+  if (S.UI.vNextOff || (v.flow || 0) >= 3) return '';
+  const u = E.unit(v), rw = E.runway(v), node = (v.clk || []).some(c => c.k === 'node'), ti = (v.tree || []).findIndex(x => !x), neg = v.inbox.find(i => i.k === 'vc' || i.k === 'deal');
+  let t = '';
+  if (v.cash < 0) t = 'Die Kasse ist im Minus: Lege Kapital ein oder nimm eine Finanzierung an (Tab „Team, Cap Table & Finanzen“).';
+  else if (neg) t = `Offene Verhandlung: ${neg.title} – im Tab „Team, Cap Table & Finanzen“ in drei Runden verhandeln.`;
+  else if ((v.debt || 0) > 0.5) t = `Technische Schuld bei ${pctx(v.debt)}: Ein Refactoring (1 Fokus) senkt Ausfälle und Fixkosten.`;
+  else if (ti >= 0 && !node && v.pmf < E.pmfCap(v) + 0.01) t = `PMF liegt bei ${pctx(v.pmf)} und stößt an die Decke von ${pctx(E.pmfCap(v))}: Starte Stufe ${ti + 1} im Produktbaum, bevor du Marketing erhöhst.`;
+  else if (rw < 6) t = 'Runway unter 6 Monaten: Senke im War Room Vertrieb oder Effizienz-Kosten oder plane eine Finanzierung.';
+  else if (node && (v.focus || 0) >= 4) t = 'Fokus angespart: Beschleunige die laufende Entwicklung mit „+1 Schritt“.';
+  return t ? `<div class="vnext" role="note"><span><b>Nächster Schritt:</b> ${esc(t)}</span><button data-a="vnextx" aria-label="Hinweis ausblenden">×</button></div>` : '';
+}
+actions.vnextx = () => { S.UI.vNextOff = 1; update(); };
 
 // Kompakte Kennzahl mit Balken und Veränderung seit dem letzten Board-Meeting
 function kpi(name, term, val, prev, tone) {
@@ -64,8 +96,9 @@ export function update() {
     <div class="vkpi">${kpi('Product-Market Fit', 'pmf', v.pmf, last && last.pmf, v.pmf >= 0.8 ? 'ok' : v.pmf >= 0.5 ? 'warn' : 'crit')}${kpi('Produktqualität', '', Math.min(1, v.quality), null, v.quality >= 0.9 ? 'ok' : v.quality >= 0.75 ? 'warn' : 'crit')}
       <div><span>LTV / CAC ${info('ltvcac')}</span><b class="num ${u.ratio >= 3 ? 'up' : u.ratio >= 1 ? 'amb' : 'dn'}">${fmt(u.ratio, 1)}</b><small>${u.ratio >= 3 ? 'gesund' : u.ratio >= 1 ? 'knapp' : 'verbrennt Geld'}</small></div>
       <div><span>Abwanderung ${info('churn')}</span><b class="num ${u.churn > 0.12 ? 'dn' : ''}">${pctx(u.churn, 1)}</b><small>pro Quartal</small></div></div>
+    <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin-top:12px">${focusBar(v)}${ambient(v)}</div>${nextStep(v)}
     ${v.cash < 0 ? `<div class="alert" style="margin-top:14px"><div class="t"><b>Die Kasse ist leer</b>Lege Kapital ein, nimm eine Finanzierung an oder senke im War Room die Ausgaben – nach drei Quartalen im Minus ist ${esc(v.name)} insolvent.</div></div>` : rw < 6 ? `<div class="alert amb" style="margin-top:14px"><div class="t"><b>Runway unter 6 Monaten</b>Plane die nächste Finanzierung oder senke im War Room das Tempo.</div></div>` : ''}`;
-  pulseUpdate(v); warUpdate(v); sprintUpdate(v); duelUpdate(v, u);
+  pulseUpdate(v); warUpdate(v); tacticsUpdate(v); duelUpdate(v, u); clocksUpdate(v); cycUpdate(v, u); treeUpdate(v);
   const ltvTone = u.ratio >= 3 ? 'up' : u.ratio >= 1 ? 'amb' : 'dn';
   $('#v-unit').innerHTML = `<div><span>Kunden</span><b class="num">${fmt(v.customers, v.customers < 100 ? 1 : 0)}</b></div>
     <div><span>Kundenakquisekosten (CAC) ${info('cac')}</span><b class="num">${fmtE(u.cac, 0)}</b></div>
@@ -169,41 +202,88 @@ actions.vwset = async el => {
   await go();
 };
 
-/* ---------- Gründer-Sprints ---------- */
-const SPR_FX = {
-  deal: q => `Bei Erfolg ${fmt(q.lo, q.lo < 10 ? 1 : 0)}–${fmt(q.hi, q.hi < 10 ? 1 : 0)} neue Großkunden mit 30 % höherem Ticket. Scheitert der Pitch, ist das Geld weg.`,
-  product: () => 'Bei Erfolg Qualität +6, PMF +3 Punkte (mit Visionär-CTO +5) und weniger Fixkosten aus dem Hyperscaling-Team. Sonst etwa ein Drittel davon.',
-  audit: q => q.cut ? 'Bei Erfolg Fixkosten dauerhaft −3 % (bis −15 % insgesamt). In jedem Fall ein Quartal lang 10 % weniger Abschlüsse.' : 'Die Fixkosten sind bereits maximal gesenkt – nur noch die Bremswirkung bleibt.'
-};
-function sprintUpdate(v) {
-  const act0 = v.sp || [], used = v.spQ || {};
-  const running = act0.map(s => { const done = (s.D - s.d) / s.D, name = s.k === 'attack' ? `${CAMPAIGNS[s.sub].name} · ${esc(E.I(s.r) ? E.I(s.r).name : '')}` : E.SPRINTS[s.k].name;
-    return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;justify-content:space-between;gap:8px;font-size:14px"><b style="font-weight:500">${esc(name)}</b><span class="small fg2" style="font-variant-numeric:tabular-nums">noch ${s.d} Tag${s.d === 1 ? '' : 'e'} · Chance ~${fmt(s.p * 100, 0)} %</span></div><div class="vprog" style="margin:6px 0 0"><i style="width:${(done * 100).toFixed(0)}%"></i></div></div>`; }).join('');
-  const cards = ['deal', 'product', 'audit'].map(k => { const S0 = E.SPRINTS[k], q = E.sprintQuote(v, k), busy = act0.some(s => s.k === k), once = used[k] === v.qi, full = act0.length >= 2, poor = v.cash < q.cost;
-    return `<div><b style="font-size:14px;padding-right:22px">${esc(S0.name)}</b>${tip(S0.name, S0.desc, SPR_FX[k](q))}<span class="num">${fmtE(q.cost, 0)} · ${q.days} Tage · Chance ~${fmt(q.p * 100, 0)} %</span><small>${esc(SPR_FX[k](q))}</small>
-      <button class="btn sm ${busy || once || full || poor ? 'ghost' : ''}" style="margin-top:6px" data-a="vspr" data-v="${k}" ${busy || once || full || poor ? 'disabled' : ''}>${busy ? 'Läuft' : once ? 'Nächstes Quartal wieder' : full ? 'Max. 2 aktiv' : poor ? 'Kasse reicht nicht' : 'Starten'}</button></div>`; }).join('');
-  $('#v-spr').innerHTML = `${running ? `<div style="margin-bottom:12px">${running}</div>` : ''}<div class="vspr">${cards}</div><p class="small fg2" style="margin:8px 0 0">Optional: Der Autopilot läuft auch ohne Sprints. Attacken auf Rivalen startest du im Markt-Duell.</p>`;
+/* ---------- Ambient-Puls: letzter Handelstag in Klartext + Uhr bis zum nächsten Tag ---------- */
+function ambient(v) {
+  const L = v.last || [0, 0, 0], nx = E.nextOpenFrom(E.M.t), prog = Math.max(0, Math.min(1, 1 - (nx - E.M.t) / 864e5));
+  return `<div class="vamb" style="flex:1;min-width:240px;justify-content:flex-end"><span>Tag ${v.age || 0} aktiv · <b>${L[0] >= 0 ? '+' : ''}${fmt(L[0], L[0] < 10 ? 1 : 0)} Kunden</b>, <b>${L[1] >= 0 ? '+' : '−'}${kE(Math.abs(L[1]))} ARR</b>, <b class="${L[2] < 0 ? 'dn' : 'up'}">${L[2] >= 0 ? '+' : '−'}${kE(Math.abs(L[2]))} Kasse</b></span>
+    <span style="display:flex;align-items:center;gap:6px">nächster Handelstag <span class="meter" style="width:70px;display:inline-block"><i style="width:${(prog * 100).toFixed(0)}%"></i></span></span></div>`;
 }
-actions.vspr = async el => { el.disabled = true; await act({ type: 'vsprint', k: el.dataset.v }); };
+/* ---------- Step Clocks: laufende Maßnahmen mit Restschritten, Effekt-Vorschau und „+1 Schritt“ ---------- */
+function clockName(v, c) {
+  if (c.k === 'node') { const N = E.nodeOf(v, c.t, c.n); return [`Entwicklung: ${N ? N.name : ''}`, `${c.m === 'mvp' ? 'MVP (Tech Debt +15 %)' : 'Saubere Architektur'} · danach PMF-Decke +17 Pkt.${N && N.tags.some(t => (v.radar || []).includes(t)) ? ' und Radar-Treffer (PMF +5)' : ''} · braucht Entwicklungsbudget`]; }
+  if (c.k === 'cap') return ['Kapazitätsausbau', `Danach Stufe ${v.cap.level + 1} – mehr Kunden möglich${v.model === 'cleantech' && E.synergy(v) ? `, Förder-Synergie Stufe ${E.synergy(v)}` : ''}`];
+  if (c.k === 'atk') return [`${CAMPAIGNS[c.sub] ? CAMPAIGNS[c.sub].name : 'Attacke'} gegen ${E.I(c.r) ? E.I(c.r).name : 'Rivalen'}`, `Erfolgschance ~${fmt((c.p || 0) * 100, 0)} % – bei Misserfolg halbe Wirkung`];
+  if (c.k === 'audit') return ['Kosten- & Effizienz-Audit', `Chance ~${fmt((c.p || 0) * 100, 0)} %: Fixkosten dauerhaft −3 %`];
+  if (c.k === 'int') return ['Post-Merger-Integration', 'Tech Debt +15 %, Fixkosten +10 % bis zum Abschluss'];
+  return [c.k, ''];
+}
+function clocksUpdate(v) {
+  const box = $('#v-clk'); if (!box) return; const C = v.clk || [];
+  box.innerHTML = C.length ? C.map(c => { const [n, fx] = clockName(v, c), w = c.s / c.S * 100, pv = Math.min(100, (c.s + 1) / c.S * 100), canPush = c.k !== 'int';
+    return `<div class="vclk" id="clk-${c.i}"><div class="t"><b style="font-weight:500">${esc(n)}</b><small>${fmt(c.s, c.s % 1 ? 1 : 0)} / ${c.S} Schritte · noch ~${Math.ceil(c.S - c.s)} Tag${Math.ceil(c.S - c.s) === 1 ? '' : 'e'}</small></div>
+      <div class="bar"><i class="pv" style="width:${pv.toFixed(0)}%"></i><i style="width:${w.toFixed(0)}%"></i></div>
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span class="fx">${esc(fx)}</span>${canPush ? `<button class="btn sm ghost" data-a="vpush" data-v="${c.i}" data-fc="${E.FOCUS.cost.push}" data-cp="${c.i}" ${(v.focus || 0) < E.FOCUS.cost.push ? 'disabled' : ''}>+1 Schritt · ${E.FOCUS.cost.push} Fokus</button>` : ''}</div></div>`; }).join('')
+    : '<p class="note" style="margin:0">Gerade läuft keine Maßnahme. Starte einen Knoten im Produktbaum oder eine Attacke im Tab „Markt & Rivalen“.</p>';
+}
+actions.vpush = el => fact({ op: 'push', i: +el.dataset.v }, el);
+async function fact(b, el) { if (el) el.disabled = true; await act(Object.assign({ type: 'vfocus' }, b)); }
+/* ---------- Cycle Clocks: Hintergrund- und Risiko-Uhren ---------- */
+function cycUpdate(v, u) {
+  const box = $('#v-cyc'); if (!box) return; const qd = E.qDays(v), rows = [], bar = (name, val, tone, txt, fx) => rows.push(`<div class="vclk"><div class="t"><b style="font-weight:500">${name}</b><small>${txt}</small></div><div class="bar"><i class="${tone}" style="width:${(Math.max(0, Math.min(1, val)) * 100).toFixed(0)}%"></i></div>${fx ? `<span class="fx">${fx}</span>` : ''}</div>`);
+  bar('Nächstes Board-Meeting', v.day / qd, '', `Tag ${v.day} von ${qd}`, v.mand ? `Mandat: ${kE(v.mand.arr)} ARR bis Quartal ${v.mand.q + 1} (jetzt ${pctx(Math.min(1, v.arr / v.mand.arr))})` : 'Bericht mit Plan vs. Ist');
+  const copy = Math.min(0.95, v.rivals.reduce((s, id) => { const x = E.I(id); if (!x) return s; const pr = E.rivalProfile(x); return s + (0.03 + 1.6 * u.share + (v.lost[id] || 0) * 2) * pr.aggr * 0.25; }, 0));
+  bar('Rivalen-Kopie', copy, copy > 0.3 ? 'crit' : copy > 0.12 ? 'warn' : 'ok', `~${fmt(copy * 100, 0)} % je Board-Meeting`, 'Ein Rivale baut eure Funktionen nach (PMF −5). Neue Produktstufen und Patente halten den Vorsprung.');
+  if (E.vm(v).hyper) bar('Kartellprüfung', u.share / 0.4, u.share > 0.32 ? 'crit' : u.share > 0.2 ? 'warn' : 'ok', `${pctx(u.share, 1)} von 40 % Marktanteil`, 'Ab 40 % prüfen Behörden die Marktmacht.');
+  if (v.cash < 0) bar('Insolvenz-Rettungsfrist', (v.fail || 0) / 3, 'crit', `${3 - (v.fail || 0)} Board-Meeting${3 - (v.fail || 0) === 1 ? '' : 's'} bleiben`, 'Kapital einlegen oder Finanzierung annehmen.');
+  if ((v.debt || 0) > 0) bar('Technische Schuld', v.debt, v.debt > 0.5 ? 'crit' : v.debt > 0.25 ? 'warn' : 'ok', pctx(v.debt), `Fixkosten +${fmt(v.debt * 30, 0)} %${v.debt > 0.5 ? ', Fokus nur +1 je Tag' : ''}${v.hyper && v.hyper.on ? ', Ausfallrisiko im Hyperscaling' : ''}`);
+  if ((v.moral ?? 1) < 0.8) bar('Team-Moral', v.moral, v.moral < 0.4 ? 'crit' : 'warn', pctx(v.moral), 'Dauer-Hyperscaling zehrt am Team. Unter 40 % lädt sich Fokus nur +1 je Tag auf.');
+  for (const p of v.pat || []) bar(`Patent: ${esc(p.n)}`, p.d / p.D, p.d / p.D < 0.25 ? 'warn' : 'ok', `noch ${p.d} Tage`, `Bewertung +${kE(p.v * p.d / p.D)} · Erstanmelder, nicht verlängerbar`);
+  if (v.model === 'cleantech') bar('Förder-Synergie', E.synergy(v) / 3, E.synergy(v) ? 'ok' : '', `Stufe ${E.synergy(v)} von 3`, 'Energie-/Konjunktur-Storylines: Baukosten −10 % und Marge +2 Pkt. je Stufe.');
+  if (v.model === 'deeptech' && v.cap) bar('Anlagen-Verschleiß', (v.cap.wear || 0) / 0.2, (v.cap.wear || 0) > 0.1 ? 'warn' : 'ok', `−${pctx(v.cap.wear || 0)} Kapazität`, E.complexity(v) ? `Komplexität ohne Plattform: Marge −${fmt(E.complexity(v) * 100, 0)} Pkt.` : 'Ein neuer Ausbau setzt den Verschleiß zurück.');
+  box.innerHTML = rows.join('');
+}
+/* ---------- Produktbaum mit Kunden-Radar ---------- */
+function treeUpdate(v) {
+  const box = $('#v-tree'); if (!box) return; const T = E.PRODUCT_TREE[v.model] || [], R = v.radar || [], run = (v.clk || []).find(c => c.k === 'node'), C = E.FOCUS.cost;
+  box.innerHTML = `<div class="vradar">${R.map(k => `<span title="${esc(E.RADAR[k].desc)}">${esc(E.RADAR[k].name)}</span>`).join('')}<small class="fg2" style="align-self:center">Kunden-Radar ${info('radar')}</small></div><div class="vtree">${T.map((tier, i) => {
+    const ch = (v.tree || [])[i], prevOk = i === 0 || ((v.tree || [])[i - 1] && v.tree[i - 1].d);
+    return `<div class="vtier"><span>Stufe ${i + 1}</span>${tier.map(N => { const done = ch && ch.k === N.k && ch.d, isRun = run && run.t === i && run.n === N.k, lock = (ch && ch.k !== N.k) || (run && run.t === i && run.n !== N.k), qC = E.focusQuote(v, { op: 'node', t: i, n: N.k, m: 'clean' }), qM = E.focusQuote(v, { op: 'node', t: i, n: N.k, m: 'mvp' }), can = !done && !isRun && !lock && prevOk && !run;
+      const fx = Object.entries(N.fx).map(([k, x]) => ({ cac: `Kundenkosten ${sgn(x - 1)}`, arpu: `Umsatz/Kunde ${sgn(x - 1)}`, churn: `Abwanderung ${sgn(x - 1)}`, conv: `Abschlüsse ${sgn(x - 1)}`, gm: `Marge ${x > 0 ? '+' : '−'}${fmt(Math.abs(x) * 100, 0)} Pkt.`, net: 'Netzwerkeffekt +', capU: `Kapazität ${sgn(x - 1)}`, opex: `Fixkosten ${sgn(x - 1)}`, plat: 'keine Komplexitätsstrafe', pat: `Patent ${kE(x * (1 + v.stage))}` }[k])).join(' · ');
+      return `<div class="vnode ${done ? 'done' : isRun ? 'run' : lock || !prevOk ? 'lock' : ''}">${tip(N.name, N.desc, fx)}<b>${esc(N.name)}</b><small>${esc(fx)}</small><span class="tags">${N.tags.map(t => `<em class="${R.includes(t) ? 'hit' : ''}">${esc(E.RADAR[t].name.split(' ')[0])}</em>`).join('')}</span>
+        ${done ? `<small class="up">fertig${ch.m === 'mvp' ? ' (MVP)' : ''}</small>${i < 2 || true ? `<button class="link" style="align-self:flex-start;font-size:12px" data-a="vrepath" data-v="${i}" data-fc="${C.repath}">Pfad umbauen · ${C.repath} Fokus</button>` : ''}` : isRun ? '<small>in Entwicklung …</small>' : lock ? '<small>anderer Pfad gewählt</small>' : !prevOk ? '<small>erst vorherige Stufe</small>'
+          : `<span class="btns2"><button class="btn sm" data-a="vnode" data-t="${i}" data-v="${N.k}" data-m="clean" data-fc="${qC.f}" ${can && (v.focus || 0) >= qC.f ? '' : 'disabled'} title="${qC.S} Schritte · ${fmtE(qC.cost, 0)} Budget · keine Tech Debt">Sauber · ${qC.f} Fokus</button><button class="btn sm ghost" data-a="vnode" data-t="${i}" data-v="${N.k}" data-m="mvp" data-fc="${qM.f}" ${can && (v.focus || 0) >= qM.f ? '' : 'disabled'} title="${qM.S} Schritte · ${fmtE(qM.cost, 0)} Budget · Tech Debt +15 %">MVP · ${qM.f}</button></span>`}</div>`; }).join('')}</div>`; }).join('')}</div>
+    <p class="small fg2" style="margin:8px 0 0">Jede Stufe hebt die PMF-Decke (jetzt ${pctx(E.pmfCap(v))}). Trifft ein Knoten ein Radar-Signal, gibt es PMF +5; Entwicklungen am Markt vorbei kosten laufend Fixkosten.</p>`;
+}
+actions.vnode = el => fact({ op: 'node', t: +el.dataset.t, n: el.dataset.v, m: el.dataset.m }, el);
+actions.vrepath = el => { const t = +el.dataset.v, q = E.focusQuote(S.A.venture, { op: 'repath', t }); openReview({ title: `Pfad ab Stufe ${t + 1} umbauen?`, lines: [['Fokus', String(q.f)], ['Kosten', fmtE(q.cost, 0)], ['Technische Schuld', '+10 %']], warn: 'Die gewählten Knoten ab dieser Stufe werden zurückgebaut – ihre Effekte entfallen. Danach ist der andere Pfad wieder offen.', confirm: 'Umbauen', run: () => act({ type: 'vfocus', op: 'repath', t }, true) }); };
+/* ---------- Taktische Züge (Markt-Tab): A/B-Test, Audit, Refactoring ---------- */
+function tacticsUpdate(v) {
+  const box = $('#v-spr'); if (!box) return; const busy = k => (v.clk || []).some(c => c.k === k);
+  const cards = [['ab', 'A/B-Test Vertriebskanal', 'Zwei Kanäle gegeneinander testen.', 'Bei Erfolg (~65 %) Kundengewinnung 5 % günstiger bis zum Board-Meeting.'], ['audit', 'Kosten- & Effizienz-Audit', 'Alle Verträge auf den Prüfstand.', 'Läuft 3 Tage. Bei Erfolg Fixkosten dauerhaft −3 % (max. −15 %), ein Quartal etwas weniger Abschlüsse.'], ['refactor', 'Refactoring', 'Code und Infrastruktur aufräumen.', `Tech Debt −15 Pkt. (jetzt ${pctx(v.debt || 0)}), Qualität +2.`]];
+  box.innerHTML = `<div class="vspr" style="grid-template-columns:1fr">${cards.map(([k, n, d, fx]) => { const q = E.focusQuote(v, { op: k }), dis = (v.focus || 0) < q.f || (q.cost && v.cash < q.cost) || (k === 'audit' && busy('audit')) || (k === 'refactor' && !(v.debt > 0));
+    return `<div><b style="font-size:14px;padding-right:22px">${n}</b>${tip(n, d, fx)}<span class="num">${q.f} Fokus${q.cost ? ` · ${fmtE(q.cost, 0)}` : ''}</span><small>${esc(fx)}</small><button class="btn sm ${dis ? 'ghost' : ''}" style="margin-top:6px" data-a="vtac" data-v="${k}" data-fc="${q.f}" ${dis ? 'disabled' : ''}>${k === 'audit' && busy('audit') ? 'Läuft' : 'Ausführen'}</button></div>`; }).join('')}</div>
+    <p class="small fg2" style="margin:8px 0 0">Attacken auf Rivalen startest du links über das Profil eines Rivalen (2 Fokus).</p>`;
+}
+actions.vtac = el => fact({ op: el.dataset.v }, el);
 
 /* ---------- Markt-Duell: TAM-Balken, Rivalen-Profile, gezielte Attacken ---------- */
 const RIVC = ['var(--fg2)', 'var(--line2)', 'var(--mute)'];
 function duelUpdate(v, u) {
   const T = E.segTAM(v), riv = v.rivals.map(id => E.I(id)).filter(Boolean), open = S.UI.vRiv;
   const seg = [[`${esc(v.name)}`, u.share, 'var(--up)'], ...riv.map((x, i) => [esc(x.name), (1 - u.share) * (v.w[x.id] || 0) * 0.6, RIVC[i % 3]])], rest = Math.max(0, 1 - seg.reduce((s, r) => s + r[1], 0));
-  const busyAtk = (v.sp || []).some(s => s.k === 'attack'), onceAtk = (v.spQ || {}).attack === v.qi;
+  const busyAtk = (v.clk || []).some(c => c.k === 'atk'), onceAtk = false, fa = E.FOCUS.cost.attack;
   const rows = riv.map((x, i) => { const pr = E.rivalProfile(x), sh = (1 - u.share) * (v.w[x.id] || 0) * 0.6, isO = open === x.id;
     return `<button type="button" class="vriv" data-a="vriv" data-v="${x.id}" aria-expanded="${isO}"><span><span class="sw" style="background:${RIVC[i % 3]}"></span>${esc(x.name)} <small class="fg2">· ${esc(pr.name)}</small></span><b>${pctx(sh, 1)}${v.lost[x.id] ? ` <small class="up" style="font-weight:400">−${fmt(v.lost[x.id] * 100, 1)} Pp</small>` : ''}</b></button>
       ${isO ? `<div class="vprof"><p class="small" style="margin:0 0 8px">${esc(pr.desc)}</p><div class="lines"><div><span>Aktie</span><b>${fmt(x.price, 2)} € <span class="${sc(E.chg(x))}" style="font-weight:400">${pctS(E.chg(x))}</span></b></div><div><span>Quartalsumsatz</span><b>${fmtBig(x.fin ? x.fin.rev : 0)} €</b></div></div>
-        <div class="vspr" style="margin-top:10px">${Object.entries(CAMPAIGNS).map(([k, C]) => { const q = E.sprintQuote(v, 'attack', k), dis = busyAtk || onceAtk || (v.sp || []).length >= 2 || v.cash < q.cost;
-          return `<div><b style="font-size:13px;padding-right:22px">${esc(C.name)}</b>${tip(C.name, C.desc, `Läuft ${q.days} Handelstage. Erfolgschance ~${fmt(q.p * 100, 0)} % – bei Misserfolg halbe Wirkung.`)}<span class="num">${fmtE(q.cost, 0)} · ~${fmt(q.p * 100, 0)} %</span><button class="btn sm ghost" data-a="vatk" data-r="${x.id}" data-v="${k}" ${dis ? 'disabled' : ''}>${busyAtk ? 'Attacke läuft' : onceAtk ? 'Nächstes Quartal' : 'Angreifen'}</button></div>`; }).join('')}</div>
+        <div class="vspr" style="margin-top:10px">${Object.entries(CAMPAIGNS).map(([k, C]) => { const q = E.sprintQuote(v, 'attack', k), dis = busyAtk || (v.focus || 0) < fa || v.cash < q.cost;
+          return `<div><b style="font-size:13px;padding-right:22px">${esc(C.name)}</b>${tip(C.name, C.desc, `Läuft ${q.days} Handelstage. Erfolgschance ~${fmt(q.p * 100, 0)} % – bei Misserfolg halbe Wirkung.`)}<span class="num">${fa} Fokus · ${fmtE(q.cost, 0)} · ~${fmt(q.p * 100, 0)} %</span><button class="btn sm ghost" data-a="vatk" data-r="${x.id}" data-v="${k}" data-fc="${fa}" ${dis ? 'disabled' : ''}>${busyAtk ? 'Attacke läuft' : onceAtk ? 'Nächstes Quartal' : 'Angreifen'}</button></div>`; }).join('')}</div>
         <button class="btn sm ghost" style="margin-top:10px" data-go="i-${x.id}">Zur Aktie ${esc(x.id)}</button></div>` : ''}`; }).join('');
   $('#v-duel').innerHTML = `<div class="lines"><div><span>Marktsegment (TAM)</span><b class="num">${big(T)}</b></div><div><span><b>${esc(v.name)}</b></span><b class="up num">${pctx(u.share, 2)}</b></div></div>
     <div class="vtam" role="img" aria-label="Marktanteile im Segment">${seg.map(r => `<i style="width:${Math.max(r[1] > 0 ? 0.6 : 0, r[1] * 100).toFixed(2)}%;background:${r[2]}" title="${r[0]}: ${pctx(r[1], 1)}"></i>`).join('')}<i style="width:${(rest * 100).toFixed(2)}%;background:var(--bg2)" title="Übrige Anbieter"></i></div>${rows}
     <p class="small fg2" style="margin:8px 0 0">Tippe auf einen Rivalen für sein Profil und gezielte Attacken. Gewonnene Anteile kosten ihn echten Umsatz in den nächsten Quartalszahlen.</p>`;
 }
 actions.vriv = el => { S.UI.vRiv = S.UI.vRiv === el.dataset.v ? null : el.dataset.v; duelUpdate(S.A.venture, E.unit(S.A.venture)); };
-actions.vatk = async el => { el.disabled = true; await act({ type: 'vsprint', k: 'attack', sub: el.dataset.v, rival: el.dataset.r }); };
+actions.vatk = el => fact({ op: 'attack', sub: el.dataset.v, rival: el.dataset.r }, el);
 
 /* ---------- Inbox: Optionen mit Erklärbutton und Vorschau, Term-Sheet-Nachverhandlung ---------- */
 function explain(v, it, o) {
@@ -221,6 +301,7 @@ function explain(v, it, o) {
     grant: { yes: ['Zuschuss annehmen', 'Geld von der Förderbank – ohne Anteile abzugeben.', `+${kE(d.g || 0)} in die Firmenkasse. Höchstens vier Zuschüsse insgesamt.`], no: ['Ablehnen', 'Du verzichtest auf die Förderung.', 'Ein neues Angebot kommt frühestens in 4 Quartalen.'] },
     deal: { yes: ['Großkunde annehmen', 'Ein Konzern kauft in großem Stil – mit Rabatt.', `+${fmt(d.n || 0, 0)} Kunden sofort, aber 4 Quartale lang 7 % weniger Umsatz je Kunde.`], no: ['Ablehnen', 'Kein Rabatt, keine Sonderwünsche.', 'Es ändert sich nichts.'] },
     tariff: { move: ['Lieferkette verlagern', 'Eigene Fertigung in Europa.', `Einmalig ~${kE(Math.max(2000, v.arr * 0.15))}, danach treffen dich Zölle kaum noch.`], price: ['Preise erhöhen', 'Die Zölle werden an die Kunden weitergegeben.', 'Keine Kosten, aber 3 Quartale lang 15 % weniger Abschlüsse.'] },
+    launch: { silent: ['Silent Beta', 'Leiser Start mit ausgewählten Kunden.', 'Sicher: +8 % Abschlüsse bis zum Board-Meeting.'], keynote: ['Keynote-Launch', 'Große Bühne, Presse, Live-Demo.', `Bei hoher Qualität +30 % Abschlüsse. Risiko eines Shitstorms: ~${fmt(80 * (v.debt || 0), 0)} % (steigt mit der Tech Debt).`] },
     bridge: { yes: ['Brückenfinanzierung annehmen', 'Bestandsinvestoren retten die Kasse.', `+${kE(d.amt || 0)}, du gibst ${fmt((d.dil || 0) * 100, 1)} % ab, Bewertung −15 %, Board −5. Nächste Brücke frühestens in 4 Quartalen.`], no: ['Ablehnen', 'Du suchst selbst nach Geld.', 'Bleibt die Kasse drei Quartale im Minus, ist das Startup insolvent.'] }
   };
   return (T[it.k] && T[it.k][o.k]) || [o.label, o.desc || '', ''];
@@ -231,7 +312,7 @@ function inboxUpdate(v) {
   $('#v-inbox').innerHTML = v.inbox.length ? v.inbox.map(it => `<div class="vdec"><b>${esc(it.title)}</b><p class="note" style="margin:4px 0 10px">${esc(it.text)}</p>
       ${it.opts ? `<div class="vopts">${it.opts.map(o => { const [t, d, fx] = explain(v, it, o);
         return `<div class="vopt" role="button" tabindex="0" data-a="vdec" data-id="${it.id}" data-v="${o.k}">${tip(t, d, fx)}<b>${esc(o.label)}</b>${o.desc ? `<small>${esc(o.desc)}</small>` : ''}${fx ? `<small>${esc(fx)}</small>` : ''}</div>`; }).join('')}</div>
-      ${it.k === 'vc' ? negHTML(it) : ''}
+      ${it.k === 'vc' || it.k === 'deal' ? `<div class="vbtns" style="justify-content:flex-start"><button class="btn sm" data-a="vnegopen" data-id="${it.id}" data-fc="${E.FOCUS.cost.neg}" ${(v.focus || 0) < E.FOCUS.cost.neg ? 'disabled' : ''}>In 3 Runden verhandeln · ${E.FOCUS.cost.neg} Fokus</button></div>` : ''}
       <p class="small fg2" style="margin:8px 0 0">Ohne Antwort gilt nach zwei Quartalen: ${esc(it.opts[it.def].label)}</p>` : `<button class="btn sm ghost" data-a="vdec" data-id="${it.id}" data-v="">Gelesen</button>`}</div>`).join('')
     : '<p class="note" style="margin:0">Keine offenen Entscheidungen. Das Tagesgeschäft läuft auf Autopilot.</p>';
 }
@@ -246,7 +327,8 @@ function fundUpdate(v) {
   const next = E.VC_ROUNDS.find(r => !v.rounds.includes(r.k));
   $('#v-fund').innerHTML = `<div class="lines"><div><span>Eingelegt</span><b class="num">${fmtE(v.invested, 0)}</b></div><div><span>Finanzierungsrunden</span><b>${v.rounds.length ? v.rounds.map(r => E.VC_ROUNDS.find(x => x.k === r).name).join(', ') : 'keine'}</b></div>
     ${next ? `<div><span>Nächste Runde (${next.name}) ${info('termsheet')}</span><b>${E.vm(v).trial ? 'nach Studienfortschritt' : `ab ${fmtE(next.arr * (E.vm(v).hyper ? 1 : 0.6), 0)} ARR`}</b></div>` : ''}
-    ${v.target ? `<div><span>Ziel der Investoren</span><b class="amb">${fmtE(v.target.arr, 0)} ARR bis Quartal ${v.target.q + 1}</b></div>` : ''}</div>
+    <div><span>Board-Autorität ${info('mandate')}</span><b class="num ${(v.auth ?? 50) >= 60 ? 'up' : (v.auth ?? 50) < 40 ? 'dn' : ''}">${fmt(v.auth ?? 50, 0)} / 100</b></div>
+    ${v.mand ? `<div><span>Board-Mandat</span><b class="amb">${fmtE(v.mand.arr, 0)} ARR bis Quartal ${v.mand.q + 1} · ${pctx(Math.min(1, v.arr / v.mand.arr))}</b></div>` : '<div><span>Board-Mandat</span><b class="fg2">keins</b></div>'}</div>
     <div class="row2" style="margin-top:10px"><label class="field"><span>Kapital einlegen ${info('credit')}</span><input class="inp" id="v-amt" inputmode="decimal" placeholder="z. B. 2.000"></label><span style="display:flex;align-items:flex-end"><button class="btn sm" data-a="vfund">Einlegen</button></span></div>`;
 }
 function capUpdate(v) {
@@ -258,19 +340,33 @@ function execUpdate(v) {
   const pay = EXEC_PAY[Math.min(v.stage, 3)];
   $('#v-exec').innerHTML = Object.entries(EXECS).map(([role, R]) => { const e = v.execs[role], a = e && R.a.find(x => x.k === e.k), mix = e ? (e.mix ?? (e.esop ? 1 : 0)) : 0;
     return `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><span class="label">${esc(R.name)}</span>${a ? `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><span><b>${esc(a.name)}</b><small class="fg2" style="display:block">${esc(a.desc)} · ${mix < 1 ? `${fmtE(pay * a.pay * (1 - mix), 0)} / Quartal` : ''}${mix > 0 && mix < 1 ? ' + ' : ''}${mix > 0 ? `${fmt(EXEC_ESOP * mix * 100, 1)} % ESOP` : ''}</small></span><button class="btn sm ghost" data-a="vfire" data-v="${role}">Entlassen</button></div>`
-      : `<div class="stack" style="gap:6px;margin-top:4px">${R.a.map(x => `<div style="display:flex;gap:8px;align-items:center"><span style="flex:1;min-width:0"><b style="font-weight:500">${esc(x.name)}</b> ${tip(x.name, x.desc, role === 'cfo' ? `Prognose-Genauigkeit: Abweichung ${x.k === 'eff' ? '−60 %' : '−50 %'}.` : '')}<small class="fg2" style="display:block">${esc(x.desc)}</small></span><button class="btn sm ghost" data-a="vhire" data-r="${role}" data-v="${x.k}">Verhandeln</button></div>`).join('')}</div>`}</div>`; }).join('');
+      : `<div class="stack" style="gap:6px;margin-top:4px">${R.a.map(x => `<div style="display:flex;gap:8px;align-items:center"><span style="flex:1;min-width:0"><b style="font-weight:500">${esc(x.name)}</b> ${tip(x.name, x.desc, role === 'cfo' ? `Prognose-Genauigkeit: Abweichung ${x.k === 'eff' ? '−60 %' : '−50 %'}.` : '')}<small class="fg2" style="display:block">${esc(x.desc)}</small></span><button class="btn sm ghost" data-a="vhire" data-r="${role}" data-v="${x.k}" data-fc="${E.FOCUS.cost.neg}">Verhandeln · ${E.FOCUS.cost.neg} Fokus</button></div>`).join('')}</div>`}</div>`; }).join('');
 }
+/* ---------- 3-Runden-Verhandlung: Balken für Interesse, Geduld, Stress; Züge rechnen lokal, Abschluss = 1 Request ---------- */
+function openNeg(kind, title, sub, ctxExtra, seedSalt, terms, send) {
+  const v = S.A.venture, ctx = Object.assign(E.negCtx(v), ctxExtra || {}), seed = E.negSeed(v, seedSalt), N = { moves: [] }, MV = E.NEG_MOVES[kind];
+  const st = () => E.negPlay(kind, ctx, seed, N.moves);
+  const nb = (n, val, col, txt) => `<div class="nb"><span>${n}</span><span class="bar"><i style="width:${Math.max(0, Math.min(100, val)).toFixed(0)}%;background:${col}"></i></span><b>${txt}</b></div>`;
+  const body = () => { const S0 = st(); return `${nb('Interesse', S0.int, 'var(--up)', fmt(S0.int, 0))}${nb('Geduld', S0.pat / 3 * 100, 'var(--fg)', `${Math.max(0, S0.pat)}/3`)}${nb('Stress', S0.str, 'var(--dn)', fmt(S0.str, 0))}
+    <div class="att">${esc(S0.att)}${S0.done ? ` · <b class="${S0.ok ? 'up' : 'dn'}">${S0.ok ? 'Einigung möglich' : esc(S0.why || 'kein Abschluss')}</b>` : ` · Runde ${S0.r + 1} von 3`}</div>
+    ${N.moves.length ? `<div class="hist">Bisher: ${N.moves.map(m => esc(MV[m])).join(' → ')}</div>` : ''}
+    <div class="mv">${Object.entries(MV).filter(([k]) => k !== 'fix').map(([k, l]) => `<button class="btn sm ghost" data-a="nmv" data-v="${k}" ${S0.done ? 'disabled' : ''}>${esc(l)}</button>`).join('')}</div>`; };
+  actions.nmv = el => { N.moves.push(el.dataset.v); const b = $('#sh-neg'); if (b) b.innerHTML = body(); refreshReview(); };
+  openReview({ title, sub, body: `<div class="vneg" id="sh-neg">${body()}</div>`, lines: () => terms(st()), totalLast: false,
+    warn: () => { const S0 = st(); return S0.done && !S0.ok ? 'So kommt kein Abschluss zustande – der Fokus-Punkt ist trotzdem verbraucht.' : 'Die Gegenseite reagiert auf jeden Zug. „Abschließen“ sendet das Ergebnis – der Server spielt die Züge mit demselben Ausgang nach.'; },
+    confirm: 'Abschließen', run: () => send(N.moves) });
+}
+actions.vnegopen = el => {
+  const v = S.A.venture, it = v.inbox.find(i => i.id === +el.dataset.id); if (!it) return;
+  if (it.k === 'vc') openNeg('vc', it.title, esc(it.data.inv), {}, it.id, S0 => { const T = E.negTermsOf('vc', S0, it.data); return [['Bewertung vor Geld', fmtE(T.pre, 0)], ['Frisches Kapital', fmtE(T.raise, 0)], ['Verwässerung', pctx(T.dil, 1), 'dilution'], ['Board-Mandat (4 Quartale)', `${fmtE(T.tgt, 0)} ARR`, 'mandate']]; }, moves => act({ type: 'vdecide', id: it.id, opt: 'neg', moves }, true));
+  else openNeg('deal', it.title, 'Enterprise-Großdeal', {}, it.id, S0 => { const T = E.negTermsOf('deal', S0, it.data); return [['Neue Kunden', fmt(T.n, 0)], ['Rabatt', pctx(T.disc)], ['Laufzeit-Bindung', T.lock ? 'ja – weniger Kündigungen' : 'nein']]; }, moves => act({ type: 'vdecide', id: it.id, opt: 'neg', moves }, true));
+};
 actions.vhire = el => {
   const v = S.A.venture, role = el.dataset.r, R = EXECS[role], a = R.a.find(x => x.k === el.dataset.v), pay = EXEC_PAY[Math.min(v.stage, 3)] * a.pay;
-  S.UI.vMix = 0.5; const mix = () => S.UI.vMix;
-  const after = () => { const w = JSON.parse(JSON.stringify(v)); w.execs = Object.assign({}, w.execs, { [role]: { k: a.k, mix: mix() } }); return w; };
-  inputs['sh-mix'] = el2 => { S.UI.vMix = +el2.value / 100; $('#sh-mix-v').textContent = `${fmt((1 - mix()) * 100, 0)} % Gehalt · ${fmt(mix() * 100, 0)} % Anteile`; refreshReview(); };
-  openReview({ title: `${a.name} als ${R.name}`, sub: esc(a.desc),
-    body: `<label class="vsl" style="margin-bottom:8px"><span>Vergütung ${tip('Gehalt oder Anteile', 'Gehalt belastet jedes Quartal die Firmenkasse. Mitarbeiteranteile (ESOP) kosten kein Geld, verwässern aber deinen Gründeranteil.', 'Bei knapper Runway lieber Anteile, bei großem Gründeranteil eher Gehalt.')}</span><input type="range" id="sh-mix" min="0" max="100" step="5" value="50" aria-label="Anteil der Vergütung in Mitarbeiteranteilen"><b id="sh-mix-v" style="min-width:150px">50 % Gehalt · 50 % Anteile</b></label>`,
-    lines: () => { const w = after(), rw0 = E.runway(v), rw1 = E.runway(w), b0 = E.confBand(v), b1 = E.confBand(w), pct = EXEC_ESOP * mix();
-      return [['Gehalt je Quartal', fmtE(pay * (1 - mix()), 0)], ['Mitarbeiteranteile', fmt(pct * 100, 1) + ' %'], ['Runway', `${isFinite(rw0) ? fmt(rw0, 1) : '∞'} → ${isFinite(rw1) ? fmt(rw1, 1) : '∞'} Monate`, 'runway'], ...(role === 'cfo' ? [['Prognose-Genauigkeit', `±${fmt(b0 * 100, 0)} % → ±${fmt(b1 * 100, 0)} %`, 'fcconf']] : []), ['Dein Gründeranteil danach', pctx(Math.max(0, v.capt.founder - pct), 1)]]; },
-    warn: () => mix() > 0 ? 'Die Anteile kommen aus deinem Gründeranteil – Verwässerung ohne frisches Geld.' : 'Reines Gehalt: kein Anteil geht verloren, aber die Burn Rate steigt.',
-    confirm: 'Einstellen', run: () => act({ type: 'vexec', role, k: a.k, mix: mix() }, true) });
+  if ((v.focus || 0) < E.FOCUS.cost.neg) { S.toast(`Eine Verhandlung kostet ${E.FOCUS.cost.neg} Fokus.`, 'dn'); return; }
+  openNeg('exec', `${a.name} als ${R.name}`, esc(a.desc), { rival: E.execRival(v) }, E.hashS(role + a.k), S0 => { const T = E.negTermsOf('exec', S0), w = JSON.parse(JSON.stringify(v)); w.execs = Object.assign({}, w.execs, { [role]: { k: a.k, mix: T.mix, pf: T.pay } });
+    const rw0 = E.runway(v), rw1 = E.runway(w); return [['Gehalt je Quartal', fmtE(pay * T.pay * (1 - T.mix), 0)], ['Mitarbeiteranteile', fmt(EXEC_ESOP * T.mix * 100, 1) + ' %', 'esop'], ['Runway', `${isFinite(rw0) ? fmt(rw0, 1) : '∞'} → ${isFinite(rw1) ? fmt(rw1, 1) : '∞'} Monate`], ...(role === 'cfo' ? [['Prognose-Genauigkeit', `±${fmt(E.confBand(v) * 100, 0)} % → ±${fmt(E.confBand(w) * 100, 0)} %`, 'fcconf']] : [])]; },
+    moves => act({ type: 'vexec', role, k: a.k, moves }, true));
 };
 actions.vfire = el => act({ type: 'vfire', role: el.dataset.v });
 function ipoUpdate(v) {

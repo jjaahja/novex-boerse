@@ -569,6 +569,8 @@ export const creditLimit = A => (A.credit ? lombardValue(A) : 0);
 export const creditRate = A => (M.lz === undefined ? M.r : M.lz) + ((TIERS[A.tierMax || 0] || TIERS[0]).margin ?? 0.03);
 // Eigene Unternehmen: Eigenkapitalwert = operativer Gewinn × Bewertungsmultiple − Schulden (nie negativ)
 export const coEbit = co => co.rev * co.m;
+// Kapitalerhöhung: neue Aktien an einen Mehrheitseigner nie unter dem aktuellen Börsenkurs (Schutz der übrigen Aktionäre)
+export function issueShares(x, n, px, holderShare) { if (!(n > 0) || !(px > 0)) return 'Ungültige Kapitalerhöhung.'; if (holderShare > 0.5 && px < x.price) return `Neue Aktien an den Mehrheitseigner nur zum Börsenkurs (mindestens ${x.price.toFixed(2)} €).`; x.shares += n; return null; }
 export const coValue = co => Math.max(0, coEbit(co) * co.mult - co.debt);
 export const peValue = A => (A.pe || []).reduce((s, co) => s + coValue(co), 0);
 export const loanTotal = A => (A.loans || []).reduce((s, l) => s + l.amt, 0);

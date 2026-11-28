@@ -4,10 +4,18 @@ import { M, hook, ENV, I, all, addNews, setWhy, recomputeDerived, closeDeriv, is
 import { addTradingDays, qLabel, scheduleReport } from './events.js';
 import { BID_MIN_SHARE, LBO_SPREAD, LBO_MAX_X, LBO_MAX_SHARE, PE_STRATS } from './data.js';
 import { macroRevFactor } from './macro.js';
-import { peerMult, removeFromBaskets } from './company.js';
+import { peerMult, removeFromBaskets, sectorRev } from './company.js';
 
 const listed = x => !!x && x.cls === 'stock' && !x.delisted && M.ids.includes(x.id);
 export const shareOf = (A, x) => x && A.pos[x.id] ? A.pos[x.id].qty / x.shares : 0;
+// Kartellgrenze: Anteil am Jahresumsatz eines Sektors, den ein Spieler mit eigenen Firmen, gelistetem Startup und dem Ziel kontrollieren würde
+export function sectorControl(A, sector, extra = 0) {
+  const own = (A.pe || []).filter(c => c.sector === sector).reduce((s, c) => s + c.rev, 0), v = A.venture, vr = v && v.status === 'public_listed' && v.sector === sector ? v.arr : 0;
+  const tot = sectorRev(sector) + own + extra; return tot > 0 ? (own + vr + extra) / tot : 0;
+}
+export const SECTOR_CAP = 0.4;
+// Zinsdeckung (EBIT / Zinsen) einer übernommenen Firma – unter 1× sind Ausschüttungen gesperrt
+export const coverage = co => { const i = co.debt * (co.rate || 0); return i > 0 ? coEbit(co) / i : Infinity; };
 
 ENV.bidReq = x => bidReq(x); // für Insider-Einblicke (events.js)
 hook('init', () => { if (!M.ma) M.ma = { bids: [] }; if (!M.sec) M.sec = {}; if (!M.sec.bid) M.sec.bid = {}; if (!M.sec.req) M.sec.req = {}; if (M.idsV === undefined) M.idsV = 0; });
@@ -44,6 +52,7 @@ export function placeBid(A, b) {
   if (!(prem >= 0.05 && prem <= 0.8)) return 'Prämie: 5 bis 80 % auf den aktuellen Kurs.';
   if (A.bidCool && A.bidCool[x.id] > M.t) return 'Nach einem gescheiterten Angebot musst du vier Wochen warten.';
   if (shareOf(A, x) < BID_MIN_SHARE) return `Ein Übernahmeangebot setzt mindestens ${fmt(BID_MIN_SHARE * 100, 0)} % Beteiligung voraus.`;
+  if (sectorControl(A, x.sector, x.fin ? x.fin.rev * 4 : 0) > SECTOR_CAP) return `Kartellgrenze: Mit ${x.name} würdest du mehr als ${fmt(SECTOR_CAP * 100, 0)} % des Sektorumsatzes kontrollieren. Die Wettbewerbsbehörde würde das untersagen.`;
   const q = quoteBid(A, x, prem, lbo);
   if (lbo > q.lmax + 1) return `Der LBO-Kredit ist auf ${fmtE(q.lmax, 0)} begrenzt (4,5 × EBIT, höchstens 60 % des Kaufpreises).`;
   if (!q.ok) return `Finanzierung reicht nicht: Du brauchst ${fmtE(q.need, 0)}, verfügbar sind ${fmtE(Math.max(0, q.avail), 0)} (inkl. Wertpapierkredit).`;
@@ -112,7 +121,9 @@ function complete(A, x, b, accts, accept) {
   // Eigenes Unternehmen anlegen
   const f = targetFigures(x), m = f.ebit > 0 && f.rev > 0 ? clamp(f.margin, 0.02, 0.6) : 0.03, ebit = f.rev * m;
   const co = { id: x.id, name: x.name, sector: x.sector, shares: x.shares, rev: f.rev, m, mBase: m, g: clamp(x.fin ? x.fin.g : 0.03, -0.05, 0.3), debt: b.lbo, spread: LBO_SPREAD, rate: (M.lz || 0) + LBO_SPREAD, mult: ebit > 0 ? (P * x.shares) / ebit : 10, cost: r2(own.cost + cost + fee - b.lbo), t0: M.t, next: dayStart(addTradingDays(M.t, 91)), q: [], st: null, qs: 0, neg: 0, spec: -1, P };
+  co.rev0 = co.rev; co.m = Math.max(-0.05, co.m - 0.02); // Integrationsaufwand im ersten Quartal
   A.pe.push(co);
+  const v = A.venture; if (v && v.status === 'public_listed' && v.sector === x.sector) { (v.clk = v.clk || []).push({ i: v.seq++, k: 'int', s: 0, S: 5 + Math.floor(Math.random() * 3) }); v.debt = clamp((v.debt || 0) + 0.15, 0, 1); } // Post-Merger-Integration im eigenen Konzern
   addNews(`${A.name} übernimmt ${x.name} und nimmt das Unternehmen von der Börse`, 1, [x.id], { cat: 'ma', sub: `${fmt(accept * 100, 0)} % der freien Aktionäre haben angedient. Alle übrigen Aktien werden zu ${fmt(P, 2)} € abgefunden. ${x.name} verlässt Index, ETFs und Fonds.` });
   ENV.note(A, `Übernahme geglückt! ${x.name} gehört jetzt dir – zu finden unter „Unternehmen“.`, 'tier'); ENV.event(A, 'takeover', { id: x.id }); ENV.dirty(A);
 }
@@ -145,7 +156,7 @@ function quarter(A, co) {
   const revQ = co.rev / 4, ebitQ = revQ * co.m, intQ = co.debt * co.rate / 4, pre = ebitQ - intQ - one, tax = 0.25 * Math.max(0, pre), ni = pre - tax;
   const fcf = ni > 0 ? ni * 0.85 : ni, amort = fcf > 0 ? Math.min(co.debt, fcf * 0.6) : 0;
   co.debt = Math.max(0, co.debt - amort + (fcf < 0 ? -fcf : 0));
-  const div = fcf > 0 ? r2(fcf - amort) : 0;
+  const div = fcf > 0 && coverage(co) >= 1 ? r2(fcf - amort) : 0; // Solvenzsperre: keine Ausschüttung bei Zinsdeckung unter 1×
   if (div >= 0.01) { A.cash += div; book(A, 'pe', div, `Ausschüttung ${co.name}`); }
   // Nicht börsennotiert und klein: Abschlag gegenüber großen Konkurrenten (Illiquidität), Zuschlag für Wachstum
   const tgt = clamp(peerMult(co.sector) * 0.65 * (1 + 2 * (co.g - 0.05)), 4, 30); co.mult += 0.25 * (tgt - co.mult);
@@ -165,6 +176,7 @@ export function setStrategy(A, coId, k) {
   if (!PE_STRATS[k]) return 'Unbekannte Strategie.';
   if (k === 'special') {
     if (co.spec === co.qs) return 'Eine Sonderdividende ist einmal je Quartal möglich.';
+    if (coverage(co) < 1) return 'Gesperrt: Die Zinsdeckung liegt unter 1× – erst Schulden abbauen (Solvenzschutz).';
     const add = r2(Math.max(0, 3.5 * coEbit(co) - co.debt)); if (add < 1000) return 'Kein Spielraum: Die Schulden liegen schon bei 3,5 × EBIT.';
     co.debt += add; co.spec = co.qs; A.cash += add; book(A, 'pe', add, `Sonderdividende ${co.name}`);
     ENV.note(A, `${co.name} schüttet ${fmtE(add)} Sonderdividende aus (kreditfinanziert).`, 'div'); ENV.dirty(A); return null;
@@ -172,11 +184,11 @@ export function setStrategy(A, coId, k) {
   if (co.st) return `Es läuft bereits: ${PE_STRATS[co.st.k].name}.`;
   co.st = { k, q: 0 }; ENV.note(A, `${co.name}: ${PE_STRATS[k].name} beschlossen – wirkt ab dem nächsten Quartal.`, 'up'); ENV.dirty(A); return null;
 }
-export function ipoQuote(co, frac) { const V = coValue(co), px = V / co.shares * 0.93, gross = frac * co.shares * px, fee = 0.03 * gross; return { V, px, gross, fee, net: gross - fee, cost: co.cost * frac }; }
+export function ipoQuote(co, frac) { const V = coValue(co), cap = co.P ? co.P * Math.max(0.5, co.rev / (co.rev0 || co.rev)) : Infinity, px = Math.min(V / co.shares * 0.93, cap) /* höchstens Übernahmepreis × gemessenes Umsatzwachstum */, gross = frac * co.shares * px, fee = 0.03 * gross; return { V, px, gross, fee, net: gross - fee, cost: co.cost * frac }; }
 export function ipo(A, coId, frac) {
   const co = (A.pe || []).find(c => c.id === coId); if (!co) return 'Unternehmen nicht gefunden.';
   if (!M.isOpen) return 'Ein Börsengang findet zu Börsenzeiten statt.';
-  if (co.qs < 1) return 'Führe das Unternehmen mindestens ein Quartal, bevor du es an die Börse bringst.';
+  if (co.qs < 2) return 'Führe das Unternehmen mindestens zwei Quartale, bevor du es wieder an die Börse bringst (kein schneller Weiterverkauf).';
   frac = Number(frac); if (!(frac >= 0.25 && frac <= 1)) return 'Platziere zwischen 25 % und 100 % der Aktien.';
   const q = ipoQuote(co, frac); if (!(q.px > 0.01)) return 'Das Unternehmen hat aktuell keinen positiven Eigenkapitalwert.';
   const x = M.inst[co.id]; if (!x) return 'Unternehmen nicht gefunden.';
