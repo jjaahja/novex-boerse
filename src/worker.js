@@ -259,7 +259,7 @@ export class Exchange extends DurableObject {
     if (type === 'fund') this.award(A, 'fund');
     if (type === 'tier') { const t = E.TIERS[data.tier]; if (t) { this.note(A, `Aufgestiegen: ${t.name}! Neu freigeschaltet: ${t.perks.join(', ')}`, 'tier'); const r = E.TIER_REWARD[data.tier] || 0; if (r) this.credit(A, r, `Aufstieg zum ${t.name}`); } }
     if (type === 'ath') this.note(A, 'Neues Allzeithoch deines Portfolios', 'ath');
-    if (['crisis', 'tenbagger', 'owner', 'passive100', 'drip', 'takeover', 'ipo'].includes(type)) this.award(A, type);
+    if (['crisis', 'tenbagger', 'owner', 'passive100', 'drip', 'takeover', 'ipo', 'founder', 'pmf', 'arr1m', 'unicorn', 'ownipo', 'exit'].includes(type)) this.award(A, type);
     if (type === 'plan' && (A.stats.plans || 0) >= 5) this.award(A, 'plan');
     if (type === 'fx') this.award(A, 'fx');
     if (type === 'equity') { // nur Verlaufspunkt: später gesammelt speichern; Faktor-Zertifikate ändern ihren Wert laufend → Konto mitschicken
@@ -444,9 +444,23 @@ export class Exchange extends DurableObject {
       else if (t === 'ipo') err = E.ipo(A, String(b.co), n(b.frac));
       else if (t === 'auto') err = E.setAuto(A, { id: n(b.id) || 0, tg: String(b.tg), ref: String(b.ref), k: String(b.k), f: n(b.f), oco: !!b.oco, trig: n(b.trig), tm: String(b.tm), dist: n(b.dist) });
       else if (t === 'autodel') err = E.delAuto(A, n(b.id));
+      else if (t === 'vfound') err = E.found(A, { model: String(b.model), name: String(b.name || ''), amt: n(b.amt) });
+      else if (t === 'vfund') err = E.fund(A, n(b.amt));
+      else if (t === 'vset') err = E.vSetStrategy(A, { growth: b.growth, price: b.price, rd: b.rd === undefined ? undefined : n(b.rd), salary: b.salary === undefined ? undefined : n(b.salary) });
+      else if (t === 'vhyper') err = E.setHyper(A, !!b.on);
+      else if (t === 'vcap') err = E.buildCapacity(A);
+      else if (t === 'vhire') err = E.hire(A, { role: String(b.role), k: String(b.k), esop: !!b.esop });
+      else if (t === 'vfire') err = E.fire(A, String(b.role));
+      else if (t === 'vcamp') err = E.campaign(A, { k: String(b.k), rival: String(b.rival) });
+      else if (t === 'vdecide') err = E.decide(A, n(b.id), String(b.opt));
+      else if (t === 'vipo') err = E.vIpo(A, { disc: n(b.disc), float: n(b.float), lock: n(b.lock) });
+      else if (t === 'vguid') err = E.setGuidance(A, { rev: n(b.rev), eps: n(b.eps) });
+      else if (t === 'vbuyback') err = E.buyback(A, n(b.amt));
+      else if (t === 'vdiv') err = E.dividend(A, n(b.amt));
+      else if (t === 'vreset') err = E.ventureReset(A);
       else err = this.economy(A, b);
       E.cleanAuto(A); // Auto-Orders verkaufter Positionen sofort entfernen
-      const trade = ['order', 'cancel', 'deriv', 'close', 'exchange', 'bid', 'ipo', 'vote'].includes(t), online = this.ctx.getWebSockets().length > 0;
+      const trade = ['order', 'cancel', 'deriv', 'close', 'exchange', 'bid', 'ipo', 'vote', 'vipo', 'vbuyback', 'vdiv', 'vfound', 'vcamp'].includes(t), online = this.ctx.getWebSockets().length > 0;
       if (trade && !err) { this.hotDirty = true; this.candlesDirty = true; this.touched = true; } // Kursimpakt sofort sichern
       const notes = this.inbox.get(A.uid) || []; this.inbox.delete(A.uid);
       if (this.dirty.has(A.uid) || !err) { this.saveAcct(A); this.dirty.delete(A.uid); }

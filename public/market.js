@@ -7,3 +7,5 @@ export * from './credit.js';
 export * from './ma.js';
 export * from './auto.js';
 export * from './flavor.js';
+export * from './company.js';
+export * from './venture.js';

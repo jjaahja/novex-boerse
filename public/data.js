@@ -82,7 +82,33 @@ export const STOCKS = [
   ["LINX", "Lindt Gas plc", 'chem', 430.00, 0.48, 0.8, 0.2, 0.002, 33, 0.013, "Industriegase für Stahl, Medizin und Chips."],
   ["VNVX", "Vonovio SE", 'realty', 28.00, 0.82, 1.0, 0.3, 0.005, 14, 0.04, "Größter Wohnungsvermieter Europas."],
   ["PLDX", "Prologix Inc.", 'realty', 112.00, 0.93, 1.0, 0.26, 0.003, 30, 0.034, "Logistikhallen und Lagerzentren."],
-  ["DWNX", "Deutsche Wohnwert AG", 'realty', 22.00, 0.4, 1.0, 0.32, 0.006, 16, 0.03, "Wohnungen in Berlin und Großstädten."]
+  ["DWNX", "Deutsche Wohnwert AG", 'realty', 22.00, 0.4, 1.0, 0.32, 0.006, 16, 0.03, "Wohnungen in Berlin und Großstädten."],
+  // Erweiterung: Herausforderer in den Startup-Branchen (Software, Fintech, Chips, Energiewende, Biotech)
+  ["SNWF", "Snowfluke Inc.", 'tech', 165, 0.33, 1.5, 0.55, 0.008, -1, 0, "Daten-Cloud für Analysen und KI-Training, wächst schnell, noch ohne Gewinn."],
+  ["SHPY", "Shopifly Inc.", 'tech', 98, 1.29, 1.6, 0.55, 0.007, 70, 0, "Software für Onlineshops von Händlern jeder Größe."],
+  ["ATLS", "Atlassen Corp.", 'tech', 190, 0.26, 1.3, 0.45, 0.006, 90, 0, "Projekt- und Teamsoftware für Entwickler."],
+  ["SRVN", "ServiceNau Inc.", 'tech', 860, 0.21, 1.1, 0.35, 0.004, 60, 0, "Workflow- und KI-Plattform für Konzern-IT."],
+  ["PNTR", "Pinterrest Inc.", 'tech', 32, 0.68, 1.3, 0.45, 0.007, 22, 0, "Bilder-Netzwerk für Ideen, Einkauf und Werbung."],
+  ["DLVR", "DeliveryHelden SE", 'tech', 34, 0.29, 1.5, 0.6, 0.01, -1, 0, "Essens- und Lebensmittellieferung per App in Europa und Asien."],
+  ["TMVW", "TeamWjuer AG", 'tech', 11.5, 0.16, 1.2, 0.42, 0.008, 14, 0, "Fernwartungs-Software für Unternehmen – Nebenwert."],
+  ["ADYN", "Adyan NV", 'fin', 1450, 0.031, 1.4, 0.48, 0.006, 45, 0, "Zahlungsabwicklung für Onlinehändler und Plattformen."],
+  ["KLRN", "Klarno AB", 'fin', 38, 0.38, 1.7, 0.65, 0.012, -1, 0, "„Jetzt kaufen, später zahlen“ – Ratenkauf per App."],
+  ["SQRB", "Blöck Inc.", 'fin', 70, 0.62, 1.7, 0.55, 0.009, 18, 0, "Kassensysteme für Händler und eine Bezahl-App für Privatkunden."],
+  ["RVLT", "Revolutt Group", 'fin', 42, 0.9, 1.6, 0.6, 0.008, 35, 0, "Neobank mit Konto, Krypto und Aktienhandel in einer App."],
+  ["HYPP", "Hypoport Digital AG", 'fin', 28, 0.007, 1.3, 0.5, 0.008, 40, 0, "Online-Plattform für Baufinanzierungen – Nebenwert."],
+  ["QLCM", "Kwalkomm Inc.", 'semi', 160, 1.1, 1.2, 0.35, 0.005, 16, 0.021, "Smartphone-Chips und Funkpatente."],
+  ["ARMH", "Arn Holdings", 'semi', 135, 1.06, 1.8, 0.6, 0.009, 150, 0, "Chip-Architekturen, die in fast jedem Handy stecken."],
+  ["AIXT", "Aixtronik SE", 'semi', 16, 0.113, 1.6, 0.55, 0.012, 15, 0.009, "Anlagen zur Herstellung von Leistungs- und LED-Chips – Nebenwert."],
+  ["VSTS", "Vestaz Wind A/S", 'energy', 14, 1.0, 1.3, 0.45, 0.008, 25, 0, "Weltgrößter Hersteller von Windkraftanlagen."],
+  ["SMEN", "Siemenz Energie AG", 'energy', 55, 0.8, 1.4, 0.45, 0.008, 45, 0, "Gasturbinen, Stromnetze und Windkraft."],
+  ["ENPH", "Enphaze Energy", 'energy', 60, 0.13, 1.8, 0.7, 0.015, 30, 0, "Wechselrichter und Heimspeicher für Solaranlagen."],
+  ["PLUG", "Plag Power Inc.", 'energy', 2.1, 0.9, 2.3, 1.0, 0.04, -1, 0, "Wasserstoff und Brennstoffzellen, schreibt seit Jahren Verluste."],
+  ["NELH", "Nell Hydrogen ASA", 'energy', 0.38, 1.7, 2.0, 0.8, 0.02, -1, 0, "Elektrolyseure zur Wasserstoff-Herstellung – Nebenwert."],
+  ["BNTX", "BioNTeck SE", 'health', 105, 0.24, 1.0, 0.45, 0.006, -1, 0, "mRNA-Impfstoffe und Krebs-Immuntherapien."],
+  ["MODR", "Modernna Inc.", 'health', 35, 0.39, 1.6, 0.65, 0.012, -1, 0, "mRNA-Medikamente, hohe Forschungskosten."],
+  ["VRTX", "Vertecs Pharma", 'health', 450, 0.26, 0.7, 0.26, 0.003, 30, 0, "Medikamente gegen seltene Erbkrankheiten."],
+  ["QIAG", "Kiagen NV", 'health', 40, 0.22, 0.7, 0.26, 0.004, 22, 0.006, "Labortests und Probenvorbereitung für Diagnostik."],
+  ["EVTC", "Evotech SE", 'health', 7.5, 0.18, 1.5, 0.55, 0.01, -1, 0, "Wirkstoff-Forschung als Dienstleister für Pharmakonzerne – Nebenwert."]
 ];
 export const CORE = new Set(STOCKS.slice(0, 24).map(d => d[0])); // Bestandteile des WELTIX 24
 export const BONDS = [
@@ -182,7 +208,13 @@ export const ACH = [
   { id: 'owner', name: 'Großaktionär', desc: 'Besitze 1 % eines Unternehmens.', reward: 5000 },
   { id: 'million', name: 'Millionär', desc: 'Erreiche 1 Mio. € Gesamtvermögen.', reward: 10000 },
   { id: 'takeover', name: 'Übernahme-Profi', desc: 'Übernimm ein komplettes Unternehmen und nimm es von der Börse.', reward: 50000 },
-  { id: 'ipo', name: 'Börsengang', desc: 'Bring ein eigenes Unternehmen wieder an die Börse.', reward: 50000 }
+  { id: 'ipo', name: 'Börsengang', desc: 'Bring ein eigenes Unternehmen wieder an die Börse.', reward: 50000 },
+  { id: 'founder', name: 'Gründer', desc: 'Gründe dein eigenes Startup.', reward: 500 },
+  { id: 'pmf', name: 'Product-Market Fit', desc: 'Erreiche 80 % Product-Market Fit.', reward: 2500 },
+  { id: 'arr1m', name: 'Erste Million', desc: 'Erreiche 1 Mio. € wiederkehrenden Jahresumsatz (ARR).', reward: 10000 },
+  { id: 'unicorn', name: 'Einhorn', desc: 'Dein Startup wird mit mindestens 1 Mrd. € bewertet.', reward: 50000 },
+  { id: 'ownipo', name: 'Glocke geläutet', desc: 'Bring dein eigenes Startup an die Börse.', reward: 50000 },
+  { id: 'exit', name: 'Exit', desc: 'Verkaufe dein Startup an einen Konzern.', reward: 25000 }
 ];
 
 /* ---------- Fundamentaldaten & Geschichten ----------
@@ -197,7 +229,8 @@ export const FUNDA = {
   NTFX: { g: 0.15, psr: 8.5, fy: 0 }, JPMG: { g: 0.06, psr: 3.6, fy: 1 }, VIZZ: { g: 0.10, psr: 15, fy: 2 }, HRMZ: { g: 0.14, psr: 13, fy: 0 },
   RHST: { g: 0.30, psr: 2.6, fy: 1 }, LUFZ: { g: 0.04, psr: 0.2, fy: 2 }, BSFA: { g: -0.01, psr: 0.6, fy: 0 }, CBZE: { g: 0.35, psr: 8, fy: 1 },
   KRNH: { g: 0.02, psr: 0.9, fy: 2 }, RTST: { g: 0.03, psr: 0.35, fy: 0 }, MDVO: { g: 0.12, psr: 2.8, fy: 1 }, NWDT: { g: 0.18, psr: 1.1, fy: 2 },
-  OKRL: { g: 0.09, psr: 8, fy: 0 }, SLSF: { g: 0.1, psr: 7, fy: 1 }, ADOB: { g: 0.1, psr: 11, fy: 2 }, SPTF: { g: 0.16, psr: 4.5, fy: 0 }, UBRX: { g: 0.17, psr: 3.5, fy: 1 }, ZLND: { g: 0.06, psr: 0.75, fy: 2 }, TSMK: { g: 0.28, psr: 10, fy: 0 }, ASMR: { g: 0.12, psr: 9.5, fy: 1 }, INTL: { g: -0.04, psr: 1.9, fy: 2 }, AMDX: { g: 0.22, psr: 9, fy: 0 }, INFN: { g: 0.05, psr: 2.8, fy: 1 }, MBNZ: { g: -0.01, psr: 0.45, fy: 2 }, PRSH: { g: 0.02, psr: 1.4, fy: 0 }, BYDX: { g: 0.25, psr: 1.1, fy: 1 }, GSAC: { g: 0.06, psr: 3.8, fy: 2 }, BRKS: { g: 0.06, psr: 2.7, fy: 0 }, MCHR: { g: 0.04, psr: 0.9, fy: 1 }, PAYP: { g: 0.07, psr: 2.2, fy: 2 }, MCDO: { g: 0.05, psr: 8, fy: 0 }, LVMX: { g: 0.06, psr: 3.8, fy: 1 }, WMRT: { g: 0.05, psr: 1.0, fy: 2 }, NKEE: { g: 0.03, psr: 2.2, fy: 0 }, STBX: { g: 0.05, psr: 3.0, fy: 1 }, TTEN: { g: 0.0, psr: 0.65, fy: 2 }, NEXE: { g: 0.08, psr: 5.5, fy: 0 }, EONX: { g: 0.03, psr: 0.38, fy: 1 }, RWEX: { g: 0.05, psr: 1.0, fy: 2 }, LLLY: { g: 0.3, psr: 18, fy: 1 }, JNJX: { g: 0.04, psr: 4.3, fy: 2 }, BAYR: { g: -0.01, psr: 0.55, fy: 0 }, MRCK: { g: 0.04, psr: 0.9, fy: 1 }, CATX: { g: 0.03, psr: 2.6, fy: 2 }, BOEG: { g: 0.08, psr: 1.6, fy: 0 }, DHLX: { g: 0.03, psr: 0.55, fy: 1 }, SCHN: { g: 0.1, psr: 3.6, fy: 2 }, VZNX: { g: 0.01, psr: 1.2, fy: 0 }, LINX: { g: 0.05, psr: 6.2, fy: 1 }, VNVX: { g: 0.03, psr: 6.5, fy: 2 }, PLDX: { g: 0.07, psr: 13, fy: 0 }, DWNX: { g: 0.02, psr: 5.5, fy: 1 }
+  OKRL: { g: 0.09, psr: 8, fy: 0 }, SLSF: { g: 0.1, psr: 7, fy: 1 }, ADOB: { g: 0.1, psr: 11, fy: 2 }, SPTF: { g: 0.16, psr: 4.5, fy: 0 }, UBRX: { g: 0.17, psr: 3.5, fy: 1 }, ZLND: { g: 0.06, psr: 0.75, fy: 2 }, TSMK: { g: 0.28, psr: 10, fy: 0 }, ASMR: { g: 0.12, psr: 9.5, fy: 1 }, INTL: { g: -0.04, psr: 1.9, fy: 2 }, AMDX: { g: 0.22, psr: 9, fy: 0 }, INFN: { g: 0.05, psr: 2.8, fy: 1 }, MBNZ: { g: -0.01, psr: 0.45, fy: 2 }, PRSH: { g: 0.02, psr: 1.4, fy: 0 }, BYDX: { g: 0.25, psr: 1.1, fy: 1 }, GSAC: { g: 0.06, psr: 3.8, fy: 2 }, BRKS: { g: 0.06, psr: 2.7, fy: 0 }, MCHR: { g: 0.04, psr: 0.9, fy: 1 }, PAYP: { g: 0.07, psr: 2.2, fy: 2 }, MCDO: { g: 0.05, psr: 8, fy: 0 }, LVMX: { g: 0.06, psr: 3.8, fy: 1 }, WMRT: { g: 0.05, psr: 1.0, fy: 2 }, NKEE: { g: 0.03, psr: 2.2, fy: 0 }, STBX: { g: 0.05, psr: 3.0, fy: 1 }, TTEN: { g: 0.0, psr: 0.65, fy: 2 }, NEXE: { g: 0.08, psr: 5.5, fy: 0 }, EONX: { g: 0.03, psr: 0.38, fy: 1 }, RWEX: { g: 0.05, psr: 1.0, fy: 2 }, LLLY: { g: 0.3, psr: 18, fy: 1 }, JNJX: { g: 0.04, psr: 4.3, fy: 2 }, BAYR: { g: -0.01, psr: 0.55, fy: 0 }, MRCK: { g: 0.04, psr: 0.9, fy: 1 }, CATX: { g: 0.03, psr: 2.6, fy: 2 }, BOEG: { g: 0.08, psr: 1.6, fy: 0 }, DHLX: { g: 0.03, psr: 0.55, fy: 1 }, SCHN: { g: 0.1, psr: 3.6, fy: 2 }, VZNX: { g: 0.01, psr: 1.2, fy: 0 }, LINX: { g: 0.05, psr: 6.2, fy: 1 }, VNVX: { g: 0.03, psr: 6.5, fy: 2 }, PLDX: { g: 0.07, psr: 13, fy: 0 }, DWNX: { g: 0.02, psr: 5.5, fy: 1 },
+  SNWF: { g: 0.25, psr: 14, fy: 0 }, SHPY: { g: 0.22, psr: 12, fy: 1 }, ATLS: { g: 0.18, psr: 11, fy: 2 }, SRVN: { g: 0.2, psr: 16, fy: 0 }, PNTR: { g: 0.1, psr: 4.5, fy: 1 }, DLVR: { g: 0.15, psr: 0.8, fy: 2 }, TMVW: { g: 0.07, psr: 2.8, fy: 0 }, ADYN: { g: 0.2, psr: 15, fy: 1 }, KLRN: { g: 0.22, psr: 4, fy: 2 }, SQRB: { g: 0.1, psr: 1.8, fy: 0 }, RVLT: { g: 0.35, psr: 7, fy: 1 }, HYPP: { g: 0.08, psr: 2.2, fy: 2 }, QLCM: { g: 0.08, psr: 4.5, fy: 0 }, ARMH: { g: 0.2, psr: 30, fy: 1 }, AIXT: { g: 0.05, psr: 3, fy: 2 }, VSTS: { g: 0.08, psr: 0.8, fy: 0 }, SMEN: { g: 0.12, psr: 1.2, fy: 1 }, ENPH: { g: 0.05, psr: 3.5, fy: 2 }, PLUG: { g: 0.2, psr: 2.2, fy: 0 }, NELH: { g: 0.15, psr: 4, fy: 1 }, BNTX: { g: -0.1, psr: 8, fy: 2 }, MODR: { g: -0.15, psr: 4.5, fy: 0 }, VRTX: { g: 0.1, psr: 10, fy: 1 }, QIAG: { g: 0.05, psr: 4.5, fy: 2 }, EVTC: { g: 0.08, psr: 1.6, fy: 0 }
 };
 export const STORY = {
   MVDA: 'Gegründet von einer Gamerin, die Grafikkarten zu besseren Taschenrechnern umbaute. Heute laufen fast alle KI-Rechenzentren auf Mvidia-Chips – die Lieferzeiten betragen Monate.',
@@ -275,7 +308,32 @@ export const STORY = {
   LINX: "Liefert Sauerstoff und Wasserstoff per Pipeline – mit Verträgen über 15 Jahre. Kann Preissteigerungen fast immer weitergeben.",
   VNVX: "Besitzt über eine halbe Million Wohnungen, finanziert mit viel Schulden. Jede Zinserhöhung drückt auf die Bewertung.",
   PLDX: "Vermietet die Hallen, aus denen der Onlinehandel liefert. Profitiert vom Boom des Versandhandels, leidet unter hohen Zinsen.",
-  DWNX: "Ein reiner Berlin-Wert: Mietendeckel-Debatten und Zinsen bestimmen den Kurs."
+  DWNX: "Ein reiner Berlin-Wert: Mietendeckel-Debatten und Zinsen bestimmen den Kurs.",
+  SNWF: 'Hat Datenbanken in die Cloud verlegt und rechnet nach Verbrauch ab. Jedes neue KI-Projekt bringt Umsatz – aber auch harte Konkurrenz von Startups mit günstigeren Angeboten.',
+  SHPY: 'Stellt Millionen Händlern ihren eigenen Onlineshop bereit und verdient an jeder Zahlung mit.',
+  ATLS: 'Fast jedes Softwareteam plant seine Arbeit mit Atlassen-Tools. Wächst über Selbstbedienung statt teurer Vertriebsteams.',
+  SRVN: 'Automatisiert IT- und Personalprozesse in Großkonzernen – extrem treue Kunden, hohe Margen.',
+  PNTR: 'Nutzer sammeln Ideen, Werbekunden zahlen dafür. Kämpft mit großen Plattformen um Werbebudgets.',
+  DLVR: 'Liefert in über 70 Ländern, kämpft aber in jedem Markt gegen neue Apps und Preiskriege.',
+  TMVW: 'Mittelständischer Softwareanbieter aus Süddeutschland: profitabel, aber verwundbar für schnellere Startups.',
+  ADYN: 'Wickelt Zahlungen für die größten Plattformen der Welt ab – auf einer einzigen, selbst gebauten Technik.',
+  KLRN: 'Hat den Ratenkauf an der Ladenkasse populär gemacht. Steigende Zinsen und Ausfälle sind das große Risiko.',
+  SQRB: 'Begann mit einem Kartenleser fürs Smartphone, heute Bank-Ersatz für Millionen kleiner Händler.',
+  RVLT: 'Die App-Bank wächst in ganz Europa um Millionen Kunden pro Jahr – Banken und Fintech-Startups jagen ihr Kunden ab.',
+  HYPP: 'Verbindet Kreditvermittler und Banken digital. Hängt stark am Immobilienmarkt und an den Zinsen.',
+  QLCM: 'Fast jedes Smartphone zahlt Lizenzgebühren an Kwalkomm. Jetzt drängt der Konzern in Auto- und KI-Chips.',
+  ARMH: 'Baut selbst keine Chips, sondern verkauft die Baupläne – an Smartphone-, Auto- und Server-Hersteller.',
+  AIXT: 'Mittelständischer Maschinenbauer aus Aachen mit Spezialanlagen für Leistungshalbleiter.',
+  VSTS: 'Hat in über 80 Ländern Windräder aufgestellt. Lieferketten und Zinsen bestimmen die Marge.',
+  SMEN: 'Nach einer Krise im Windgeschäft profitiert der Konzern jetzt vom Ausbau der Stromnetze.',
+  ENPH: 'Liefert die Elektronik für Solardächer – sehr zinsempfindlich, weil Hausbesitzer auf Kredit kaufen.',
+  PLUG: 'Verspricht seit Jahren den Durchbruch der Wasserstoffwirtschaft und braucht dafür ständig neues Geld.',
+  NELH: 'Norwegischer Pionier für Elektrolyse. Jedes Förderprogramm bewegt die Aktie.',
+  BNTX: 'Wurde mit einem Impfstoff weltbekannt und investiert das Geld jetzt in Krebs-Therapien.',
+  MODR: 'Setzt alles auf die mRNA-Technik. Jede Studie entscheidet über Milliarden.',
+  VRTX: 'Beherrscht die Behandlung der Mukoviszidose fast allein – Patente schützen die Gewinne.',
+  QIAG: 'Liefert Kliniken und Laboren das Werkzeug für Gentests.',
+  EVTC: 'Hamburger Forschungsdienstleister – entwickelt Wirkstoffe im Auftrag großer Pharmakonzerne.'
 };
 
 /* ---------- Wirtschaftliche Empfindlichkeiten ----------
@@ -336,9 +394,34 @@ export const COMPANY_SENS = {
   LINX: { home: "eu", exp: 0.7, sc: 0.1, infl: 0.6 },
   VNVX: { home: "eu", exp: 0.0, sc: 0.0 },
   PLDX: { home: "us", exp: 0.3, sc: 0.0 },
-  DWNX: { home: "eu", exp: 0.0, sc: 0.0 }
+  DWNX: { home: "eu", exp: 0.0, sc: 0.0 },
+  SNWF: { home: "us", exp: 0.3, sc: 0.05 },
+  SHPY: { home: "us", exp: 0.4, sc: 0.2 },
+  ATLS: { home: "us", exp: 0.5, sc: 0.05 },
+  SRVN: { home: "us", exp: 0.35, sc: 0.05 },
+  PNTR: { home: "us", exp: 0.4, sc: 0.05 },
+  DLVR: { home: "eu", exp: 0.8, sc: 0.2 },
+  TMVW: { home: "eu", exp: 0.7, sc: 0.05 },
+  ADYN: { home: "eu", exp: 0.7, sc: 0 },
+  KLRN: { home: "eu", exp: 0.6, sc: 0 },
+  SQRB: { home: "us", exp: 0.2, sc: 0.1 },
+  RVLT: { home: "eu", exp: 0.8, sc: 0 },
+  HYPP: { home: "eu", exp: 0.05, sc: 0 },
+  QLCM: { home: "asia", exp: 0.75, sc: 0.5 },
+  ARMH: { home: "eu", exp: 0.8, sc: 0.2 },
+  AIXT: { home: "eu", exp: 0.85, sc: 0.4 },
+  VSTS: { home: "eu", exp: 0.7, sc: 0.6 },
+  SMEN: { home: "eu", exp: 0.6, sc: 0.4 },
+  ENPH: { home: "us", exp: 0.2, sc: 0.8 },
+  PLUG: { home: "us", exp: 0.1, sc: 0.5 },
+  NELH: { home: "eu", exp: 0.7, sc: 0.4 },
+  BNTX: { home: "eu", exp: 0.7, sc: 0.2 },
+  MODR: { home: "us", exp: 0.4, sc: 0.2 },
+  VRTX: { home: "us", exp: 0.4, sc: 0.2 },
+  QIAG: { home: "eu", exp: 0.8, sc: 0.3 },
+  EVTC: { home: "eu", exp: 0.75, sc: 0.2 }
 };
-export const sensOf = x => Object.assign({ home: 'eu', exp: 0.4, sc: 0.3 }, SECTOR_SENS[x.sector] || { rate: 0.5, infl: 0, cyc: 1 }, COMPANY_SENS[x.id] || {});
+export const sensOf = x => Object.assign({ home: 'eu', exp: 0.4, sc: 0.3 }, SECTOR_SENS[x.sector] || { rate: 0.5, infl: 0, cyc: 1 }, COMPANY_SENS[x.id] || {}, x.sens || {});
 export const REGION = { eu: 'Europa', us: 'USA', asia: 'Fernost' };
 
 /* ---------- Politik: Storylines mit Vorlauf ----------
@@ -421,3 +504,46 @@ export const RUMORS = [
 ];
 
 
+
+/* ---------- Ventures: Spieler-Startups ----------
+   Zeit: ein Startup-Quartal dauert je nach Phase 5–21 Handelstage, nach dem Börsengang gilt der normale Quartalstakt.
+   Geldwerte pro Startup-Jahr (ARR = Jahresumsatz aus laufenden Verträgen). */
+export const BIZ_MODELS = {
+  saas: { name: 'B2B Enterprise SaaS', sub: 'KI & Software für Unternehmen', sector: 'tech', hyper: true, why: 'Software kostet pro zusätzlichem Kunden fast nichts (Grenzkosten nahe null). Wachstum begrenzen nur Vertrieb und Kapital.', pro: 'Treue Kunden (niedriger Churn), hohe Bruttomarge, planbare Umsätze', con: 'Langsame Verkaufszyklen am Anfang, teure Kundengewinnung', gm: 0.80, churn: 0.035, cac: 2400, arpu: 6000, conv: 0.85, net: 0.6, tam: 1.5e9, mult: 7.5, matM: 0.32, moat: 0.35, pace: 1.0, ipoArr: 60000000, sens: { rate: 1.5, cons: 0.2, tar: 0.1, reg: 0.4 } },
+  b2c: { name: 'B2C Consumer-Plattform', sub: 'App, Community, Marktplatz für Endkunden', sector: 'tech', hyper: true, why: 'Jeder neue Nutzer macht die Plattform für alle anderen wertvoller (Netzwerkeffekt), Server kosten pro Nutzer nur Cent.', pro: 'Explosives Nutzerwachstum, starke Netzwerkeffekte', con: 'Hoher Marketing- und Server-Burn, Kunden springen bei schlechter Konsumlaune ab', gm: 0.60, churn: 0.16, cac: 8, arpu: 36, conv: 1.0, net: 1.0, tam: 2e9, mult: 6, matM: 0.25, moat: 0.25, pace: 0.8, ipoArr: 50000000, sens: { rate: 1.3, cons: 1.0, tar: 0.1, reg: 0.7 } },
+  fintech: { name: 'Fintech / Marktplatz', sub: 'Zahlungen, Kredite, Handel – Verdienst über Transaktionen', sector: 'fin', hyper: true, why: 'Digitale Transaktionen skalieren fast ohne Zusatzkosten. Mehr Händler ziehen mehr Kunden an und umgekehrt.', pro: 'Verdient an jedem Umsatz mit (Take-Rate), profitiert von Zinsen und Boomphasen', con: 'Bei Dominanz drohen Regulierung und Kartellverfahren', gm: 0.55, churn: 0.07, cac: 40, arpu: 220, conv: 0.9, net: 0.8, tam: 1.2e9, mult: 9, matM: 0.30, moat: 0.3, pace: 1.0, ipoArr: 60000000, sens: { rate: -0.2, cons: 0.6, tar: 0.1, reg: 1.0 } },
+  deeptech: { name: 'DeepTech / Hardware', sub: 'Chips, Robotik, Sensoren', sector: 'semi', hyper: false, why: 'Jedes Gerät muss gebaut werden: Fabriken, Lieferketten und Importzölle begrenzen das Tempo. Wachstum kommt stufenweise über Investitionen (CapEx).', pro: 'Starke Patente (Burggraben), hohe Margen im Reifestadium, Subventionen', con: 'Kapazität muss erst gebaut werden, Zölle verteuern Bauteile', gm: 0.38, churn: 0.025, cac: 12000, arpu: 30000, conv: 0.8, net: 0.1, tam: 2e9, mult: 7.5, matM: 0.42, moat: 0.75, cap: { unit: 60, cost: 20000, q: 1 }, subsidy: ['semi', 'ind', 'tech'], pace: 1.25, ipoArr: 40000000, sens: { rate: 0.9, cons: 0.2, tar: 1.0, reg: 0.2 } },
+  cleantech: { name: 'CleanTech / Energie', sub: 'Speicher, Wasserstoff, Solar- und Windtechnik', sector: 'energy', hyper: false, why: 'Anlagen und Projekte brauchen Material, Genehmigungen und Finanzierung – Wachstum kommt Projekt für Projekt.', pro: 'Lange Lieferverträge, starke Subventionen, Preissetzungsmacht bei hohen Energiepreisen', con: 'Sehr zinsempfindlich, Zölle auf Komponenten aus Fernost', gm: 0.40, churn: 0.02, cac: 11000, arpu: 40000, conv: 0.8, net: 0.05, tam: 2e9, mult: 11, matM: 0.38, moat: 0.6, cap: { unit: 50, cost: 30000, q: 1 }, subsidy: ['energy', 'ind'], pace: 1.4, ipoArr: 40000000, sens: { rate: 1.6, cons: 0.1, tar: 0.7, reg: 0.3 } },
+  biotech: { name: 'Biotech / Pharma', sub: 'Wirkstoffe, Diagnostik, Medizintechnik', sector: 'health', hyper: false, why: 'Klinische Studien und Zulassungen bestimmen das Tempo – kein Geld der Welt beschleunigt eine Studie beliebig.', pro: 'Patentschutz für viele Jahre, sehr hohe Margen nach der Zulassung', con: 'Umsatz erst nach erfolgreicher Studie, Rückschläge möglich', gm: 0.75, churn: 0.02, cac: 20000, arpu: 60000, conv: 0.7, net: 0.05, tam: 1.5e9, mult: 7.5, matM: 0.45, moat: 0.9, cap: { unit: 80, cost: 40000, q: 1 }, trial: true, subsidy: ['health'], pace: 1.6, ipoArr: 40000000, sens: { rate: 1.0, cons: 0, tar: 0.2, reg: 0.5 } }
+};
+// Phasen: ARR-Schwelle, Liquiditätsfaktor fürs Nettovermögen, Beleihungsquote, Dauer eines Startup-Quartals in Handelstagen
+export const VENTURE_STAGES = [
+  { k: 'garage', name: 'Garage & Bootstrapping', min: 0, liq: 0.60, ltv: 0, qd: 5, base: 900 },
+  { k: 'traction', name: 'Traction & Disruption', min: 100000, liq: 0.75, ltv: 0, qd: 5, base: 30000 },
+  { k: 'scale', name: 'Scale-Up & Hyperscaling', min: 10000000, liq: 0.85, ltv: 0.20, qd: 10, base: 600000 },
+  { k: 'ipo', name: 'Börsenreif', min: 60000000, liq: 0.85, ltv: 0.20, qd: 21, base: 2500000 }
+];
+export const VENTURE_MIN = 2500, VENTURE_SHARES = 1e8, IPO_MIN_QUARTERS = 4;
+// Führungskräfte: zwei Archetypen je Rolle; Kosten je Startup-Quartal (skaliert mit Phase) oder Anteile (ESOP)
+export const EXECS = {
+  cto: { name: 'CTO / Produkt', a: [{ k: 'vision', name: '10x-Visionär', desc: 'PMF wächst schneller, F&E wirkt stärker – aber teurer und chaotischer.', fx: { pmf: 1.5, quality: -0.01 }, pay: 1.3 }, { k: 'eff', name: 'Effizienz-Experte', desc: 'Hält die Produktqualität stabil, halbiert den Stress beim Hyperscaling.', fx: { quality: 0.03, stress: 0.5 }, pay: 1 }] },
+  growth: { name: 'VP Growth / Vertrieb', a: [{ k: 'vision', name: 'Growth-Hacker', desc: 'Kundengewinnung 25 % günstiger, Kunden etwas weniger treu.', fx: { cac: 0.75, churn: 1.1 }, pay: 1.2 }, { k: 'eff', name: 'Key-Account-Profi', desc: 'Etwas günstiger und deutlich treuere Kunden.', fx: { cac: 0.9, churn: 0.85 }, pay: 1 }] },
+  cfo: { name: 'CFO / Deal-Maker', a: [{ k: 'vision', name: 'Deal-Maker', desc: '15 % höhere Bewertungen in Finanzierungsrunden und bei Übernahmeangeboten.', fx: { val: 1.15 }, pay: 1.2 }, { k: 'eff', name: 'Kostencontroller', desc: 'Fixkosten 15 % niedriger, längere Cash Runway.', fx: { opex: 0.85 }, pay: 1 }] },
+  coo: { name: 'COO / Operations', a: [{ k: 'vision', name: 'Scale-Architekt', desc: 'Neue Kapazität ist ein Quartal schneller fertig und 20 % größer.', fx: { capQ: -1, capU: 1.2 }, pay: 1.2 }, { k: 'eff', name: 'Lean-Manager', desc: 'Fixkosten 10 % niedriger, Bruttomarge +3 Punkte.', fx: { opex: 0.9, gm: 0.03 }, pay: 1 }] }
+};
+export const EXEC_PAY = [4000, 45000, 220000, 450000]; // Gehalt je Startup-Quartal nach Phase
+export const EXEC_ESOP = 0.03;                       // alternativ: 3 % Anteile aus dem Gründeranteil
+export const VC_ROUNDS = [
+  { k: 'seed', name: 'Seed', arr: 40000, pmf: 0.45, dil: [0.12, 0.2] },
+  { k: 'a', name: 'Series A', arr: 900000, pmf: 0.6, dil: [0.15, 0.22] },
+  { k: 'b', name: 'Series B', arr: 7000000, pmf: 0.7, dil: [0.12, 0.2] },
+  { k: 'c', name: 'Series C', arr: 25000000, pmf: 0.75, dil: [0.1, 0.16] }
+];
+export const VC_NAMES = ['Sequoja Capital', 'Andreesen Horowitzz', 'Index Venturs', 'Accell Partners', 'Lakestar Ventures', 'Earlybird Capital', 'Balderton Kapital', 'Point Nein', 'HV Kapital', 'Northzone Partners'];
+// Kampagnen gegen einen Rivalen: Kosten als Anteil der Startup-Kasse (mindestens), Wirkung über 2 Quartale
+export const CAMPAIGNS = {
+  price: { name: 'Preisbrecher-Offensive', desc: 'Kampfpreise und Wechselprämien: 40 % mehr Neukunden, ARPU −12 % für zwei Quartale. Der Rivale verliert Kunden – und schlägt oft mit einem Preiskampf zurück.', cost: 0.15 },
+  poach: { name: 'Talent-Abwerbung', desc: 'Du wirbst Schlüsselleute ab: PMF +6 Punkte, der Rivale verliert an Innovationskraft.', cost: 0.12 },
+  patent: { name: 'Patent-Offensive', desc: 'Du sicherst Technologie ab und klagst: Churn −20 % für zwei Quartale, beim Rivalen kostet das Gewinn. Stärker bei DeepTech und Biotech.', cost: 0.12 },
+  pr: { name: 'PR- & Narrativ-Kampagne', desc: 'Medien, Konferenzen, Influencer: Kundengewinnung 25 % günstiger für zwei Quartale, Bewertung +10 % bis zur nächsten Runde.', cost: 0.1 }
+};

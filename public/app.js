@@ -13,14 +13,15 @@ import * as Order from './ui/views/order.js';
 import * as Macro from './ui/views/macro.js';
 import * as Companies from './ui/views/companies.js';
 import * as DerivPos from './ui/views/derivpos.js';
+import * as Venture from './ui/views/venture.js';
 const { fDate, fTime, dayStart, nextOpenFrom, MIN } = E;
 
 S.toast = toast; S.berlin = berlinNow;
 const More = {
-  render: () => `<div class="stack" style="gap:16px"><h1 class="h1">Mehr</h1><div class="rows">${[['makro', 'Makro', 'Konjunktur, Inflation, Zinsen, Zölle und Politik'], ['firmen', 'Unternehmen', 'Beteiligungen, Übernahmen und eigene Firmen'], ['fortschritt', 'Fortschritt', 'Stufen, Erfolge, Rangliste, Lizenzen']].map(([k, l, d]) => `<button class="r noav" data-go="${k}"><span><span class="nm" style="display:block">${l}</span><span class="sub" style="display:block">${d}</span></span><span></span><span class="val">›</span></button>`).join('')}</div></div>`,
+  render: () => `<div class="stack" style="gap:16px"><h1 class="h1">Mehr</h1><div class="rows">${[['ventures', 'Ventures', 'Dein eigenes Startup – von der Garage bis zur Börse'], ['makro', 'Makro', 'Konjunktur, Inflation, Zinsen, Zölle und Politik'], ['firmen', 'Unternehmen', 'Beteiligungen, Übernahmen und eigene Firmen'], ['fortschritt', 'Fortschritt', 'Stufen, Erfolge, Rangliste, Lizenzen']].map(([k, l, d]) => `<button class="r noav" data-go="${k}"><span><span class="nm" style="display:block">${l}</span><span class="sub" style="display:block">${d}</span></span><span></span><span class="val">›</span></button>`).join('')}</div></div>`,
   update() { }
 };
-const VIEWS = { home: Home, markt: Markets, makro: Macro, news: News, konto: Account, firmen: Companies, fortschritt: Progress, mehr: More };
+const VIEWS = { home: Home, markt: Markets, ventures: Venture, makro: Macro, news: News, konto: Account, firmen: Companies, fortschritt: Progress, mehr: More };
 const ICON = {
   home: '<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6h-6v6H5a1 1 0 0 1-1-1z"/>',
   markt: '<path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/>',
@@ -29,7 +30,7 @@ const ICON = {
   fortschritt: '<path d="M6 20V10M12 20V4M18 20v-7"/>',
   mehr: '<circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/>'
 };
-const NAV = [['home', 'Übersicht'], ['markt', 'Markt'], ['makro', 'Makro'], ['news', 'News'], ['konto', 'Konto'], ['firmen', 'Unternehmen'], ['fortschritt', 'Fortschritt']];
+const NAV = [['home', 'Übersicht'], ['markt', 'Markt'], ['ventures', 'Ventures'], ['makro', 'Makro'], ['news', 'News'], ['konto', 'Konto'], ['firmen', 'Unternehmen'], ['fortschritt', 'Fortschritt']];
 const BNAV = [['home', 'Übersicht'], ['markt', 'Markt'], ['news', 'News'], ['konto', 'Konto'], ['mehr', 'Mehr']];
 let WS = null, wsRetry = 1000, hideTimer = null, loading = false;
 
@@ -52,7 +53,7 @@ export function go(route) {
 S.go = go;
 function navHTML(bottom) {
   const r = S.UI.route, act0 = isDetail(r) ? S.UI.back : r, badge = S.A && S.A.bonus.day !== dayStart(berlinNow());
-  const active = bottom && ['makro', 'firmen', 'fortschritt'].includes(act0) ? 'mehr' : act0;
+  const active = bottom && ['ventures', 'makro', 'firmen', 'fortschritt'].includes(act0) ? 'mehr' : act0;
   return (bottom ? BNAV : NAV).map(([k, l]) => `<button data-go="${k}" class="${active === k ? 'on' : ''}" ${active === k ? 'aria-current="page"' : ''}>${bottom ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>` : ''}${l}${(k === 'fortschritt' || (bottom && k === 'mehr')) && badge ? '<span class="badge" aria-label="Tagesbonus verfügbar"></span>' : ''}</button>`).join('');
 }
 function buildNav() { $('#tabs').innerHTML = navHTML(false); $('#bnav').innerHTML = navHTML(true); }
@@ -72,7 +73,7 @@ function update() {
 setRefresh(update);
 function updateStatus() {
   const M = E.M, now = berlinNow(), open = M.isOpen;
-  const st = open ? `<span><span class="dot on"></span>Börse offen</span>` : `<span><span class="dot"></span>Geschlossen · ab ${dayStart(nextOpenFrom(M.t)) === dayStart(now) ? '' : fDate(nextOpenFrom(M.t), true).slice(0, 2) + ' '}08:00</span>`;
+  const st = open ? `<span><span class="dot on"></span>Börse offen</span>` : `<span><span class="dot"></span>Geschlossen<span class="hide-m"> · ab ${dayStart(nextOpenFrom(M.t)) === dayStart(now) ? '' : fDate(nextOpenFrom(M.t), true).slice(0, 2) + ' '}08:00</span></span>`;
   $('#status').innerHTML = `${st}<span class="clk">${fTime(now)}</span><span class="clk" title="Verbindung">${S.wsOk ? '' : S.paused === 'tabs' ? 'in anderem Tab aktiv' : 'offline'}</span><button class="me" data-a="logout" title="Abmelden">${esc(S.ME.name)} · Abmelden</button>`;
 }
 

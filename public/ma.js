@@ -4,9 +4,9 @@ import { M, hook, ENV, I, all, addNews, setWhy, recomputeDerived, closeDeriv, is
 import { addTradingDays, qLabel, scheduleReport } from './events.js';
 import { BID_MIN_SHARE, LBO_SPREAD, LBO_MAX_X, LBO_MAX_SHARE, PE_STRATS } from './data.js';
 import { macroRevFactor } from './macro.js';
+import { peerMult, removeFromBaskets } from './company.js';
 
 const listed = x => !!x && x.cls === 'stock' && !x.delisted && M.ids.includes(x.id);
-const bpx = m => m.cls === 'bond' ? m.tri : m.cls === 'cmd' ? m.price * q2e(m) : m.price;
 export const shareOf = (A, x) => x && A.pos[x.id] ? A.pos[x.id].qty / x.shares : 0;
 
 ENV.bidReq = x => bidReq(x); // für Insider-Einblicke (events.js)
@@ -103,12 +103,7 @@ function complete(A, x, b, accts, accept) {
   A.cash -= r2(cost + fee - b.lbo); ENV.fee(fee);
   book(A, 'fee', -fee, `Übernahmeberatung ${x.name}`); book(A, 'ma', -r2(cost - b.lbo), `Kauf ${x.name} (Eigenanteil)`);
   logHist(A, { t: M.t, id: x.id, nm: x.name, side: 'Übernahme', q: rem, px: P, amt: r2(cost), fee, pnl: null });
-  // Index, ETFs und Fonds bereinigen: Bestandteil entfernen, ohne Sprung im Kurs
-  for (const y of all()) {
-    if (!y.comp || !y.comp.some(c => c.id === x.id)) continue;
-    if (y.cls === 'index') { const old = y.price; y.comp = y.comp.filter(c => c.id !== x.id); const s = y.comp.reduce((a, c) => a + c.c * I(c.id).price, 0); y.divisor = s / old; }
-    else { const s0 = y.comp.reduce((a, c) => a + c.c * bpx(I(c.id)), 0); y.comp = y.comp.filter(c => c.id !== x.id); const s1 = y.comp.reduce((a, c) => a + c.c * bpx(I(c.id)), 0); if (s1 > 0) y.ff *= s0 / s1; }
-  }
+  removeFromBaskets(x.id); // Index, ETFs und Fonds bereinigen, ohne Sprung im Kurs
   if (M.sec.pre) delete M.sec.pre[x.id];
   if (M.sec.rumors) M.sec.rumors = M.sec.rumors.filter(r => r.id !== x.id);
   if (M.sec.pol) for (const e of M.sec.pol) if (e.id2 === x.id) e.done = true;
@@ -135,10 +130,6 @@ export function vote(A, id, v) {
 
 /* ---------- Eigene Unternehmen ---------- */
 hook('open', () => { for (const A of ENV.accounts()) if (A.pe && A.pe.length) for (const co of [...A.pe]) if (M.t >= co.next) quarter(A, co); });
-function peerMult(sector) {
-  const v = M.ids.map(id => M.inst[id]).filter(x => x.cls === 'stock' && x.sector === sector && x.eps > 0).map(x => x.price / (x.eps * 1.3)).sort((a, b) => a - b);
-  return v.length ? v[Math.floor(v.length / 2)] : 12;
-}
 function quarter(A, co) {
   const x = M.inst[co.id] || { id: co.id, sector: co.sector, vol: 0.3 };
   const padj = clamp(x.padj || 0, -0.5, 0.5); x.padj = 0; co.m *= 1 + padj; co.mBase *= 1 + padj;
