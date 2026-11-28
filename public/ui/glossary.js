@@ -12,6 +12,12 @@ export const G = {
   pmf: { t: 'Product-Market Fit', d: 'Wie gut euer Produkt ein echtes Problem löst: Kunden bleiben, empfehlen weiter und zahlen gern.', so: 'Ohne PMF verpufft Marketing. Ab 80 % zieht der Markt euch von selbst – dann lohnt sich Hyperscaling.' },
   margcost: { t: 'Grenzkosten', d: 'Was ein zusätzlicher Kunde in der Herstellung kostet. Bei Software fast nichts, bei Hardware das ganze Gerät.', so: 'Nahe null erlaubt Hyperscaling. Hohe Grenzkosten bremsen das Tempo, dafür schützen Patente und Fabriken vor Nachahmern.' },
   network: { t: 'Netzwerkeffekt', d: 'Jeder neue Nutzer macht das Produkt für alle anderen wertvoller – wie bei Messengern oder Marktplätzen.', so: 'Ab etwa 20 % Marktanteil wächst ihr fast von selbst und die Kundengewinnung wird billiger (Winner takes all).' },
+  fcconf: { t: 'Prognose-Genauigkeit', d: 'Wie sicher die Vorschau ist. In der Garage fehlen Daten (±25–35 %), ab Traction wird es genauer (±15–20 %). Ein CFO halbiert die Abweichung, der Kostencontroller plant noch präziser. Hyperscaling macht alles schwerer planbar (+10 Punkte).', so: 'Die echten Quartalszahlen streuen in dieser Spanne – gelegentlich auch knapp darüber hinaus.' },
+  planist: { t: 'Plan vs. Ist', d: 'Beim Board-Meeting wird der Prognose-Korridor vom Quartalsanfang (bzw. vom letzten „Kurs setzen“) mit dem echten ARR verglichen. Größere Abweichungen werden begründet: Werbekosten, Großkunden, Kündigungen, Konsumklima.', so: 'Gute Planung schafft Vertrauen beim Board – und nach dem Börsengang bei den Aktionären.' },
+  sprint: { t: 'Gründer-Sprint', d: 'Eine optionale Hands-on-Aktion, die 3–5 Handelstage läuft. Kosten werden sofort fällig, das Ergebnis ist unsicher und landet im Firmen-Ticker. Höchstens zwei gleichzeitig, jede Art einmal pro Quartal.', so: 'Wer gerade nur tradet, verpasst nichts – der Autopilot läuft weiter.' },
+  effic: { t: 'Effizienz', d: 'Wie schlank die Organisation geführt wird. Hohe Effizienz senkt die Fixkosten (bis −15 %), kostet aber Vertriebskraft und langsam Produktqualität.', so: 'Bei knapper Runway der schnellste Hebel – auf Dauer bremst er das Wachstum.' },
+  plevel: { t: 'Preisniveau', d: '100 % ist der Marktpreis. Höhere Preise bringen mehr Umsatz je Kunde, aber weniger Abschlüsse und etwas mehr Kündigungen – niedrigere umgekehrt.', so: 'Starke Produkte (hoher PMF, Burggraben) vertragen höhere Preise.' },
+  beatmiss: { t: 'Beat oder Miss', d: 'Nach dem Börsengang werden deine Quartalszahlen an deiner eigenen Guidance gemessen. Liegt das Ergebnis darüber, steigt der Kurs (Beat), darunter fällt er (Miss).', so: 'Ein Sicherheitspuffer unter der Basisprognose erhöht die Beat-Chance – zu viel Vorsicht wirkt aber zahm.' },
   hyper: { t: 'Hyperscaling', d: 'Das Marketingbudget wird verdreifacht, um den Markt in Rekordzeit zu erobern.', so: 'Nur mit starkem PMF und LTV/CAC ≥ 3 sinnvoll. Sonst ist es Premature Scaling: Kunden springen sofort wieder ab und das Geld ist weg.' },
   premature: { t: 'Premature Scaling', d: 'Zu frühes Skalieren, bevor Produkt und Unit Economics stimmen.', so: 'Die häufigste Todesursache von Startups: hoher Burn, hohe Abwanderung, leere Kasse.' },
   captable: { t: 'Cap Table', d: 'Die Tabelle, wem wie viel vom Unternehmen gehört: Gründer, Mitarbeiter (ESOP), Investoren.', so: 'Jede Finanzierungsrunde verkleinert deinen Anteil – dafür wird der Kuchen größer.' },
@@ -107,6 +113,8 @@ export const G = {
   zentral: { t: 'Zentralbank-Reserve', d: 'Alle Prämien, Boni und Zinsen kommen aus einer festen Reserve. Gebühren und Käufe von Lizenzen und Luxus füllen sie wieder auf.', so: 'Je leerer die Reserve, desto kleiner werden Boni und Prämien. Spielgeld ist also wirklich knapp.' }
 };
 
+// Erklärbutton mit eigenem Text (z. B. für Entscheidungsoptionen): Titel, Erklärung, „Was passiert“
+export const tip = (t, d, fx) => `<button type="button" class="i" data-term="_" data-tt="${esc(t)}" data-td="${esc(d)}"${fx ? ` data-tf="${esc(fx)}"` : ''} aria-label="Erklärung: ${esc(t)}" aria-expanded="false">i</button>`;
 export const info = k => G[k] ? `<button type="button" class="i" data-term="${k}" aria-label="Erklärung: ${esc(G[k].t)}" aria-expanded="false">i</button>` : '';
 
 let open = null;
@@ -114,9 +122,9 @@ export function hidePop() { if (!open) return; open.pop.remove(); open.btn.setAt
 export function togglePop(btn) {
   if (open && open.btn === btn) { hidePop(); return; }
   hidePop();
-  const g = G[btn.dataset.term]; if (!g) return;
+  const ds = btn.dataset, g = ds.tt ? { t: ds.tt, d: ds.td, fx: ds.tf } : G[ds.term]; if (!g) return;
   const pop = document.createElement('div'); pop.className = 'pop'; pop.setAttribute('role', 'dialog');
-  pop.innerHTML = `<h4>${esc(g.t)}</h4><p>${esc(g.d)}</p>${g.so ? `<p class="so">${esc(g.so)}</p>` : ''}`;
+  pop.innerHTML = `<h4>${esc(g.t)}</h4><p>${esc(g.d)}</p>${g.so ? `<p class="so">${esc(g.so)}</p>` : ''}${g.fx ? `<p class="so fx">${esc(g.fx)}</p>` : ''}`;
   document.body.appendChild(pop);
   const r = btn.getBoundingClientRect(), w = pop.offsetWidth, vw = document.documentElement.clientWidth;
   let left = r.left + window.scrollX - 12; left = Math.max(16 + window.scrollX, Math.min(left, window.scrollX + vw - w - 16));

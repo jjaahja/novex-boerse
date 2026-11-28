@@ -36,6 +36,9 @@ Ein gemeinsamer, in Echtzeit laufender Markt mit erfundenen Unternehmen (Mvidia,
   - Gründung ab 2.500 € in sechs Geschäftsmodellen: SaaS, B2C-Plattform, Fintech, DeepTech, CleanTech, Biotech. Hyperscaling ist nur bei digitalen Modellen möglich, physische wachsen über CapEx und Patente.
   - Autopilot im Tagesgeschäft, Board-Meeting jedes Startup-Quartal (eine Woche, rund um den Börsengang langsamer), ruhige Entscheidungs-Inbox.
   - Unit Economics: CAC, LTV, Churn, Product-Market Fit, Burn, Runway.
+  - Strategy War Room: Regler für Vertrieb, F&E, Effizienz, Preisniveau und Gründergehalt plus Schnellwahl (Freemium, Enterprise, Marge). Die Prognose-Bandbreiten (ARR-Wachstum, Burn, Runway, PMF, Qualität, Marktanteil) rechnet der Browser live; erst „Kurs setzen“ schickt eine Aktion.
+  - Prognose-Genauigkeit als Hebel: Garage ±30 %, ab Traction ±16–18 %, ein CFO halbiert die Abweichung, Hyperscaling +10 Punkte. Die echten Quartale streuen in dieser Spanne. Board-Berichte zeigen Plan vs. Ist mit Begründung, nach dem Börsengang entscheidet der Guidance-Puffer über Beat oder Miss.
+  - Gründer-Sprints (Enterprise-Pitch, Produkt-Sprint, Kosten-Audit, Attacken auf Rivalen) mit Erfolgschance, Laufzeit und Firmen-Ticker. Verhandlungen: Gehalt/ESOP-Regler bei Führungskräften, Nachverhandeln von Term Sheets, taktische Konter bei Preiskämpfen.
   - Unterschiedlich lange Wege zur Börse: B2C und Fintech schnell (ca. 3–4 Monate), SaaS mittel, DeepTech und CleanTech länger (Fabriken, Anlagen), Biotech lang und riskant (Studien mit Mindestdauer, Wirkstoffe können scheitern).
   - Pleite durch Fehlentscheidungen möglich: verfrühtes Hyperscaling, aggressives Tempo ohne Unit Economics, zu früher Kapazitätsausbau (laufende Anlagenkosten), ignorierte Inbox. Bestandsinvestoren bieten notfalls eine teure Brückenfinanzierung an.
   - Markt-Duell gegen gelistete Konzerne: Deren Quartalszahlen und Kurse leiden real.
