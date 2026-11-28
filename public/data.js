@@ -512,11 +512,59 @@ export const BIZ_MODELS = {
   saas: { name: 'B2B Enterprise SaaS', sub: 'KI & Software für Unternehmen', sector: 'tech', hyper: true, why: 'Software kostet pro zusätzlichem Kunden fast nichts (Grenzkosten nahe null). Wachstum begrenzen nur Vertrieb und Kapital.', pro: 'Treue Kunden (niedriger Churn), hohe Bruttomarge, planbare Umsätze', con: 'Langsame Verkaufszyklen am Anfang, teure Kundengewinnung', gm: 0.80, churn: 0.035, cac: 2400, arpu: 6000, conv: 0.85, net: 0.6, tam: 1.5e9, mult: 7.5, matM: 0.32, moat: 0.35, pace: 1.0, ipoArr: 60000000, sens: { rate: 1.5, cons: 0.2, tar: 0.1, reg: 0.4 } },
   b2c: { name: 'B2C Consumer-Plattform', sub: 'App, Community, Marktplatz für Endkunden', sector: 'tech', hyper: true, why: 'Jeder neue Nutzer macht die Plattform für alle anderen wertvoller (Netzwerkeffekt), Server kosten pro Nutzer nur Cent.', pro: 'Explosives Nutzerwachstum, starke Netzwerkeffekte', con: 'Hoher Marketing- und Server-Burn, Kunden springen bei schlechter Konsumlaune ab', gm: 0.60, churn: 0.16, cac: 8, arpu: 36, conv: 1.0, net: 1.0, tam: 2e9, mult: 6, matM: 0.25, moat: 0.25, pace: 0.8, ipoArr: 50000000, sens: { rate: 1.3, cons: 1.0, tar: 0.1, reg: 0.7 } },
   fintech: { name: 'Fintech / Marktplatz', sub: 'Zahlungen, Kredite, Handel – Verdienst über Transaktionen', sector: 'fin', hyper: true, why: 'Digitale Transaktionen skalieren fast ohne Zusatzkosten. Mehr Händler ziehen mehr Kunden an und umgekehrt.', pro: 'Verdient an jedem Umsatz mit (Take-Rate), profitiert von Zinsen und Boomphasen', con: 'Bei Dominanz drohen Regulierung und Kartellverfahren', gm: 0.55, churn: 0.07, cac: 40, arpu: 220, conv: 0.9, net: 0.8, tam: 1.2e9, mult: 9, matM: 0.30, moat: 0.3, pace: 1.0, ipoArr: 60000000, sens: { rate: -0.2, cons: 0.6, tar: 0.1, reg: 1.0 } },
-  deeptech: { name: 'DeepTech / Hardware', sub: 'Chips, Robotik, Sensoren', sector: 'semi', hyper: false, why: 'Jedes Gerät muss gebaut werden: Fabriken, Lieferketten und Importzölle begrenzen das Tempo. Wachstum kommt stufenweise über Investitionen (CapEx).', pro: 'Starke Patente (Burggraben), hohe Margen im Reifestadium, Subventionen', con: 'Kapazität muss erst gebaut werden, Zölle verteuern Bauteile', gm: 0.38, churn: 0.025, cac: 12000, arpu: 30000, conv: 0.8, net: 0.1, tam: 2e9, mult: 7.5, matM: 0.42, moat: 0.75, cap: { unit: 60, cost: 20000, q: 1 }, subsidy: ['semi', 'ind', 'tech'], pace: 1.25, ipoArr: 40000000, sens: { rate: 0.9, cons: 0.2, tar: 1.0, reg: 0.2 } },
-  cleantech: { name: 'CleanTech / Energie', sub: 'Speicher, Wasserstoff, Solar- und Windtechnik', sector: 'energy', hyper: false, why: 'Anlagen und Projekte brauchen Material, Genehmigungen und Finanzierung – Wachstum kommt Projekt für Projekt.', pro: 'Lange Lieferverträge, starke Subventionen, Preissetzungsmacht bei hohen Energiepreisen', con: 'Sehr zinsempfindlich, Zölle auf Komponenten aus Fernost', gm: 0.40, churn: 0.02, cac: 11000, arpu: 40000, conv: 0.8, net: 0.05, tam: 2e9, mult: 11, matM: 0.38, moat: 0.6, cap: { unit: 50, cost: 30000, q: 1 }, subsidy: ['energy', 'ind'], pace: 1.4, ipoArr: 40000000, sens: { rate: 1.6, cons: 0.1, tar: 0.7, reg: 0.3 } },
+  deeptech: { name: 'DeepTech / Hardware', sub: 'Chips, Robotik, Sensoren', sector: 'semi', hyper: false, why: 'Jedes Gerät muss gebaut werden: Fabriken, Lieferketten und Importzölle begrenzen das Tempo. Wachstum kommt stufenweise über Investitionen (CapEx).', pro: 'Starke Patente (Burggraben), hohe Margen im Reifestadium, Subventionen', con: 'Kapazität muss erst gebaut werden, Zölle verteuern Bauteile', gm: 0.38, churn: 0.025, cac: 12000, arpu: 30000, conv: 0.8, net: 0.1, tam: 2e9, mult: 15, matM: 0.42, moat: 0.75, cap: { unit: 60, cost: 20000, q: 1 }, subsidy: ['semi', 'ind', 'tech'], pace: 1.25, ipoArr: 40000000, sens: { rate: 0.9, cons: 0.2, tar: 1.0, reg: 0.2 } },
+  cleantech: { name: 'CleanTech / Energie', sub: 'Speicher, Wasserstoff, Solar- und Windtechnik', sector: 'energy', hyper: false, why: 'Anlagen und Projekte brauchen Material, Genehmigungen und Finanzierung – Wachstum kommt Projekt für Projekt.', pro: 'Lange Lieferverträge, starke Subventionen, Preissetzungsmacht bei hohen Energiepreisen', con: 'Sehr zinsempfindlich, Zölle auf Komponenten aus Fernost', gm: 0.40, churn: 0.02, cac: 11000, arpu: 40000, conv: 0.8, net: 0.05, tam: 2e9, mult: 16, matM: 0.38, moat: 0.6, cap: { unit: 50, cost: 30000, q: 1 }, subsidy: ['energy', 'ind'], pace: 1.4, ipoArr: 40000000, sens: { rate: 1.6, cons: 0.1, tar: 0.7, reg: 0.3 } },
   biotech: { name: 'Biotech / Pharma', sub: 'Wirkstoffe, Diagnostik, Medizintechnik', sector: 'health', hyper: false, why: 'Klinische Studien und Zulassungen bestimmen das Tempo – kein Geld der Welt beschleunigt eine Studie beliebig.', pro: 'Patentschutz für viele Jahre, sehr hohe Margen nach der Zulassung', con: 'Umsatz erst nach erfolgreicher Studie, Rückschläge möglich', gm: 0.75, churn: 0.02, cac: 20000, arpu: 60000, conv: 0.7, net: 0.05, tam: 1.5e9, mult: 7.5, matM: 0.45, moat: 0.9, cap: { unit: 80, cost: 40000, q: 1 }, trial: true, subsidy: ['health'], pace: 1.6, ipoArr: 40000000, sens: { rate: 1.0, cons: 0, tar: 0.2, reg: 0.5 } }
 };
 // Phasen: ARR-Schwelle, Liquiditätsfaktor fürs Nettovermögen, Beleihungsquote, Dauer eines Startup-Quartals in Handelstagen
+/* ---------- Produktbaum: 3 Stufen à 2 exklusive Pfade je Geschäftsmodell ----------
+   fx: Effekte nach Fertigstellung (Multiplikatoren bzw. Punkte) · tags: passende Kunden-Radar-Signale */
+const N = (k, name, desc, fx, tags) => ({ k, name, desc, fx, tags });
+export const PRODUCT_TREE = {
+  saas: [
+    [N('viral', 'Self-Serve & Viral-Loop', 'Kunden testen selbst und laden Kollegen ein. Günstige Kundengewinnung, kleinere Tickets.', { cac: 0.8, arpu: 0.92 }, ['scale', 'cost']), N('api', 'Enterprise-API & Schnittstellen', 'Tiefe Integration in die IT von Konzernen. Teurer Vertrieb, große und treue Kunden.', { arpu: 1.25, churn: 0.85, conv: 0.9 }, ['security'])],
+    [N('agent', 'Autonomer KI-Agent', 'Die Software erledigt Aufgaben selbst. Höhere Preise und mehr Abschlüsse – solange KI gefragt ist.', { arpu: 1.15, conv: 1.1 }, ['ai']), N('onprem', 'Compliance & On-Premise', 'Läuft im eigenen Rechenzentrum der Kunden. Weniger Kündigungen, etwas weniger Marge.', { churn: 0.8, gm: -0.03 }, ['privacy', 'security'])],
+    [N('eco', 'Plattform-Ökosystem', 'Partner bauen Apps auf deiner Plattform – Netzwerkeffekte senken die Kundenkosten.', { net: 0.3, cac: 0.85 }, ['scale']), N('suite', 'Vertikale Monopol-Suite', 'Komplettlösung für eine Branche. Höchste Preise, kaum Wechsel.', { arpu: 1.3, churn: 0.85 }, ['cost'])]
+  ],
+  b2c: [
+    [N('social', 'Social Sharing & Referral', 'Nutzer werben Nutzer. Sehr günstiges Wachstum, etwas flüchtigere Kunden.', { cac: 0.75, churn: 1.05 }, ['scale']), N('sub', 'Premium-Abo', 'Bezahlfunktionen statt Werbung: mehr Umsatz je Nutzer, langsameres Wachstum.', { arpu: 1.25, conv: 0.9 }, ['cost'])],
+    [N('aifeed', 'KI-Personalisierung', 'Jeder sieht genau, was ihn interessiert. Mehr Abschlüsse, längere Bindung.', { conv: 1.15, churn: 0.9 }, ['ai']), N('privacy', 'Privacy-First', 'Keine Datensammelei – Vertrauen hält Nutzer, Werbung wird etwas teurer.', { churn: 0.85, cac: 1.05 }, ['privacy'])],
+    [N('market', 'Marktplatz-Öffnung', 'Händler verkaufen über deine App: Netzwerkeffekt und Provisionen.', { net: 0.3, arpu: 1.1 }, ['scale']), N('super', 'Super-App', 'Alles in einer App – Nutzer gehen nicht mehr weg.', { arpu: 1.2, churn: 0.85 }, ['ai'])]
+  ],
+  fintech: [
+    [N('card', 'Karte & Wallet', 'Bezahlen mit Karte und Handy: massentauglich, günstige Kundengewinnung.', { cac: 0.85 }, ['scale']), N('bnpl', 'Kredit & Ratenkauf', 'Verdient an Zinsen und Gebühren – lukrativ, aber riskanter.', { arpu: 1.25, churn: 1.1 }, ['cost'])],
+    [N('fraud', 'KI-Betrugserkennung', 'Weniger Ausfälle und Betrug: bessere Marge, mehr Vertrauen.', { gm: 0.04, churn: 0.9 }, ['ai', 'security']), N('license', 'Eigene Banklizenz', 'Unabhängig von Partnerbanken – höhere Erträge, mehr Aufsicht.', { arpu: 1.15, opex: 1.05 }, ['security', 'privacy'])],
+    [N('embedded', 'Embedded-Finance-API', 'Andere Apps bauen deine Finanzprodukte ein: Netzwerkeffekt.', { net: 0.3, conv: 1.1 }, ['scale']), N('wealth', 'Vermögensplattform', 'Sparpläne und Depots: hohe Erträge je Kunde, treue Kunden.', { arpu: 1.25, churn: 0.85 }, ['cost'])]
+  ],
+  deeptech: [
+    [N('plat', 'Gemeinsame Plattform-Architektur', 'Ein Grunddesign für alle Produkte: weniger Komplexität bei jedem Ausbau.', { plat: 1, gm: 0.02 }, ['cost']), N('custom', 'Maßgeschneiderte Chips', 'Jeder Großkunde bekommt sein Design: höhere Preise, aber jeder Ausbau wird komplexer.', { arpu: 1.25, conv: 0.9 }, ['ai'])],
+    [N('edge', 'Edge-KI-Beschleuniger', 'KI direkt im Gerät statt in der Cloud.', { arpu: 1.15, conv: 1.1 }, ['ai']), N('secure', 'Sicherheits-Hardware', 'Für Verteidigung und kritische Infrastruktur: lange Verträge.', { churn: 0.8 }, ['security'])],
+    [N('fab', 'Eigene Fertigungslinie', 'Mehr Kapazität je Ausbaustufe und bessere Marge – hohe Fixkosten.', { capU: 1.4, gm: 0.04 }, ['scale']), N('fabless', 'Fabless & Lizenzmodell', 'Fremde Fabriken fertigen, du lizenzierst: hohe Marge, weniger Kapazität.', { gm: 0.08, capU: 0.9 }, ['cost'])]
+  ],
+  cleantech: [
+    [N('storage', 'Netzspeicher', 'Batterieparks stabilisieren das Stromnetz.', { arpu: 1.15 }, ['green']), N('h2', 'Wasserstoff-Elektrolyse', 'Grüner Wasserstoff für Industrie: große Projekte, längere Vertriebszyklen.', { arpu: 1.3, conv: 0.85 }, ['green', 'security'])],
+    [N('soft', 'KI-Lastmanagement', 'Software steuert Erzeugung und Verbrauch: bessere Marge.', { gm: 0.04 }, ['ai']), N('modular', 'Modulare Serienfertigung', 'Standardmodule statt Einzelprojekte: mehr Kapazität je Ausbau.', { capU: 1.3 }, ['cost', 'scale'])],
+    [N('ppa', 'Langfristige Lieferverträge', 'Strom-Abnahmeverträge über Jahre: kaum Kündigungen.', { churn: 0.7 }, ['cost']), N('vpp', 'Virtuelles Kraftwerk', 'Tausende Anlagen als ein Kraftwerk: Netzwerkeffekt.', { net: 0.2, arpu: 1.15 }, ['green', 'scale'])]
+  ],
+  biotech: [
+    [N('small', 'Small-Molecule-Wirkstoff', 'Klassische Tablette: günstiger herzustellen, Patent schützt das Molekül.', { pat: 2e7 }, ['cost']), N('bio', 'Biologikum / Antikörper', 'Komplexer, teurer, aber schwer zu kopieren.', { pat: 4e7, opex: 1.05 }, ['security'])],
+    [N('aidesign', 'KI-Wirkstoffdesign', 'KI findet Kandidaten schneller: stärkere Patente, höhere Erfolgschance.', { pat: 3e7, conv: 1.1 }, ['ai']), N('orphan', 'Orphan-Indikation', 'Seltene Krankheit: kleine Zielgruppe, sehr hohe Preise und Marktexklusivität.', { pat: 5e7, arpu: 1.3 }, ['privacy'])],
+    [N('mrna', 'Plattformtechnologie', 'Eine Technologie für viele Wirkstoffe – das wertvollste Patent.', { pat: 8e7, net: 0.1 }, ['scale', 'ai']), N('mass', 'Blockbuster-Massenmarkt', 'Millionen Patienten: hohe Abschlüsse, mehr Preisdruck.', { arpu: 1.2, conv: 1.2 }, ['cost'])]
+  ]
+};
+// Kunden-Radar: Marktsignale aus Makro, Zinsen und Politik (die drei stärksten sind aktiv)
+export const RADAR = {
+  cost: { name: 'Kostendruck hoch', desc: 'Hohe Zinsen oder schwaches Konsumklima: Kunden wollen sparen.' },
+  ai: { name: 'KI-Nachfrage hoch', desc: 'Unternehmen und Verbraucher investieren in KI.' },
+  privacy: { name: 'Datenschutz-Fokus', desc: 'Regulierung und Skandale machen Datenschutz zum Kaufargument.' },
+  green: { name: 'Energiewende', desc: 'Förderprogramme und Energiepreise treiben saubere Technik.' },
+  security: { name: 'Sicherheit & Resilienz', desc: 'Zölle und Konflikte: Kunden wollen verlässliche Lieferketten.' },
+  scale: { name: 'Wachstumshunger', desc: 'Niedrige Zinsen und gute Stimmung: Kunden probieren Neues aus.' }
+};
+export const FOCUS = { max: 6, regen: 2, regenLow: 1, cost: { clean: 2, mvp: 1, push: 1, refactor: 1, ab: 1, audit: 1, attack: 2, repath: 3, neg: 1 } };
+export const NODE_STEPS = [4, 6, 8];               // Handelstage je Produktstufe (MVP: halb so viele)
+export const NODE_COST = [1500, 6000, 24000];      // Entwicklungsbudget je Stufe (skaliert mit dem Umsatz)
+
 export const VENTURE_STAGES = [
   { k: 'garage', name: 'Garage & Bootstrapping', min: 0, liq: 0.60, ltv: 0, qd: 7, base: 900 },
   { k: 'traction', name: 'Traction & Disruption', min: 100000, liq: 0.75, ltv: 0, qd: 7, base: 30000 },
