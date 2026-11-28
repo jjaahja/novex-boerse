@@ -20,10 +20,10 @@ export function render() {
   return `<div class="grid2"><div class="stack" style="gap:0">
     <div id="v-head"></div>
     <section class="sec"><h2>Firmen-Puls</h2><div id="v-pulse"></div></section>
+    <section class="sec"><h2>Unit Economics</h2><div class="lines" id="v-unit"></div></section>
     <section class="sec"><h2>Strategy War Room ${info('fcconf')}</h2><div class="vwar" id="v-war"></div></section>
     <section class="sec"><h2>Gründer-Sprints ${info('sprint')}</h2><div id="v-spr"></div></section>
     <section class="sec"><h2>Markt-Duell ${info('segment')}</h2><div id="v-duel"></div></section>
-    <section class="sec"><h2>Unit Economics</h2><div class="lines" id="v-unit"></div></section>
     <section class="sec"><h2>Board-Berichte · Plan vs. Ist ${info('planist')}</h2><canvas class="bars" id="v-bars" aria-label="ARR je Quartal"></canvas><div class="tbl vq" id="v-q" style="margin-top:8px"></div></section>
   </div><aside class="stack">
     <section class="sec" style="border-top:0;padding-top:0"><h2 id="v-inbox-h">Entscheidungen</h2><div id="v-inbox"></div></section>
@@ -35,6 +35,11 @@ export function render() {
   </aside></div>`;
 }
 
+// Kompakte Kennzahl mit Balken und Veränderung seit dem letzten Board-Meeting
+function kpi(name, term, val, prev, tone) {
+  const d = prev === null || prev === undefined ? null : val - prev;
+  return `<div><span>${name} ${term ? info(term) : ''}</span><b class="num">${pctx(val)}</b><span class="meter" style="display:block;margin:4px 0 2px"><i class="${tone}" style="width:${(Math.max(0, Math.min(1, val)) * 100).toFixed(0)}%"></i></span><small class="${d === null || Math.abs(d) < 0.005 ? '' : d > 0 ? 'up' : 'dn'}">${d === null ? '&nbsp;' : Math.abs(d) < 0.005 ? '± 0 Pkt. seit Board' : `${d > 0 ? '▲' : '▼'} ${fmt(Math.abs(d) * 100, 0)} Pkt. seit Board`}</small></div>`;
+}
 /* ---------- Trend-Badges: Veränderung seit dem letzten Board-Meeting mit Haupttreiber ---------- */
 function trend(now, prev, driver) {
   if (!(prev > 0) || !isFinite(now)) return '';
@@ -56,18 +61,17 @@ export function update() {
       <div><span class="label">Firmenkasse ${info('runway')}</span><b class="num ${v.cash < 0 ? 'dn' : ''}">${big(v.cash)}</b><span class="small ${rw < 6 ? 'dn' : 'fg2'}">${isFinite(rw) ? `Runway ${fmt(rw, 0)} Monate` : 'profitabel'}</span>${trend(v.cash, last && last.cash, cashDrv)}</div>
       <div><span class="label">Bewertung</span><b class="num">${big(V)}</b>${trend(V, last && last.val, v.pmf > (last ? last.pmf : 0) ? 'PMF & Wachstum' : 'Multiple')}<span class="small fg2">dein Anteil ${pctx(E.founderPct(v), 1)}</span></div>
       <div><span class="label">Im Nettovermögen ${info('liqdisc')}</span><b class="num">${big(mine * st.liq)}</b><span class="small fg2">${pctx(st.liq)} angerechnet</span></div></div>
+    <div class="vkpi">${kpi('Product-Market Fit', 'pmf', v.pmf, last && last.pmf, v.pmf >= 0.8 ? 'ok' : v.pmf >= 0.5 ? 'warn' : 'crit')}${kpi('Produktqualität', '', Math.min(1, v.quality), null, v.quality >= 0.9 ? 'ok' : v.quality >= 0.75 ? 'warn' : 'crit')}
+      <div><span>LTV / CAC ${info('ltvcac')}</span><b class="num ${u.ratio >= 3 ? 'up' : u.ratio >= 1 ? 'amb' : 'dn'}">${fmt(u.ratio, 1)}</b><small>${u.ratio >= 3 ? 'gesund' : u.ratio >= 1 ? 'knapp' : 'verbrennt Geld'}</small></div>
+      <div><span>Abwanderung ${info('churn')}</span><b class="num ${u.churn > 0.12 ? 'dn' : ''}">${pctx(u.churn, 1)}</b><small>pro Quartal</small></div></div>
     ${v.cash < 0 ? `<div class="alert" style="margin-top:14px"><div class="t"><b>Die Kasse ist leer</b>Lege Kapital ein, nimm eine Finanzierung an oder senke im War Room die Ausgaben – nach drei Quartalen im Minus ist ${esc(v.name)} insolvent.</div></div>` : rw < 6 ? `<div class="alert amb" style="margin-top:14px"><div class="t"><b>Runway unter 6 Monaten</b>Plane die nächste Finanzierung oder senke im War Room das Tempo.</div></div>` : ''}`;
   pulseUpdate(v); warUpdate(v); sprintUpdate(v); duelUpdate(v, u);
   const ltvTone = u.ratio >= 3 ? 'up' : u.ratio >= 1 ? 'amb' : 'dn';
-  $('#v-unit').innerHTML = `<div><span>Product-Market Fit ${info('pmf')}</span><b style="min-width:160px"><span class="meter" style="display:block;margin-bottom:4px"><i class="${v.pmf >= 0.8 ? 'ok' : v.pmf >= 0.5 ? 'warn' : 'crit'}" style="width:${(v.pmf * 100).toFixed(0)}%"></i></span>${pctx(v.pmf)}</b></div>
-    <div><span>Kunden</span><b class="num">${fmt(v.customers, v.customers < 100 ? 1 : 0)}</b></div>
+  $('#v-unit').innerHTML = `<div><span>Kunden</span><b class="num">${fmt(v.customers, v.customers < 100 ? 1 : 0)}</b></div>
     <div><span>Kundenakquisekosten (CAC) ${info('cac')}</span><b class="num">${fmtE(u.cac, 0)}</b></div>
     <div><span>Kundenwert (LTV) ${info('ltv')}</span><b class="num">${fmtE(u.ltv, 0)}</b></div>
-    <div><span>LTV / CAC ${info('ltvcac')}</span><b class="num ${ltvTone}">${fmt(u.ratio, 1)}</b></div>
-    <div><span>Abwanderung pro Quartal ${info('churn')}</span><b class="num ${u.churn > 0.12 ? 'dn' : ''}">${pctx(u.churn, 1)}</b></div>
     <div><span>Bruttomarge ${info('margcost')}</span><b class="num">${pctx(u.gm)}</b></div>
     <div><span>Burn Rate ${info('burn')}</span><b class="num">${E.burnM(v) > 0 ? fmtE(E.burnM(v), 0) + ' / Monat' : 'kein Burn'}</b></div>
-    <div><span>Produktqualität</span><b class="num ${v.quality < 0.8 ? 'amb' : ''}">${pctx(Math.min(1, v.quality))}</b></div>
     ${v.trial ? `<div><span>Studie</span><b>${v.trial.phase >= 4 ? 'zugelassen' : `${esc(E.TRIAL[v.trial.phase].name)} · ${pctx(Math.min(1, v.trial.prog))}`}</b></div>` : ''}
     ${v.cap ? `<div><span>Kapazität (Stufe ${v.cap.level}) ${info('capex')}</span><b class="num">${fmt(v.customers, 0)} / ${fmt(E.capacity(v), 0)}${v.cap.building ? ' · Ausbau läuft' : ''}</b></div>` : ''}`;
   // Board-Berichte mit Prognose-Korridor
