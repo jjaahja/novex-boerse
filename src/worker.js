@@ -449,10 +449,12 @@ export class Exchange extends DurableObject {
       else if (t === 'vset') err = E.vSetStrategy(A, { growth: b.growth, price: b.price, rd: b.rd === undefined ? undefined : n(b.rd), salary: b.salary === undefined ? undefined : n(b.salary) });
       else if (t === 'vhyper') err = E.setHyper(A, !!b.on);
       else if (t === 'vcap') err = E.buildCapacity(A);
-      else if (t === 'vhire') err = E.hire(A, { role: String(b.role), k: String(b.k), esop: !!b.esop });
+      else if (t === 'vhire' || t === 'vexec') err = E.hire(A, { role: String(b.role), k: String(b.k), esop: !!b.esop, mix: b.mix === undefined ? undefined : n(b.mix) });
       else if (t === 'vfire') err = E.fire(A, String(b.role));
       else if (t === 'vcamp') err = E.campaign(A, { k: String(b.k), rival: String(b.rival) });
-      else if (t === 'vdecide') err = E.decide(A, n(b.id), String(b.opt));
+      else if (t === 'vdecide') err = E.decide(A, n(b.id), String(b.opt), { ask: b.ask === undefined ? undefined : n(b.ask) });
+      else if (t === 'vslider') err = E.vSlider(A, { sR: b.sR, rR: b.rR, eff: b.eff, pl: b.pl, salary: b.salary, hyper: b.hyper === undefined ? undefined : !!b.hyper, capex: !!b.capex });
+      else if (t === 'vsprint') err = E.vSprint(A, { k: String(b.k || ''), sub: b.sub === undefined ? undefined : String(b.sub), rival: b.rival === undefined ? undefined : String(b.rival) });
       else if (t === 'vipo') err = E.vIpo(A, { disc: n(b.disc), float: n(b.float), lock: n(b.lock) });
       else if (t === 'vguid') err = E.setGuidance(A, { rev: n(b.rev), eps: n(b.eps) });
       else if (t === 'vbuyback') err = E.buyback(A, n(b.amt));

@@ -132,9 +132,12 @@ async function confirmFund() {
 export function openReview(o) {
   S.lastFocus = document.activeElement; cur = Object.assign({ kind: 'review', step: 'review' }, o); renderReview();
 }
+// Zeilen dürfen eine Funktion sein: Verhandlungs-Sheets (Regler im body) rechnen die Vorschau live im Browser neu
+const reviewLines = o => { const L = typeof o.lines === 'function' ? o.lines() : o.lines; return L.map((l, i) => `<div class="${i === L.length - 1 && o.totalLast !== false ? 'tot' : ''}"><span>${l[0]} ${l[2] ? info(l[2]) : ''}</span><b>${l[1]}</b></div>`).join(''); };
+export function refreshReview() { const o = cur; if (!o || o.step !== 'review') return; const l = document.getElementById('sh-lines'); if (l) l.innerHTML = reviewLines(o); const w = document.getElementById('sh-warn'); if (w && typeof o.warn === 'function') w.textContent = o.warn(); }
 function renderReview() {
   const o = cur;
-  if (o.step === 'review') frame(`${top(o.title, o.sub || '')}<div class="lines">${o.lines.map((l, i) => `<div class="${i === o.lines.length - 1 && o.totalLast !== false ? 'tot' : ''}"><span>${l[0]} ${l[2] ? info(l[2]) : ''}</span><b>${l[1]}</b></div>`).join('')}</div>${o.warn ? `<p class="note">${esc(o.warn)}</p>` : ''}<div class="btns"><button class="btn ghost" data-a="sheetx">Abbrechen</button><button class="btn" data-a="rconfirm">${esc(o.confirm || 'Bestätigen')}</button></div>`);
+  if (o.step === 'review') frame(`${top(o.title, o.sub || '')}${o.body || ''}<div class="lines" id="sh-lines">${reviewLines(o)}</div>${o.warn ? `<p class="note" id="sh-warn">${esc(typeof o.warn === 'function' ? o.warn() : o.warn)}</p>` : ''}<div class="btns"><button class="btn ghost" data-a="sheetx">Abbrechen</button><button class="btn" data-a="rconfirm">${esc(o.confirm || 'Bestätigen')}</button></div>`);
   else frame(doneHTML(o.ok, o.ok ? (o.doneTitle || 'Erledigt') : 'Das hat nicht geklappt', o.msg));
 }
 

@@ -174,6 +174,66 @@ details.more>summary::-webkit-details-marker{display:none}
 .pop p{margin:0;color:var(--fg2)}
 .pop .so{margin-top:10px;padding-top:10px;border-top:1px solid var(--line);color:var(--fg)}
 .pop .so::before{content:"Was bedeutet das für meinen Trade? ";font-weight:600;display:block;margin-bottom:2px}
+.pop .so.fx::before{content:"Was passiert dann? "}
+/* Ventures: Optionen mit Wirkungsvorschau, Live-Quartal, Chronik */
+.vopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:6px}
+.vopt{position:relative;text-align:left;border:1px solid var(--line2);border-radius:12px;padding:10px 34px 10px 12px;background:var(--bg);cursor:pointer;transition:border-color .15s,background .15s}
+.vopt:hover{border-color:var(--fg2)} .vopt:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.vopt.on{border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
+.vopt b{display:block;font-size:14px;font-weight:600} .vopt small{display:block;color:var(--fg2);font-size:12px;line-height:1.4;margin-top:2px}
+.vopt .i{position:absolute;top:8px;right:8px}
+.vopt .eff{display:inline-block;margin-top:6px;font-size:12px;padding:1px 6px;border-radius:6px}
+.vopt.busy{opacity:.55;pointer-events:none}
+.vlive{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg2)}
+.vlive .dot.on{animation:pulse 1.6s ease-out infinite}
+.vprog{height:8px;border-radius:999px;background:var(--bg2);overflow:hidden;margin:8px 0 12px}
+.vprog i{display:block;height:100%;background:var(--fg);border-radius:999px;transition:width .6s ease}
+.vmini{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.vmini div{background:var(--bg2);border-radius:10px;padding:8px 10px;min-width:0} .vmini span{display:block;font-size:12px;color:var(--fg2)} .vmini b{font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;border-radius:4px}
+.vspark{display:flex;align-items:flex-end;gap:3px;height:42px;margin-top:10px}
+.vspark i{flex:1;background:var(--line2);border-radius:3px 3px 0 0;min-height:2px;transition:height .4s}
+.vspark i:last-child{background:var(--up)}
+.vchron{list-style:none;margin:0;padding:0}
+.vchron li{position:relative;padding:8px 0 8px 18px;border-bottom:1px solid var(--line);font-size:13px}
+.vchron li::before{content:"";position:absolute;left:2px;top:14px;width:7px;height:7px;border-radius:50%;background:var(--line2)}
+.vchron li.up::before{background:var(--up)} .vchron li.dn::before{background:var(--dn)} .vchron li.tier::before{background:var(--warn)}
+.vchron li.new{animation:rise .4s ease-out}
+.vchron small{display:block;color:var(--fg2);font-size:12px}
+.vdec{border:1px solid var(--line2);border-radius:12px;padding:12px;margin-bottom:10px}
+.vdec .vopts{grid-template-columns:1fr}
+@media (max-width:640px){.vmini{grid-template-columns:repeat(2,1fr)}}
+.trend{font-size:12px;font-variant-numeric:tabular-nums;color:var(--fg2)} .trend.up{color:var(--up)} .trend.dn{color:var(--dn)}
+.vwar{border:1px solid var(--line);border-radius:14px;padding:16px}
+.vpills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.vpills button{border:1px solid var(--line2);background:var(--bg);border-radius:999px;padding:5px 12px;font-size:13px;color:var(--fg)}
+.vpills button:hover{border-color:var(--fg2)}
+.vsl{display:grid;grid-template-columns:minmax(120px,1fr) 2fr auto;gap:10px;align-items:center;padding:6px 0}
+.vsl>span{font-size:14px} .vsl>b{font-variant-numeric:tabular-nums;font-size:14px;min-width:78px;text-align:right}
+.vtog{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+.vtog small{display:block;color:var(--fg2);font-size:12px}
+.vfc{border-top:1px solid var(--line);margin-top:12px;padding-top:12px}
+.vfc .lines b{font-variant-numeric:tabular-nums}
+.vfc .head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;color:var(--fg2)}
+.vbtns{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+.vband{position:relative;height:28px;margin:6px 0 2px}
+.vband .rail{position:absolute;left:0;right:0;top:12px;height:4px;border-radius:2px;background:var(--bg2)}
+.vband .cor{position:absolute;top:8px;height:12px;border:1px solid var(--fg2);border-radius:4px;background:var(--bg2)}
+.vband .base{position:absolute;top:5px;width:1px;height:18px;background:var(--fg2)}
+.vband .now{position:absolute;top:9px;width:10px;height:10px;margin-left:-5px;border-radius:50%;background:var(--fg);transition:left .6s}
+.vband .now.up{background:var(--up)} .vband .now.dn{background:var(--dn)}
+.vtick{list-style:none;margin:0;padding:0;font-size:13px}
+.vtick li{display:grid;grid-template-columns:56px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.vtick li span{color:var(--fg2);font-variant-numeric:tabular-nums} .vtick li.up b{color:var(--up)} .vtick li.dn b{color:var(--dn)} .vtick li b{font-weight:500}
+.vspr{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.vspr>div{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px;position:relative}
+.vspr small{color:var(--fg2);font-size:12px;line-height:1.4} .vspr .num{font-variant-numeric:tabular-nums;font-size:13px}
+.vspr .i{position:absolute;top:10px;right:10px}
+.vtam{display:flex;height:12px;border-radius:6px;overflow:hidden;border:1px solid var(--line);margin:8px 0 12px}
+.vtam i{display:block;height:100%} .vtam i+i{border-left:1px solid var(--bg)}
+.vriv{display:flex;justify-content:space-between;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 0;color:inherit;font:inherit;cursor:pointer}
+.vriv b{font-variant-numeric:tabular-nums} .vriv .sw{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:8px;vertical-align:0}
+.vprof{border:1px solid var(--line);border-radius:12px;padding:12px;margin:8px 0 4px}
+.vq td,.vq th{font-variant-numeric:tabular-nums}
 .why{display:flex;gap:8px;align-items:baseline;font-size:14px;color:var(--fg2);margin-top:4px}
 .why b{color:var(--fg);font-weight:500}
 
