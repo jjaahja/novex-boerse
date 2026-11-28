@@ -47,6 +47,7 @@ export async function act(body, quiet) {
   if (d.acct) S.A = E.normalizeAccount(d.acct);
   if (d.ins) S.ins = d.ins;
   if (d.bank) S.BANK = d.bank;
+  if (d.error === 'Unbekannte Aktion.') d.error = 'Der Server läuft noch mit einer älteren Version und kennt diese Funktion nicht. Bitte die neue Version hochladen (2-aktualisieren.bat) und die Seite neu laden.';
   if (!quiet) { for (const n of d.notes || []) toast(n.msg, n.tone); if (!d.ok) toast(d.error || 'Das hat nicht geklappt.', 'dn'); }
   refresh();
   return { ok: !!d.ok, error: d.error, notes: d.notes || [] };
