@@ -1,6 +1,6 @@
 // NOVEX Börse – Marktereignisse: Marktphasen, Zentralbank & Inflation, Quartalszahlen, Dividenden, Gerüchte, Sektor-Termine.
 // Geheimes (vorab gezogene Überraschungen, Wahrheit von Gerüchten, nächste Marktphase) liegt in M.sec und verlässt den Server nie.
-import { M, hook, ENV, byCls, all, addNews, setWhy, gauss, pick, clamp, pct, fmt, fmtE, fmtBig, fDate, dayStart, isTradingDay, DAY, MIN, book, recomputeDerived, unitNav, executeMarket, maxBuyQty, isTradable, r2, logHist, bumpCmd } from './engine.js';
+import { M, hook, ENV, WK, byCls, all, addNews, setWhy, gauss, pick, clamp, pct, fmt, fmtE, fmtBig, fDate, dayStart, isTradingDay, DAY, MIN, book, recomputeDerived, unitNav, executeMarket, maxBuyQty, isTradable, r2, logHist, bumpCmd } from './engine.js';
 import { REGIMES, FUNDA, SECTOR_EVENTS, RUMORS, OWNER, SECTORS, TIERS, sensOf } from './data.js';
 import { taylor, macroRevFactor } from './macro.js';
 
@@ -31,7 +31,7 @@ const rpOf = k => ({ mu: REGIMES[k].mu, vol: REGIMES[k].vol, tilt: REGIMES[k].ti
 function drawNext(k) { const n = REGIMES[k].next, u = Math.random(); let a = 0; for (const key in n) { a += n[key]; if (u < a) return key; } return Object.keys(n)[0]; }
 function startRegime(k, silent) {
   const R = REGIMES[k], prev = M.reg ? M.reg.k : null, days = R.dur[0] + Math.floor(Math.random() * (R.dur[1] - R.dur[0] + 1));
-  M.reg = { k, since: dayStart(M.t), until: addTradingDays(M.t, days) };
+  M.reg = { k, since: dayStart(M.t), until: addTradingDays(M.t, Math.round(days * 7 / 5)) }; // Dauer in Wochen gerechnet (früher 5 Handelstage je Woche)
   M.rp = rpOf(k);
   if (M.sec) M.sec.nextReg = drawNext(k);
   if (!silent) {
@@ -183,7 +183,7 @@ export function payDividend(x, dps, q) {
 /* ---------- Sektor-Termine ---------- */
 function maybeScheduleSector() {
   const pending = M.events.filter(e => !e.done && e.kind === 'sector');
-  if (pending.length >= 2 || Math.random() > 0.3) return;
+  if (pending.length >= 2 || Math.random() > 0.3 * WK) return;
   const opts = SECTOR_EVENTS.filter(s => !pending.some(p => p.sector === s.sector)); if (!opts.length) return;
   const s = pick(opts), d = addTradingDays(M.t, 2 + Math.floor(Math.random() * 4)), ev = { id: M.nseq, kind: 'sector', sector: s.sector, title: s.title, t: at(d, 15, 0), done: false };
   M.events.push(ev);
@@ -200,7 +200,7 @@ function resolveSector(ev) {
 
 /* ---------- Gerüchte ---------- */
 function maybeRumor() {
-  if (Math.random() > 0.35 || M.sec.rumors.length >= 3) return;
+  if (Math.random() > 0.35 * WK || M.sec.rumors.length >= 3) return;
   const cands = byCls('stock').filter(x => !M.sec.rumors.some(r => r.id === x.id)); if (!cands.length) return;
   const x = pick(cands), today = dayStart(M.t);
   M.sec.rumors.push({ id: x.id, tpl: Math.floor(Math.random() * RUMORS.length), truth: Math.random() < 0.4, at: today + (9 * 60 + Math.floor(Math.random() * 660)) * MIN, res: at(addTradingDays(M.t, 1 + Math.floor(Math.random() * 3)), 9 + Math.floor(Math.random() * 10), Math.floor(Math.random() * 60)), out: false, mv: 0 });

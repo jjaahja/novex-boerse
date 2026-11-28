@@ -3,7 +3,7 @@
 //
 // Sparsam für den Cloudflare-Free-Plan:
 // - WebSockets im Hibernation-Modus: offene Tabs halten das Objekt nicht wach, Pings beantwortet Cloudflare selbst.
-// - Live-Takt nur zu Börsenzeiten und nur, wenn jemand online ist. Nachts/am Wochenende schläft das Objekt bis zur Eröffnung.
+// - Live-Takt nur zu Börsenzeiten (täglich 08–22 Uhr) und nur, wenn jemand online ist. Nachts schläft das Objekt bis zur Eröffnung.
 // - Gespeichert wird nur, was sich geändert hat; Kerzen in wenigen großen Zeilen statt einer pro Wertpapier.
 // - Ein Nutzungszähler (Anfragen, geschriebene Zeilen) drosselt Takt und Speicherhäufigkeit, bevor ein Tageslimit erreicht wird.
 import { DurableObject } from 'cloudflare:workers';
@@ -428,7 +428,7 @@ export class Exchange extends DurableObject {
       else if (t === 'fund') err = E.placeFundOrder(A, String(b.iid), b.side, n(b.val));
       else if (t === 'cancel') err = E.cancelOrder(A, n(b.id));
       else if (t === 'deriv') err = E.openDeriv(A, { kind: b.kind, und: String(b.und), dir: n(b.dir), lev: n(b.lev), cp: b.cp, exp: n(b.exp), K: n(b.K), cfdLev: n(b.cfdLev), fac: n(b.fac), budget: n(b.budget), margin: n(b.margin), sl: n(b.sl), tp: n(b.tp) });
-      else if (t === 'close') err = E.M.isOpen ? E.closeDeriv(A, n(b.pid), n(b.frac)) : 'Hebelprodukte sind nur zu Börsenzeiten handelbar (Mo–Fr 08:00–22:00).';
+      else if (t === 'close') err = E.M.isOpen ? E.closeDeriv(A, n(b.pid), n(b.frac)) : 'Hebelprodukte sind nur zu Börsenzeiten handelbar (täglich 08:00–22:00).';
       else if (t === 'drip') err = E.setDrip(A, !!b.on);
       else if (t === 'credit') err = E.setCredit(A, !!b.on);
       else if (t === 'plan') err = E.addPlan(A, { iid: String(b.iid), amt: n(b.amt), freq: b.freq, day: n(b.day) });

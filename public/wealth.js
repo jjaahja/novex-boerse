@@ -99,7 +99,7 @@ export function quoteExchange(from, to, amt) {
   const Q = amt / pair.price, r = avgRatio(pair, 1, Q); return { ccy, pair, dir: 1, Q, got: amt / (pair.price * r), rate: pair.price * r };
 }
 export function exchange(A, from, to, amt) {
-  if (!M.isOpen) return 'Währungen tauschst du zu Börsenzeiten (Mo–Fr 08:00–22:00).';
+  if (!M.isOpen) return 'Währungen tauschst du zu Börsenzeiten (täglich 08:00–22:00).';
   if (!((from === 'EUR' && CCYS.includes(to)) || (to === 'EUR' && CCYS.includes(from)))) return 'Getauscht wird zwischen Euro und USD, CHF oder GBP.';
   if (!okNum(amt, 10, 1e12)) return 'Mindestbetrag: 10.';
   const q = quoteExchange(from, to, amt); if (!q) return 'Kein Kurs verfügbar.';

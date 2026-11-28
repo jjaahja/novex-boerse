@@ -20,7 +20,7 @@ export { PRICE, GROWTH, TRIAL, PIPE, SAL_MAX };
 export const vm = v => BIZ_MODELS[v.model];
 export const vstage = v => VENTURE_STAGES[v.stage];
 // Dauer eines Startup-Quartals in Handelstagen: Phase × Branchentempo ab dem Scale-Up (Hardware, Energie und Pharma haben längere Zyklen)
-export const qDays = v => v.status === 'public_listed' ? 63 : Math.max(3, Math.round(vstage(v).qd * (v.stage >= 2 || vm(v).trial ? vm(v).pace || 1 : 1))); // Garage & Traction: wöchentliches Board-Meeting (Pharma folgt dem Studienkalender)
+export const qDays = v => v.status === 'public_listed' ? 91 : Math.max(4, Math.round(vstage(v).qd * (v.stage >= 2 || vm(v).trial ? vm(v).pace || 1 : 1))); // Garage & Traction: wöchentliches Board-Meeting (Pharma folgt dem Studienkalender)
 const qName = qi => `Q${qi % 4 + 1} J${Math.floor(qi / 4) + 1}`;
 
 /* ---------- Kennzahlen (Browser und Server) ---------- */
@@ -94,7 +94,7 @@ export function found(A, b) {
     hyper: { on: false, since: 0 }, cap: m.cap ? { level: 1, building: 0, qLeft: 0, cost: m.cap.cost } : null, trial: m.trial ? { phase: 0, prog: 0 } : null, rdSum: 0,
     tamBase: sectorRev(m.sector), rivals, w, lost: {}, lastShare: 0, capt: { founder: 1, esop: 0, inv: [] }, execs: {}, fx: [], inbox: [], q: [], cur: blankCur(), board: 70, rounds: [], target: null, seq: 1, news: 0 };
   addNews(`Neues Startup: ${name} will den Markt für ${m.sub} aufmischen`, 0, rivals.slice(0, 2), { cat: 'company', sub: `Gegründet von ${A.name} mit ${fmtE(amt, 0)} Startkapital. Gegner sind etablierte Konzerne wie ${rivals.map(id => I(id).name).slice(0, 2).join(' und ')}.` });
-  ENV.note(A, `${name} ist gegründet! Erstes Board-Meeting in ${qDays(A.venture)} Handelstagen.`, 'tier'); ENV.event(A, 'founder'); ENV.dirty(A); return null;
+  ENV.note(A, `${name} ist gegründet! Erstes Board-Meeting in ${qDays(A.venture)} Tagen.`, 'tier'); ENV.event(A, 'founder'); ENV.dirty(A); return null;
 }
 const blankCur = () => ({ rev: 0, gross: 0, opex: 0, mkt: 0, rd: 0, capex: 0, newC: 0, churnC: 0, days: 0 });
 const own = A => { const v = A.venture; return v && v.status === 'private_startup' ? v : null; };

@@ -34,7 +34,7 @@ Ein gemeinsamer, in Echtzeit laufender Markt mit erfundenen Unternehmen (Mvidia,
 - **Absicherung & Auto-Orders:** Stop-Loss, Take-Profit und Trailing-Stop lassen sich nachträglich für Aktien, ETFs, Anleihen, Hebelprodukte und Fremdwährung einrichten. Teilmengen und OCO sind möglich. Zielkurs, Abstand und erwarteter Gewinn sind live verknüpft, die Linien erscheinen im Chart.
 - **Ventures – eigenes Startup:**
   - Gründung ab 2.500 € in sechs Geschäftsmodellen: SaaS, B2C-Plattform, Fintech, DeepTech, CleanTech, Biotech. Hyperscaling ist nur bei digitalen Modellen möglich, physische wachsen über CapEx und Patente.
-  - Autopilot im Tagesgeschäft, Board-Meeting jedes Startup-Quartal (5 Handelstage, rund um den Börsengang langsamer), ruhige Entscheidungs-Inbox.
+  - Autopilot im Tagesgeschäft, Board-Meeting jedes Startup-Quartal (eine Woche, rund um den Börsengang langsamer), ruhige Entscheidungs-Inbox.
   - Unit Economics: CAC, LTV, Churn, Product-Market Fit, Burn, Runway.
   - Unterschiedlich lange Wege zur Börse: B2C und Fintech schnell (ca. 3–4 Monate), SaaS mittel, DeepTech und CleanTech länger (Fabriken, Anlagen), Biotech lang und riskant (Studien mit Mindestdauer, Wirkstoffe können scheitern).
   - Pleite durch Fehlentscheidungen möglich: verfrühtes Hyperscaling, aggressives Tempo ohne Unit Economics, zu früher Kapazitätsausbau (laufende Anlagenkosten), ignorierte Inbox. Bestandsinvestoren bieten notfalls eine teure Brückenfinanzierung an.
@@ -151,19 +151,19 @@ Die Börse ist auf die Tageslimits des kostenlosen Plans für Durable Objects au
 
 So wird gespart:
 - **Schlafen statt Warten:** WebSockets laufen im Hibernation-Modus. Offene Tabs halten den Server nicht wach, Pings beantwortet Cloudflare selbst.
-- **Takt nur bei Bedarf:** Live-Kurse alle 5 Sekunden gibt es nur zu Börsenzeiten und nur, wenn jemand online ist. Nach Börsenschluss schläft der Server bis zur nächsten Eröffnung; ein Wochenende kostet 1 Anfrage.
+- **Takt nur bei Bedarf:** Live-Kurse alle 5 Sekunden gibt es nur zu Börsenzeiten und nur, wenn jemand online ist. Nach Börsenschluss (22:00) schläft der Server bis zur Eröffnung am nächsten Morgen; eine Nacht kostet 1 Anfrage.
 - **Hintergrund-Tabs trennen sich** nach 2 Minuten und verbinden sich beim Zurückkehren neu. Pro Spieler sind höchstens 3 Tabs gleichzeitig verbunden.
 - **Sparsam speichern:** Gespeichert wird nur Geändertes. Der Marktzustand wird jede Minute gesichert, nach jedem Trade sofort. Kerzen alle 15 Minuten in 6 großen Zeilen statt 51 kleinen.
 - **Nachholen in groben Schritten:** War niemand online, rechnet der Server verpasste Zeit in 5- bzw. 15-Minuten-Schritten nach.
 - **Selbstbremse:** Ab 50 % des Tageskontingents wird der Takt langsamer (15 s, dann 60 s, dann 5 min) und es wird seltener gespeichert.
 
-Gemessener Verbrauch, wenn den ganzen Handelstag (14 Stunden) jemand online ist:
+Gemessener Verbrauch, wenn den ganzen Handelstag (14 Stunden) jemand online ist. Die Limits gelten pro Tag; weil die Börse jetzt täglich öffnet, verbraucht ein Samstag oder Sonntag mit Spielern genauso viel wie ein Werktag – am Tageslimit ändert das nichts:
 
 | | pro Stunde | pro Handelstag | Anteil am Free-Limit |
 |---|---|---|---|
 | Anfragen | ca. 720 | ca. 10.000 | ca. 10 % |
 | Geschriebene Zeilen | ca. 800 | ca. 11.000 | ca. 11 % |
-| Wochenende / Nacht | – | 1 | – |
+| Nacht (22:00–08:00) | – | 1 | – |
 
 Dazu kommen pro Spieler einige Dutzend Anfragen für Anmelden, Orders und Seitenaufrufe. Statische Dateien (HTML, JavaScript) zählen nicht mit.
 
@@ -189,7 +189,7 @@ Dazu kommen pro Spieler einige Dutzend Anfragen für Anmelden, Orders und Seiten
 - `src/worker.js`: Worker und Durable Object `Exchange`. Es enthält Konten, Sitzungen, Zentralbank, Wochenliga und Echtzeit-Verteilung per WebSocket (alle 5 Sekunden, nur solange jemand online ist).
 
 **Markt:**
-- Läuft in Berliner Echtzeit: Mo–Fr 08:00–22:00 Uhr, an Feiertagen geschlossen.
+- Läuft in Berliner Echtzeit: jeden Tag 08:00–22:00 Uhr, auch am Wochenende und an Feiertagen. Kursschwankungen, Konjunktur und Ereignisse sind auf 365 Handelstage im Jahr umgerechnet, damit das Tempo im Kalender gleich bleibt.
 - Fonds werden um 17:30 Uhr abgerechnet.
 
 **Sicherheit:**
