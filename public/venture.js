@@ -11,7 +11,7 @@ const GROWTH = { lean: 0.12, normal: 0.25, aggressive: 0.45 };
 const RD_NEED = { saas: 8000, b2c: 6000, fintech: 10000, deeptech: 16000, cleantech: 16000, biotech: 0 };
 const OPEX_K = [0.40, 0.40, 0.33, 0.28]; // Team- und Verwaltungskosten in % vom Rohertrag je Phase (margenschwache Modelle haben schlankere Teams)
 const TRIAL = [{ name: 'Präklinik', cost: 6000, p: 0.75, minQ: 2 }, { name: 'Phase I', cost: 60000, p: 0.7, minQ: 3 }, { name: 'Phase II', cost: 600000, p: 0.65, minQ: 5 }, { name: 'Phase III & Zulassung', cost: 4000000, p: 0.75, minQ: 6 }]; // minQ: Mindestdauer in Quartalen – Studien lassen sich nicht beliebig beschleunigen
-const PIPE = [500000, 8000000, 250000000, 4000000000];                // Bewertung der Wirkstoff-Pipeline je erreichter Studienphase
+const PIPE = [500000, 8000000, 300000000, 6500000000];                // Bewertung der Wirkstoff-Pipeline je erreichter Studienphase
 const TICKET = [0.3, 0.6, 1, 1.3];                                  // erst kleine Kunden (Mittelstand), später Konzerne
 const SAL_MAX = [800, 2500, 10000, 30000];                          // marktübliches Gründergehalt je Quartal und Phase (mehr akzeptieren die Investoren nicht)
 export const salaryOf = v => Math.min(v.salary || 0, SAL_MAX[Math.min(v.stage, 3)]);
