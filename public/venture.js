@@ -5,12 +5,14 @@ import { M, hook, ENV, I, addNews, setWhy, book, availCash, applyTrade, addStock
 import { PRODUCT_TREE, RADAR, FOCUS, NODE_STEPS, NODE_COST, BIZ_MODELS, VENTURE_STAGES, VENTURE_MIN, VENTURE_SHARES, IPO_MIN_QUARTERS, EXECS, EXEC_PAY, EXEC_ESOP, VC_ROUNDS, VC_NAMES, CAMPAIGNS, SECTOR_SENS } from './data.js';
 import { sectorRev, peerPS, rivalsOf, rivalProfile, rateFactor } from './company.js';
 import { addTradingDays, scheduleReport, payDividend, qLabel } from './events.js';
+import { totals, derivValue } from './engine.js';
+import { RELEASE, REACTIONS, launchResolve, releaseSeed, exposure, complianceHit, COMPLIANCE, BANDS, bookbuild, OFFICE, archetype, ARCH, SUPPLY, STAKE_MIN, rng as prng } from './venture-play.js';
 
 const PRICE = { low: { arpu: 0.8, conv: 1.3, churn: 0.85, name: 'Günstig' }, normal: { arpu: 1, conv: 1, churn: 1, name: 'Marktüblich' }, premium: { arpu: 1.25, conv: 0.7, churn: 1.2, name: 'Premium' } };
 const GROWTH = { lean: 0.12, normal: 0.25, aggressive: 0.45 };
 const RD_NEED = { saas: 8000, b2c: 6000, fintech: 10000, deeptech: 16000, cleantech: 16000, biotech: 0 };
 const OPEX_K = [0.40, 0.40, 0.33, 0.28]; // Team- und Verwaltungskosten in % vom Rohertrag je Phase (margenschwache Modelle haben schlankere Teams)
-const TRIAL = [{ name: 'Präklinik', cost: 6000, p: 0.75, minQ: 2 }, { name: 'Phase I', cost: 60000, p: 0.7, minQ: 3 }, { name: 'Phase II', cost: 600000, p: 0.65, minQ: 5 }, { name: 'Phase III & Zulassung', cost: 4000000, p: 0.75, minQ: 6 }]; // minQ: Mindestdauer in Quartalen – Studien lassen sich nicht beliebig beschleunigen
+const TRIAL = [{ name: 'Präklinik', cost: 6000, p: 0.75, minQ: 2 }, { name: 'Phase I', cost: 60000, p: 0.7, minQ: 2 }, { name: 'Phase II', cost: 600000, p: 0.65, minQ: 3 }, { name: 'Phase III & Zulassung', cost: 4000000, p: 0.75, minQ: 4 }]; // minQ: Mindestdauer in Quartalen – Studien lassen sich nicht beliebig beschleunigen
 const PIPE = [500000, 8000000, 300000000, 6500000000];                // Bewertung der Wirkstoff-Pipeline je erreichter Studienphase
 const TICKET = [0.3, 0.6, 1, 1.3];                                  // erst kleine Kunden (Mittelstand), später Konzerne
 const SAL_MAX = [800, 2500, 10000, 30000];                          // marktübliches Gründergehalt je Quartal und Phase (mehr akzeptieren die Investoren nicht)
@@ -38,8 +40,8 @@ export function unit(v) {
   const cac = m.cac * ticket * tf.cac * (ex(v, 'growth').cac || 1) * fxOf(v, 'cac') * net * (1 + 2 * Math.max(0, sh - 0.5)) / (0.45 + 0.55 * v.pmf) / (m.sens.cons > 0.5 ? confF : 1);
   const prem = v.hyper && v.hyper.on && !hyperReady(v);
   const churn = clamp(m.churn * P.churn * tf.churn * (ex(v, 'growth').churn || 1) * fxOf(v, 'churn') * (1.5 - 0.8 * v.pmf) * (1.3 - 0.3 * v.quality) * (1 - 0.3 * m.moat * clamp(v.arr / 2e7, 0, 1)) * (prem ? 2.6 : 1), 0.005, 0.6);
-  const gm = clamp(m.gm + tf.gm + 0.02 * synergy(v) - complexity(v) + (ex(v, 'coo').gm || 0) + (m.hyper ? 0 : 0.15 * clamp(v.arr / 5e7, 0, 1)) - m.sens.tar * tar / 100 * 0.5 * (v.tarShield ? 0.2 : 1) - (v.reg && v.reg.until > v.qi ? 0.04 : 0), 0.05, 0.92);
-  return { arpu, arpuNew, priceF, ticket, cac, churn, gm, ltv: arpuNew / 4 * gm / churn, ratio: cac > 0 ? arpuNew / 4 * gm / churn / cac : 0, share: sh, conv: m.conv * P.conv * tf.conv * effOf(v).conv * Math.min(1, 0.45 + 0.12 * v.qi + 0.3 * v.pmf) };
+  const gm = clamp(m.gm + tf.gm + 0.02 * synergy(v) - complexity(v) + (ex(v, 'coo').gm || 0) + (m.hyper ? 0 : 0.15 * clamp(v.arr / 5e7, 0, 1)) - m.sens.tar * tar / 100 * 0.5 * (v.tarShield ? 0.2 : 1) - (v.reg && v.reg.until > v.qi ? 0.04 : 0) - ((v.fx || []).some(e => e.k === 'gmcut' && e.until > v.qi) ? 0.1 : 0), 0.05, 0.92);
+  return { arpu, arpuNew, priceF, ticket, cac, churn, gm, ltv: arpuNew / 4 * gm / churn, ratio: cac > 0 ? arpuNew / 4 * gm / churn / cac : 0, share: sh, conv: m.conv * P.conv * tf.conv * effOf(v).conv * officeOf(v).conv * Math.min(1, 0.45 + 0.12 * v.qi + 0.3 * v.pmf) };
 }
 // Preisniveau (Regler 0,8–1,3): höherer Preis = mehr Umsatz je Kunde, weniger Abschlüsse, etwas mehr Kündigungen
 const PL = { low: 0.85, normal: 1, premium: 1.2 };
@@ -56,9 +58,9 @@ const cashMix = e => e.mix !== undefined ? e.mix : e.esop ? 1 : 0; // Anteil der
 // Quartalskosten (Team, Infrastruktur, Führungskräfte) – ohne Marketing und F&E
 export function opexQ(v) {
   let base = (900 * (1 + v.stage) + OPEX_K[Math.min(v.stage, 3)] * v.arr / 4 * unit(v).gm) * (ex(v, 'cfo').opex || 1) * (ex(v, 'coo').opex || 1); // wächst mit dem Geschäft, ohne Sprung beim Phasenwechsel
-  for (const r in v.execs || {}) base += EXEC_PAY[Math.min(v.stage, 3)] * EXECS[r].a.find(a => a.k === v.execs[r].k).pay * (v.execs[r].pf || 1) * (1 - cashMix(v.execs[r]));
+  for (const r in v.execs || {}) base += EXEC_PAY[Math.min(v.stage, 3)] * EXECS[r].a.find(a => a.k === v.execs[r].k).pay * (v.execs[r].pf || 1) * officeOf(v).talent * (1 - cashMix(v.execs[r]));
   const tf = treeFx(v), integ = (v.clk || []).some(c => c.k === 'int') ? 1.1 : 1; // Tech Debt, Fehlentwicklungen am Markt vorbei und Integrationen kosten laufend
-  return base * effOf(v).opex * tf.opex * (1 + 0.3 * (v.debt || 0)) * (1 + 0.03 * (v.miss || 0)) * integ + hyperTeam(v) + capOpex(v) + salaryOf(v);
+  return officeOf(v).opex + base * effOf(v).opex * tf.opex * (1 + 0.3 * (v.debt || 0)) * (1 + 0.03 * (v.miss || 0)) * integ + hyperTeam(v) + capOpex(v) + salaryOf(v);
 }
 // Wachstumsbudget: wird beim Board-Meeting (oder bei Strategiewechsel) aus der Kasse festgelegt und dann im Quartal ausgegeben – auch wenn die Kasse schrumpft
 export const budgetRate = v => { const r = ratesOf(v); return Math.min(0.95, (r.s + r.r) * (v.hyper && v.hyper.on ? 3 : 1)); };
@@ -83,7 +85,7 @@ export function valuation(v) {
   let V = v.arr * mult;
   if (m.trial && v.trial && v.trial.phase < 4) V = Math.max(V, PIPE[v.trial.phase] * (0.5 + v.pmf) * clamp(0.3 + v.trial.prog, 0.3, 1.3) * rateFactor(m.sens.rate));
   V += (v.pat || []).reduce((s, p) => s + p.v * p.d / p.D, 0) * rateFactor(m.sens.rate); // befristete Patente (Erstanmelder, nicht verlängerbar)
-  return Math.max(V, Math.max(0, v.cash) + (v.cap ? v.cap.level * m.cap.cost * 0.4 : 0));
+  return Math.max(V, Math.max(0, v.cash) + (v.cap ? (v.cap.level - 1) * m.cap.cost * 0.4 : 0)); // nur selbst gebaute Kapazität zählt als Substanz
 }
 export const founderPct = v => v.capt ? v.capt.founder : 1;
 // Anrechnung im Nettovermögen (illiquide, mit Abschlag je Phase) und als Kreditsicherheit
@@ -100,11 +102,12 @@ export function found(A, b) {
   const name = String(b.name || '').trim().replace(/\s+/g, ' ').slice(0, 28); if (name.length < 2) return 'Bitte einen Namen (2–28 Zeichen) angeben.';
   const amt = Number(b.amt); if (!(amt >= VENTURE_MIN)) return `Startkapital: mindestens ${fmtE(VENTURE_MIN, 0)}.`;
   if (amt > availCash(A) + 1e-6) return `Nicht genug Guthaben (verfügbar ${fmtE(Math.max(0, availCash(A)))}).`;
-  A.cash -= amt; book(A, 'venture', -amt, `Gründung ${name}`);
+  const nw0 = totals(A).total; A.cash -= amt; book(A, 'venture', -amt, `Gründung ${name}`);
   const rivals = rivalsOf(m.sector).map(x => x.id), w = {}; let tot = 0; for (const id of rivals) { const x = I(id); tot += x.fin.rev; } for (const id of rivals) w[id] = tot > 0 ? I(id).fin.rev / tot : 1 / rivals.length;
   A.venture = { status: 'private_startup', name, model: b.model, sector: m.sector, t0: M.t, stage: 0, qi: 0, day: 0, cash: amt, invested: amt, customers: 0, arr: 0, pmf: m.trial ? 0.35 : 0.25, quality: 1, price: 'normal', growth: 'normal', rd: m.trial ? 0.8 : 0.5, salary: 0,
     hyper: { on: false, since: 0 }, cap: m.cap ? { level: 1, building: 0, qLeft: 0, cost: m.cap.cost } : null, trial: m.trial ? { phase: 0, prog: 0 } : null, rdSum: 0,
     tamBase: sectorRev(m.sector), rivals, w, lost: {}, lastShare: 0, capt: { founder: 1, esop: 0, inv: [] }, execs: {}, fx: [], inbox: [], q: [], cur: blankCur(), board: 70, rounds: [], target: null, seq: 1, news: 0 };
+  A.venture.bm = { nw0: r2(nw0), ix0: M.inst.WELTIX ? M.inst.WELTIX.price : 0 }; A.venture.rel = { n: 0, next: 8 }; A.venture.off = 0; A.venture.cpl = 0;
   migrate(A.venture); A.venture.shk = drawShock(A.venture); A.venture.plan = planOf(A.venture);
   addNews(`Neues Startup: ${name} will den Markt für ${m.sub} aufmischen`, 0, rivals.slice(0, 2), { cat: 'company', sub: `Gegründet von ${A.name} mit ${fmtE(amt, 0)} Startkapital. Gegner sind etablierte Konzerne wie ${rivals.map(id => I(id).name).slice(0, 2).join(' und ')}.` });
   note(A, `${name} ist gegründet! Erstes Board-Meeting in ${qDays(A.venture)} Tagen.`, 'tier'); ENV.event(A, 'founder'); ENV.dirty(A); return null;
@@ -209,7 +212,7 @@ export function buildCapacity(A) {
   v.cash -= cost; v.cur.capex += cost; v.capexSum = (v.capexSum || 0) + cost; v.cap.building = 1; v.cap.qLeft = Math.max(1, m.cap.q + (ex(v, 'coo').capQ || 0)); clockAdd(v, { k: 'cap', s: 0, S: v.cap.qLeft * qDays(v) }); v.plan = planOf(v);
   note(A, `Kapazitätsausbau gestartet (${fmtE(cost, 0)}${sub ? ', 30 % Förderung' : ''}) – fertig in ${v.cap.qLeft} Quartal${v.cap.qLeft > 1 ? 'en' : ''}.`, 'up'); ENV.dirty(A); return null;
 }
-export const capCost = v => vm(v).cap ? r2(vm(v).cap.cost * Math.pow(1.9, v.cap.level - 1) * (subsidyActive(v) ? 0.7 : 1) * (1 - 0.1 * synergy(v))) : 0;
+export const capCost = v => vm(v).cap ? r2(vm(v).cap.cost * Math.pow(1.9, v.cap.level - 1) * (subsidyActive(v) ? 0.7 : 1) * (1 - 0.1 * synergy(v)) * (v.sb && v.sb.cap ? 0.85 : 1)) : 0;
 export const capacity = v => { const m = vm(v); return m.cap ? v.cap.level * m.cap.unit * (ex(v, 'coo').capU || 1) * treeFx(v).capU * (1 - (v.cap.wear || 0)) * Math.pow(1.6, v.cap.level - 1) : Infinity; };
 function subsidyActive(v) { const m = vm(v); return !!(m.subsidy && M.mac && M.mac.stim > 0.3); }
 export function hire(A, b) {
@@ -274,7 +277,7 @@ function sprintDone(A, v, s) {
       if (s.sub === 'poach') { v.pmf = clamp(v.pmf + 0.06 * g, 0, 1); if (x) x.padj = (x.padj || 0) - 0.01 * g; }
       if (s.sub === 'patent') { v.fx.push({ k: 'churn', m: 1 - 0.2 * g, until: U, camp: 1 }); if (x) x.padj = (x.padj || 0) - (vm(v).moat > 0.5 ? 0.03 : 0.01) * g; }
       if (s.sub === 'pr') { v.fx.push({ k: 'cac', m: 1 - 0.25 * g, until: U, camp: 1 }); v.pr = 0.1 * g; }
-      v.target2 = s.r; const C = CAMPAIGNS[s.sub];
+      v.target2 = s.r; const C = CAMPAIGNS[s.sub]; if (x) { const j = -0.015 * g; x.f *= Math.exp(j); x.price = x.f * Math.exp(x.tr); setWhy(x, `${pct(j, 1)} – Attacke von ${v.name}`, j); recomputeDerived(); } compliance(A, v, true);
       if (x) addNews(`${v.name} ${ok ? 'trifft' : 'attackiert'} ${x.name}: ${C.name}`, 0, [x.id], { cat: 'company', sub: C.desc });
       chron(v, `${C.name} gegen ${x ? x.name : 'Rivalen'} ${ok ? 'voll erfolgreich' : 'mit halber Wirkung'}.`, ok ? 'up' : '');
     }
@@ -324,12 +327,13 @@ function daily(A, v, before) {
   v.focus = Math.min(FOCUS.max, (v.focus || 0) + focusRegen(v));
   const rdDay = v.cur.rd - before.rd;
   for (const c of [...v.clk]) {
-    if (c.k === 'node') { const step = NODE_COST[c.t] * nodeScale(v) / NODE_STEPS[c.t]; c.s = Math.min(c.S, c.s + Math.min(1, step > 0 ? rdDay / step : 1)); }
+    if (c.k === 'node') { const step = NODE_COST[c.t] * nodeScale(v) / NODE_STEPS[c.t]; c.s = Math.min(c.S, c.s + Math.min(1, step > 0 ? rdDay / step : 1) * nodeSpeed(v)); }
     else c.s = Math.min(c.S, c.s + 1);
     if (c.s >= c.S - 1e-9) { v.clk.splice(v.clk.indexOf(c), 1); clockDone(A, v, c); }
   }
   for (const p of v.pat || []) p.d--; if (v.pat) v.pat = v.pat.filter(p => p.d > 0);
   if (v.hyper && v.hyper.on && Math.random() < 0.03 * (v.debt || 0)) { v.customers *= 0.97; v.quality = clamp(v.quality - 0.03, 0.3, 1.15); chron(v, `Ausfall unter Last: Technische Schuld ${Math.round(v.debt * 100)} % – 3 % der Kunden gehen, Qualität −3.`, 'dn'); }
+  play(A, v);
   v.last = [Math.round((v.cur.newC - before.newC) * 10) / 10, Math.round(v.arr - before.arr), Math.round(v.cash - before.cash)]; // Tages-Puls: Neukunden, ΔARR, ΔKasse
 }
 function clockDone(A, v, c) {
@@ -338,7 +342,9 @@ function clockDone(A, v, c) {
     const hit = N.tags.some(t => (v.radar || []).includes(t)); if (hit) { v.hits = (v.hits || 0) + 1; v.pmf = clamp(v.pmf + 0.05, 0, 1); } else v.miss = (v.miss || 0) + 1;
     if (N.fx.pat) { const D = 120; (v.pat = v.pat || []).push({ k: c.n, n: N.name, d: D, D, v: N.fx.pat * (1 + v.stage) }); if (v.pat.length > 3) v.pat.shift(); }
     if (v.trial) v.pmf = clamp(v.pmf + 0.03, 0, 1);
-    addInbox(v, { k: 'launch', title: `${N.name} ist fertig – wie launchen?`, text: `Die Entwicklung ist abgeschlossen${hit ? ' und trifft ein aktuelles Marktsignal (PMF +5)' : ' – sie trifft gerade kein Marktsignal, das kostet laufend etwas Fixkosten'}.`, opts: [{ k: 'silent', label: 'Silent Beta' }, { k: 'keynote', label: 'Keynote-Launch' }], def: 0, data: { n: c.n } });
+    v.rel = v.rel || { n: 0, next: (v.age || 0) + 3 }; v.rel.major = c.n; v.rel.next = Math.min(v.rel.next, (v.age || 0) + 1); // fertiger Knoten → großer Launch im nächsten Release-Fenster
+    for (const id of v.rivals) { const x = I(id); if (x && archetype(rivalProfile(x).k) === 'follower') { (v.cp = v.cp || []).push({ r: id, at: (v.age || 0) + 21 + Math.floor(Math.random() * 8), n: c.n }); if (v.cp.length > 3) v.cp.shift(); } }
+    if (0) addInbox(v, { k: 'launch', title: `${N.name} ist fertig – wie launchen?`, text: `Die Entwicklung ist abgeschlossen${hit ? ' und trifft ein aktuelles Marktsignal (PMF +5)' : ' – sie trifft gerade kein Marktsignal, das kostet laufend etwas Fixkosten'}.`, opts: [{ k: 'silent', label: 'Silent Beta' }, { k: 'keynote', label: 'Keynote-Launch' }], def: 0, data: { n: c.n } });
     note(A, `${N.name} fertig${N.fx.pat ? ` – Patent angemeldet (${fmtE(N.fx.pat * (1 + v.stage), 0)}, 120 Tage)` : ''}.`, 'up');
   } else if (c.k === 'cap') { v.cap.level++; v.cap.building = 0; v.cap.wear = 0; note(A, `${v.name}: Neue Kapazität ist in Betrieb (Stufe ${v.cap.level}).`, 'up'); }
   else if (c.k === 'int') chron(v, `Integration abgeschlossen – die Organisation läuft wieder normal.`, 'up');
@@ -348,7 +354,7 @@ function clockDone(A, v, c) {
 export function focusQuote(v, b) {
   const C = FOCUS.cost, op = b.op;
   if (op === 'node') { const t = Number(b.t), N = nodeOf(v, t, b.n); if (!N) return { err: 'Unbekannter Produktknoten.' };
-    const mvp = b.m === 'mvp', S = Math.max(2, Math.round(NODE_STEPS[t] * (mvp ? 0.5 : 1))); return { f: mvp ? C.mvp : C.clean, S, cost: r2(NODE_COST[t] * nodeScale(v) * (mvp ? 0.5 : 1)), debt: mvp ? 0.15 : 0, N }; }
+    const mvp = b.m === 'mvp', S = Math.max(2, Math.round(NODE_STEPS[t] * (mvp ? 0.5 : 1))); return { f: mvp ? C.mvp : C.clean, S, cost: 0, budget: r2(NODE_COST[t] * nodeScale(v) * (mvp ? 0.5 : 1)), debt: mvp ? 0.15 : 0, N }; } // bezahlt wird über das laufende Entwicklungsbudget
   if (op === 'push') return { f: C.push };
   if (op === 'refactor') return { f: C.refactor, cost: r2(Math.max(200, spendQ(v) * rdShare(v) * 0.1)), debt: -0.15 };
   if (op === 'ab') return { f: C.ab, cost: r2(Math.max(150, spendQ(v) * (1 - rdShare(v)) * 0.05)), p: 0.65 };
@@ -378,6 +384,7 @@ export function vFocus(A, b) {
   else if (op === 'audit' || op === 'attack') {
     if (v.clk.some(c => c.k === (op === 'attack' ? 'atk' : 'audit'))) return 'Läuft bereits.';
     if (op === 'attack' && !v.rivals.includes(b.rival)) return 'Bitte einen Rivalen wählen.';
+    if (op === 'attack') watch(A, v, b.rival);
     clockAdd(v, { k: op === 'attack' ? 'atk' : 'audit', sub: b.sub, r: b.rival, s: 0, S: op === 'attack' ? 3 : 3, p: Math.round(q.p * 100) / 100 });
     const x = op === 'attack' ? I(b.rival) : null; chron(v, `${op === 'attack' ? `${CAMPAIGNS[b.sub].name} gegen ${x ? x.name : 'Rivalen'}` : 'Kosten-Audit'} gestartet (Chance ~${Math.round(q.p * 100)} %).`, 'up');
   } else if (op === 'repath') {
@@ -423,6 +430,89 @@ export function negTermsOf(kind, st, d) {
   return { pay: clamp(1.15 - 0.3 * i - 0.08 * st.push, 0.6, 1.3), mix: st.mix };
 }
 export const negSeed = (v, salt) => (Number(salt) * 2654435761 + (v.t0 || 0) % 1e9 + (v.qi || 0) * 97) >>> 0;
+
+/* ==================== Startup 4.0: Releases, Cross-Play mit dem Depot, Rivalen-Archetypen, Ereignis-Deck, Büro ==================== */
+export const officeOf = v => OFFICE[v.off || 0];
+// Entwicklungstempo: Büro, Beteiligungen an Zulieferern, abgewanderte Schlüsselleute
+export const nodeSpeed = v => officeOf(v).speed * (v.sb && v.sb.rd ? 1.2 : 1) * ((v.slow || 0) > (v.age || 0) ? 0.7 : 1);
+const age = v => v.age || 0;
+// Operative Boni aus Depot-Beteiligungen (≥ 3 % an Zulieferern bzw. ≥ 5 % an Rivalen) – täglich neu bestimmt
+function stakes(A, v) {
+  const sup = SUPPLY[v.model] || [], sb = { cap: 0, rd: 0, calm: [], ids: [] };
+  for (const id in A.pos) { const x = I(id); if (!x || x.cls !== 'stock' || x.delisted) continue; const sh = A.pos[id].qty / x.shares;
+    if (v.rivals.includes(id) && sh >= 0.05) { sb.calm.push(id); sb.ids.push(id); } else if (sup.includes(x.sector) && sh >= STAKE_MIN) { sb.cap = 1; sb.rd = 1; sb.ids.push(id); } }
+  v.sb = sb.ids.length ? sb : null;
+}
+// Compliance: Exposure-Schnappschuss bei Ankündigung, Prüfung bei Umsetzung
+function watch(A, v, r) { if (r && I(r)) v.watch = { r, e: Math.round(exposure(A, r, derivValue)), d: age(v) }; }
+function compliance(A, v, against) {
+  const w = v.watch; v.watch = null; if (!w || !I(w.r)) return;
+  const hit = complianceHit(exposure(A, w.r, derivValue) - w.e, totals(A).total, against); if (hit < 1) return;
+  v.cpl = Math.min(100, (v.cpl || 0) + hit);
+  if (v.cpl >= 100) { const fine = r2(Math.max(1000, Math.max(0, A.cash) * COMPLIANCE.fine)); A.cash -= fine; ENV.collect && ENV.collect(fine); A.halt = M.t + COMPLIANCE.halt * DAY; v.cpl = 40;
+    book(A, 'fee', -fine, 'Bußgeld der Finanzaufsicht'); addNews(`Finanzaufsicht verhängt Bußgeld gegen Gründer von ${v.name}`, -1, [w.r], { cat: 'politics', sub: 'Verdacht auf Insiderhandel rund um eigene Unternehmensankündigungen. Handelsstopp für drei Tage.' });
+    note(A, `Insider-Verdacht: Bußgeld ${fmtE(fine, 0)} und ${COMPLIANCE.halt} Tage Handelsstopp für dein Depot.`, 'dn'); }
+}
+// Tägliche Spiel-Ereignisse (im open-Hook): Release-Fenster, Compliance-Abbau, Beteiligungen, Kopien, Leaks, Ereignis-Deck
+function play(A, v) {
+  if (v.status !== 'private_startup') return;
+  v.rel = v.rel || { n: 0, next: age(v) + 8 }; v.cpl = Math.max(0, (v.cpl || 0) - COMPLIANCE.decay);
+  stakes(A, v);
+  const open = v.inbox.find(i => i.k === 'release');
+  if (open && age(v) - open.data.d0 >= RELEASE.window) launch(A, v, open, { q: 2, s: 2, h: 2 }, [], true); // nicht entschieden → Standard-Launch
+  else if (!open && age(v) >= v.rel.next) {
+    const r = v.rivals.slice().sort((a, b) => (v.w[b] || 0) - (v.w[a] || 0))[v.rel.n % Math.max(1, v.rivals.length)], x = I(r), major = !!v.rel.major, N = major ? Object.values(PRODUCT_TREE[v.model]).flat().find(n => n.k === v.rel.major) : null;
+    addInbox(v, { k: 'release', title: `${major ? 'Major-Launch' : 'Feature-Release'}${N ? `: ${N.name}` : ''} gegen ${x ? x.name : 'den Markt'}`, text: `Release-Fenster offen: Verteile ${RELEASE.points} Fokus-Punkte auf Qualität, Skalierung und Hype, dann reagierst du live auf den Launch-Tag. Ohne Entscheidung startet der Launch in ${RELEASE.window} Tagen mit Standard-Einstellung.`, opts: [{ k: 'go', label: 'Standard-Launch jetzt' }], def: 0, data: { r, major: major ? 1 : 0, d0: age(v) } });
+    if (x) addNews(`${v.name} kündigt ${major ? 'großen Produktlaunch' : 'neues Feature'} an – ${x.name} unter Druck`, 0, [x.id], { cat: 'company', sub: `Der Launch soll Kunden von ${x.name} abwerben. Analysten erwarten Druck auf dessen Marktanteil.` });
+    watch(A, v, r); v.rel.major = null;
+  }
+  // Fast-Follower kopieren neue Produkte nach 3–4 Wochen – außer ein Burggraben schützt
+  for (const c of [...(v.cp || [])]) if (age(v) >= c.at) {
+    v.cp.splice(v.cp.indexOf(c), 1); const x = I(c.r); if (!x) continue; const node = (v.tree || []).find(n => n && n.k === c.n), moat = (v.pat || []).length > 0 || (node && node.m === 'clean' && v.quality > 0.95);
+    if (moat) { chron(v, `${x.name} scheitert beim Kopieren – euer Burggraben hält.`, 'up'); continue; }
+    v.pmf = clamp(v.pmf - 0.06, 0, 1); addNews(`${x.name} bringt Kopie des neuen ${v.name}-Produkts`, 0, [x.id], { cat: 'company', sub: 'Fast-Follower bauen erfolgreiche Funktionen in Wochen nach.' }); note(A, `${x.name} hat euer Produkt kopiert – PMF −6. Patente oder saubere Architektur mit hoher Qualität schützen.`, 'dn');
+  }
+  // Vertuschte Sicherheitslücke: der Whistleblower meldet sich
+  if (v.bomb && age(v) >= v.bomb.at) { const leak = Math.random() < 0.7; v.bomb = null;
+    if (leak) { v.down = (v.down || 1) * 0.7; v.board = clamp(v.board - 20, 0, 100); v.fx.push({ k: 'churn', m: 1.4, until: v.qi + 1 }); addNews(`Whistleblower: ${v.name} hat Sicherheitslücke vertuscht`, -1, [], { cat: 'company', sub: 'Interne Dokumente belegen, dass die Lücke bekannt war. Investoren und Kunden sind alarmiert.' }); note(A, 'Der Whistleblower-Leak ist da: Bewertung −30 %, Board −20, Kunden kündigen.', 'dn'); }
+    else chron(v, 'Die vertuschte Sicherheitslücke ist nie öffentlich geworden – Glück gehabt.', ''); }
+  // Ereignis-Deck: im Schnitt 1–2 Management-Entscheidungen pro Woche
+  if (v.inbox.filter(i => i.opts).length < 4 && Math.random() < 0.22) deck(A, v);
+}
+function deck(A, v) {
+  const has = k => v.inbox.some(i => i.k === k), cash = Math.max(0, v.cash), c = [];
+  if (!has('bomb') && !v.bomb && v.customers > 1) c.push(() => addInbox(v, { k: 'bomb', title: 'Sicherheitslücke entdeckt', text: 'Ein Entwickler findet eine Lücke, über die Kundendaten abfließen könnten. Sofort beheben kostet Geld und bremst die Entwicklung – vertuschen hält das Wachstum hoch.', opts: [{ k: 'fix', label: `Sofort beheben (~${fmtE(Math.max(300, cash * 0.08), 0)})` }, { k: 'cover', label: 'Stillschweigend weitermachen' }], def: 0, data: { c: r2(Math.max(300, cash * 0.08)) } }));
+  if (!has('talent') && Object.keys(v.execs || {}).length + (v.stage >= 1 ? 1 : 0) > 0) c.push(() => addInbox(v, { k: 'talent', title: 'Lead-Entwicklerin will mehr Anteile', text: `Sie hat ein Angebot von ${I(v.rivals[0]) ? I(v.rivals[0]).name : 'einem Rivalen'}. Ohne zusätzliche Mitarbeiteranteile geht sie – und die Entwicklung wird drei Wochen langsamer.`, opts: [{ k: 'esop', label: '0,6 % ESOP geben' }, { k: 'let', label: 'Gehen lassen' }], def: 1, data: {} }));
+  if (!has('partner') && v.customers > 5) c.push(() => addInbox(v, { k: 'partner', title: 'Vertriebspartner bietet Kooperation', text: 'Ein großer Partner würde dein Produkt mitverkaufen – gegen 10 Punkte Bruttomarge für zwei Quartale.', opts: [{ k: 'yes', label: 'Annehmen (+25 % Abschlüsse, −10 Pkt. Marge)' }, { k: 'no', label: 'Ablehnen' }], def: 1, data: {} }));
+  if (c.length) c[Math.floor(Math.random() * c.length)]();
+}
+// Launch abschließen: Fokus-Verteilung + Reaktionen → Kunden, Qualität, PMF, Rivale verliert Anteile; Compliance-Prüfung
+export function vLaunch(A, b) {
+  const v = own(A); if (!v) return 'Kein laufendes Startup.'; const it = v.inbox.find(i => i.id === Number(b.id) && i.k === 'release'); if (!it) return 'Kein offenes Release-Fenster.';
+  const a = { q: Math.max(0, Math.round(Number(b.a && b.a.q) || 0)), s: Math.max(0, Math.round(Number(b.a && b.a.s) || 0)), h: Math.max(0, Math.round(Number(b.a && b.a.h) || 0)) };
+  if (a.q + a.s + a.h > RELEASE.points) return `Höchstens ${RELEASE.points} Punkte verteilen.`;
+  return launch(A, v, it, a, Array.isArray(b.r) ? b.r.map(String) : [], false);
+}
+function launch(A, v, it, a, reacts, auto) {
+  const res = launchResolve(v.model, a, reacts, releaseSeed(v, it.id), !!it.data.major), x = I(it.data.r), cost = r2(res.cost * Math.max(0, v.cash));
+  const ix = v.inbox.indexOf(it); if (ix >= 0) v.inbox.splice(ix, 1); v.cash -= cost; v.cur.mkt += cost;
+  const add = v.customers * res.cust; v.customers = Math.min(capacity(v), v.customers + add);
+  v.fx.push({ k: 'conv', m: 1 + 0.25 * Math.max(-0.6, res.score), until: v.qi + 1 }); v.quality = clamp(v.quality + res.quality, 0.3, 1.15); v.pmf = clamp(v.pmf + res.pmf, 0, 1);
+  if (x && res.hit > 0) { x.padj = (x.padj || 0) - res.hit; const j = -res.hit * 2; x.f *= Math.exp(j); x.price = x.f * Math.exp(x.tr); setWhy(x, `${pct(j, 1)} – Launch von ${v.name}`, j); recomputeDerived(); v.lost[x.id] = (v.lost[x.id] || 0) + res.hit * 0.5; }
+  v.rel.n++; v.rel.next = age(v) + RELEASE.every[0] + Math.floor(Math.random() * (RELEASE.every[1] - RELEASE.every[0] + 1));
+  const verdict = res.score >= 1 ? 'voller Erfolg' : res.score > 0.2 ? 'gelungen' : res.score > -0.3 ? 'durchwachsen' : 'Fehlstart';
+  addNews(`Launch bei ${v.name}: ${verdict}`, res.score > 0 ? 1 : -1, x ? [x.id] : [], { cat: 'company', sub: res.imp.map(i => i.t).join(' · ') + (x && res.hit > 0 ? `. ${x.name} verliert Marktanteile.` : '') });
+  note(A, `${auto ? 'Standard-Launch' : 'Launch'} ${verdict}: ${res.imp.filter(i => i.ok).length}/3 Signale positiv${res.R.length ? `, Reaktionen: ${res.R.map(k => REACTIONS[k].name).join(', ')}` : ''} – +${fmt(add, add < 10 ? 1 : 0)} Kunden, Abschlüsse ${res.score >= 0 ? '+' : ''}${fmt(25 * Math.max(-0.6, res.score), 0)} % bis zum Board.`, res.score > 0 ? 'up' : 'dn');
+  compliance(A, v, true); v.plan = planOf(v); ENV.dirty(A); return null;
+}
+// Büro-Stufe ausbauen
+export function vOffice(A) {
+  const v = own(A); if (!v) return 'Kein laufendes Startup.'; const n = (v.off || 0) + 1, O = OFFICE[n]; if (!O) return 'Größer geht es nicht.';
+  if (v.stage < O.stage) return `${O.name} lohnt sich erst ab der Phase „${VENTURE_STAGES[O.stage].name}“.`;
+  if (v.cash < O.cost) return `${O.name} kostet ${fmtE(O.cost, 0)} – in der Firmenkasse sind ${fmtE(v.cash, 0)}.`;
+  v.cash -= O.cost; v.cur.capex += O.cost; v.off = n; v.plan = planOf(v);
+  note(A, `Umzug ins ${O.name}: Entwicklung ${fmt((O.speed - 1) * 100, 0)} % schneller, Abschlüsse +${fmt((O.conv - 1) * 100, 0)} %, Fixkosten +${fmtE(O.opex, 0)} je Quartal.`, 'up'); ENV.dirty(A); return null;
+}
 
 /* ---------- Tagesgeschäft (Autopilot) ---------- */
 function dayStep(A, v) {
@@ -478,7 +568,7 @@ function board(A, v) {
   // Board-Zufriedenheit: Wachstum, Runway, Ziele der Investoren
   let mood = (g === null ? 0 : clamp(g * 40, -15, 15)) + (runway(v) < 6 ? -8 : 2) + (v.pmf > 0.7 ? 3 : 0) - (v.hyper.on && !hyperReady(v) ? 6 : 0);
   migrate(v);
-  if (v.mand && v.qi >= v.mand.q) { if (v.arr >= v.mand.arr) { mood += 10; v.auth = clamp((v.auth ?? 50) + 15, 0, 100); chron(v, `Board-Mandat erfüllt (${fmtE(v.mand.arr, 0)} ARR) – Autorität +15.`, 'up'); } else { mood -= 15; v.auth = clamp((v.auth ?? 50) - 20, 0, 100); v.down = (v.down || 1) * 0.8; addInbox(v, { k: 'info', title: 'Board-Mandat verfehlt', text: `Das vereinbarte ARR-Ziel von ${fmtE(v.mand.arr, 0)} wurde verpasst. Autorität −20, die nächste Finanzierungsrunde wird mit Abschlag bewertet (Down Round).` }); } v.mand = null; }
+  if (v.mand && v.qi >= v.mand.q) { if (v.arr >= v.mand.arr) { mood += 10; v.auth = clamp((v.auth ?? 50) + 15, 0, 100); chron(v, `Board-Mandat erfüllt (${fmtE(v.mand.arr, 0)} ARR) – Autorität +15.`, 'up'); } else { mood -= 15; v.auth = clamp((v.auth ?? 50) - 20, 0, 100); v.down = (v.down || 1) * 0.8; if (v.mand.pen && v.capt.inv.length) { const p = Math.min(v.mand.pen, v.capt.founder - 0.05); v.capt.founder -= p; v.capt.inv[v.capt.inv.length - 1].pct += p; chron(v, `Covenant verfehlt: Der Shark-VC erhält ${fmt(p * 100, 1)} % Straf-Verwässerung.`, 'dn'); } addInbox(v, { k: 'info', title: 'Board-Mandat verfehlt', text: `Das vereinbarte ARR-Ziel von ${fmtE(v.mand.arr, 0)} wurde verpasst. Autorität −20, die nächste Finanzierungsrunde wird mit Abschlag bewertet (Down Round).` }); } v.mand = null; }
   v.board = clamp(v.board + mood, 0, 100);
   const P = v.plan, dev = P && P.base > 0 ? v.arr / P.base - 1 : 0, why = P && Math.abs(dev) >= 0.05 ? deviationWhy(v, dev) : '';
   if (P && Math.abs(dev) >= 0.05) chron(v, `ARR ${dev > 0 ? '+' : ''}${fmt(dev * 100, 0)} % ${dev > 0 ? 'über' : 'unter'} Plan: ${why}.`, dev > 0 ? 'up' : 'dn');
@@ -545,25 +635,25 @@ function duel(A, v, u) {
   }
   if (best && best[1] >= 0.0005) chron(v, `${fmt(best[1] * 100, best[1] < 0.01 ? 2 : 1)} Pp Marktanteil von ${best[0]} gewonnen.`, 'up');
 }
+// Rivalen-KI nach Archetyp (Legacy-Konzern, Cash-Burn-Disruptor, Fast-Follower) – je Board-Meeting, also im 1–2-Wochen-Takt
 function rivalAI(A, v, u) {
   for (const id of v.rivals) {
-    const x = I(id); if (!x || x.delisted) continue; const pr = rivalProfile(x);
-    const p = (0.03 + 1.6 * u.share + (v.lost[id] || 0) * 2) * pr.aggr; if (Math.random() > p) continue;
-    const r = Math.random(), V = valuation(v);
-    if (V > 3e6 && u.share > 0.01 && pr.cash >= 0.5 && r < 0.25 && !v.inbox.some(i => i.k === 'buyout')) {
+    const x = I(id); if (!x || x.delisted) continue; const pr = rivalProfile(x), ar = archetype(pr.k), calm = v.sb && v.sb.calm.includes(id) ? 0.5 : 1; // Beteiligung am Rivalen dämpft seine Angriffe
+    const p = (0.03 + 1.6 * u.share + (v.lost[id] || 0) * 2) * pr.aggr * calm; if (Math.random() > p) continue;
+    const r = Math.random(), V = valuation(v), has = k => v.inbox.some(i => i.k === k);
+    if (V > 3e6 && u.share > 0.01 && pr.cash >= 0.5 && r < 0.15 && !has('buyout')) {
       const price = r2(V * (1.2 + Math.random() * 0.4) * (ex(v, 'cfo').val || 1) * (1 + ((v.auth ?? 50) - 50) / 500));
       addInbox(v, { k: 'buyout', title: `${x.name} will ${v.name} kaufen`, text: `Angebot: ${fmtE(price, 0)} für das ganze Unternehmen (${pct(price / V - 1, 0)} über der aktuellen Bewertung). Dein Anteil (${fmt(founderPct(v) * 100, 1)} %) wäre ${fmtE(price * founderPct(v), 0)} wert – sofort und in bar. Lehnst du ab, bleibt der Weg zum eigenen Börsengang.`, opts: [{ k: 'accept', label: 'Verkaufen (Exit)' }, { k: 'reject', label: 'Ablehnen' }], def: 1, data: { id, price } });
       addNews(`Gerücht: ${x.name} prüft Übernahme von ${v.name}`, 0, [x.id], { cat: 'ma', rumor: true, p: 0.5 });
-    } else if (r < 0.55) {
-      addInbox(v, { k: 'pricewar', title: `${x.name} startet einen Preiskampf`, text: `${x.name} senkt die Preise, um Kunden zurückzuholen. Ziehst du mit, sinkt dein Umsatz pro Kunde; hältst du die Preise, verlierst du Kunden.`, opts: [{ k: 'match', label: 'Preiskampf mitgehen' }, { k: 'diff', label: 'Qualitäts-Konter via CTO' }, { k: 'hold', label: 'Nische verteidigen' }], def: 2, data: { id } });
-      addNews(`${x.name} senkt die Preise – Kampfansage an ${v.name}`, -1, [x.id], { cat: 'company', sub: 'Preiskämpfe kosten beide Seiten Marge.' });
-      x.padj = (x.padj || 0) - 0.01;
-    } else if (r < 0.8) {
-      v.pmf = clamp(v.pmf - 0.05, 0, 1);
-      addNews(`${x.name} kopiert Funktionen von ${v.name}`, 0, [x.id], { cat: 'company', sub: 'Der Konzern baut die Ideen des Startups nach. Dessen Vorsprung schrumpft.' });
-      note(A, `${x.name} kopiert eure Funktionen – Product-Market Fit −5 Punkte.`, 'dn');
-    } else if (vm(v).sens.reg > 0.3) {
-      addInbox(v, { k: 'lobby', title: `${x.name} macht Lobbyarbeit gegen ${v.name}`, text: 'In Berlin und Brüssel wird über strengere Regeln für euer Geschäftsmodell gesprochen. Gegenlobby kostet Geld, Abwarten riskiert Auflagen.', opts: [{ k: 'counter', label: 'Gegenlobby (5 % der Kasse)' }, { k: 'wait', label: 'Abwarten' }], def: 1, data: { id } });
+    } else if (ar === 'legacy') {
+      if (u.share >= 0.15 && !has('suit')) { const c = r2(Math.max(3000, Math.max(0, v.cash) * 0.08)); addInbox(v, { k: 'suit', title: `${x.name} verklagt ${v.name} wegen Patentverletzung`, text: `Der Konzern wehrt sich mit Anwälten statt Produkten. Ein Vergleich kostet ${fmtE(c, 0)} – ein Prozess kann gewonnen werden, verloren aber teuer und mit einstweiliger Verfügung.`, opts: [{ k: 'settle', label: `Vergleich (${fmtE(c, 0)})` }, { k: 'fight', label: 'Prozess führen' }], def: 0, data: { id, c } }); addNews(`${x.name} verklagt ${v.name}`, 0, [x.id], { cat: 'company', sub: 'Klassische Abwehr eines Platzhirschs gegen einen Angreifer.' }); }
+      else if (vm(v).sens.reg > 0.3 && !has('lobby')) addInbox(v, { k: 'lobby', title: `${x.name} macht Lobbyarbeit gegen ${v.name}`, text: 'In Berlin und Brüssel wird über strengere Regeln für euer Geschäftsmodell gesprochen. Gegenlobby kostet Geld, Abwarten riskiert Auflagen.', opts: [{ k: 'counter', label: 'Gegenlobby (5 % der Kasse)' }, { k: 'wait', label: 'Abwarten' }], def: 1, data: { id } });
+    } else if (ar === 'disruptor') {
+      const roles = Object.keys(v.execs || {});
+      if (r < 0.55 || !roles.length) { if (!has('pricewar')) { addInbox(v, { k: 'pricewar', title: `${x.name} startet eine Rabattschlacht`, text: `${x.name} verbrennt Geld für Kampfpreise, um Kunden zurückzuholen. Ziehst du mit, sinkt dein Umsatz pro Kunde; hältst du die Preise, verlierst du Kunden.`, opts: [{ k: 'match', label: 'Preiskampf mitgehen' }, { k: 'diff', label: 'Qualitäts-Konter via CTO' }, { k: 'hold', label: 'Nische verteidigen' }], def: 2, data: { id } }); addNews(`${x.name} senkt die Preise – Kampfansage an ${v.name}`, -1, [x.id], { cat: 'company', sub: 'Preiskämpfe kosten beide Seiten Marge.' }); x.padj = (x.padj || 0) - 0.01; } }
+      else if (!has('poach')) { const role = roles[Math.floor(Math.random() * roles.length)]; addInbox(v, { k: 'poach', title: `${x.name} wirbt deinen ${EXECS[role].name} ab`, text: 'Ein deutlich besseres Angebot liegt auf dem Tisch. Eine Halteprämie in Anteilen könnte reichen.', opts: [{ k: 'retain', label: '0,5 % Anteile als Halteprämie' }, { k: 'let', label: 'Gehen lassen' }], def: 1, data: { id, role } }); }
+    } else if (!v.cp || !v.cp.length) { // Fast-Follower ohne geplante Kopie: kleiner Funktions-Klon
+      v.pmf = clamp(v.pmf - 0.03, 0, 1); addNews(`${x.name} baut Funktionen von ${v.name} nach`, 0, [x.id], { cat: 'company', sub: 'Der Vorsprung des Startups schrumpft.' }); note(A, `${x.name} klont eine eurer Funktionen – PMF −3.`, 'dn');
     }
   }
 }
@@ -586,8 +676,8 @@ function offers(A, v, u) {
     const hiPre = r2(V * 1.35 * cfo), loPre = r2(V * 0.95 * cfo), dHi = next.dil[0], dLo = next.dil[1];
     const tgt = r2(v.arr * (next.k === 'seed' ? 4 : 2.6));
     addInbox(v, { k: 'vc', title: `Term Sheet: ${next.name} von ${inv}`, text: `${inv} möchte investieren. Höhere Bewertung heißt weniger Verwässerung, aber strenge Wachstumsziele.`, opts: [
-      { k: 'hi', label: `Hohe Bewertung: ${fmtE(hiPre, 0)} vor Geld, ${fmt(dHi * 100, 0)} % abgeben → ${fmtE(hiPre * dHi / (1 - dHi), 0)}`, desc: `Ziel: ${fmtE(tgt, 0)} ARR in 4 Quartalen` },
-      { k: 'lo', label: `Moderat: ${fmtE(loPre, 0)} vor Geld, ${fmt(dLo * 100, 0)} % abgeben → ${fmtE(loPre * dLo / (1 - dLo), 0)}`, desc: 'Keine harten Ziele' },
+      { k: 'hi', label: `Shark-VC: ${fmtE(hiPre, 0)} vor Geld, ${fmt(dHi * 100, 0)} % abgeben → ${fmtE(hiPre * dHi / (1 - dHi), 0)}`, desc: `Covenant: ${fmtE(tgt, 0)} ARR in 4 Quartalen – sonst 5 % Straf-Verwässerung` },
+      { k: 'lo', label: `Smart-Money-VC: ${fmtE(loPre, 0)} vor Geld, ${fmt(dLo * 100, 0)} % abgeben → ${fmtE(loPre * dLo / (1 - dLo), 0)}`, desc: 'Weiches Ziel, dafür Netzwerk: sofort +8 % Kunden, Kundengewinnung 10 % günstiger' },
       { k: 'no', label: 'Ablehnen (Bootstrapping)' }], def: 2, data: { round: next.k, name: next.name, inv, hiPre, loPre, dHi, dLo, tgt } });
   }
   // Brückenfinanzierung: Bestandsinvestoren retten eine leere Kasse – teuer (Verwässerung, Abschlag), aber besser als die Insolvenz
@@ -643,7 +733,8 @@ function decideItem(A, v, it, k, auto) {
   if (!['vc', 'grant', 'bridge', 'buyout'].includes(it.k) || o === 'no' || o === 'reject') chron(v, `${auto ? 'Automatisch entschieden' : 'Entscheidung'}: ${it.title} → ${it.opts[k].label}`, auto ? 'dn' : '');
   if (it.k === 'vc' && o !== 'no') {
     const pre = o === 'hi' ? d.hiPre : d.loPre, dil = o === 'hi' ? d.dHi : d.dLo, raise = r2(pre * dil / (1 - dil));
-    applyRound(A, v, d, pre, dil); v.mand = { arr: o === 'hi' ? d.tgt : r2(d.tgt * 0.75), q: v.qi + 4 }; // Kapital gegen Quartalsziel
+    applyRound(A, v, d, pre, dil); v.mand = { arr: o === 'hi' ? d.tgt : r2(d.tgt * 0.75), q: v.qi + 4, pen: o === 'hi' ? 0.05 : 0 }; // Kapital gegen Quartalsziel
+    if (o === 'lo') { v.customers = Math.min(capacity(v), v.customers * 1.08); v.fx.push({ k: 'cac', m: 0.9, until: v.qi + 2 }); } // Smart Money: Kunden und Kontakte aus dem Netzwerk
   } else if (it.k === 'vc') note(A, auto ? 'Das Term Sheet ist verfallen.' : 'Finanzierungsrunde abgelehnt – du behältst alle Anteile.', '');
   if (it.k === 'buyout' && o === 'accept') return exit(A, v, d.price, x);
   if (it.k === 'pricewar') { if (o === 'match') v.fx.push({ k: 'arpu', m: 0.9, until: v.qi + 3 }); else if (o === 'hold') { v.customers *= 0.92; v.fx.push({ k: 'churn', m: 0.85, until: v.qi + 3 }); } else { const c = r2(Math.max(1000, Math.max(0, v.cash) * 0.08)); v.cash -= c; v.pmf = clamp(v.pmf + 0.04 + (v.execs && v.execs.cto ? 0.03 : 0), 0, 1); v.quality = clamp(v.quality + 0.03, 0.3, 1.15); } }
@@ -651,6 +742,12 @@ function decideItem(A, v, it, k, auto) {
   if (it.k === 'antitrust') { if (o === 'concede') { v.growthPen = v.qi + 4; v.fx.push({ k: 'arpu', m: 0.95, until: v.qi + 4 }); v.reg = { until: v.qi + 4 }; } else { v.cash -= r2(Math.max(0, v.cash) * 0.05); if (Math.random() < 0.45) { const fine = r2(v.arr * 0.1); v.cash -= fine; v.fx.push({ k: 'arpu', m: 0.9, until: v.qi + 4 }); addNews(`Strafe gegen ${v.name}: ${fmtE(fine, 0)}`, -1, [], { cat: 'politics', sub: 'Das Gericht sieht Marktmissbrauch. Dazu kommen Auflagen für die Preisgestaltung.' }); } else addNews(`${v.name} gewinnt vor Gericht`, 1, [], { cat: 'politics', sub: 'Die Vorwürfe wurden fallen gelassen.' }); } }
   if (it.k === 'grant') { v.grantQ = v.qi; if (o === 'yes') { v.cash += d.g; v.grants = (v.grants || 0) + 1; v.grantBase = v.rdSum + (v.capexSum || 0); addNews(`Förderung: ${v.name} erhält ${fmtE(d.g, 0)}`, 1, [], { cat: 'politics', sub: 'Die Förderbank unterstützt Investitionen in Schlüsseltechnologien.' }); note(A, `Zuschuss über ${fmtE(d.g, 0)} erhalten.`, 'up'); } }
   if (it.k === 'bridge') { v.bridgeQ = v.qi; if (o === 'yes') { for (const key of ['founder', 'esop']) v.capt[key] *= 1 - d.dil; for (const i of v.capt.inv) i.pct *= 1 - d.dil; const lead = v.capt.inv[v.capt.inv.length - 1]; lead.pct += d.dil; v.cash += d.amt; v.down = (v.down || 1) * 0.85; v.board = clamp(v.board - 5, 0, 100); addNews(`${v.name} erhält Brückenfinanzierung`, -1, [], { cat: 'ma', sub: `Die Investoren schießen ${fmtE(d.amt, 0)} nach. Die Bewertung leidet.` }); note(A, `Brückenfinanzierung: +${fmtE(d.amt, 0)}, Verwässerung ${fmt(d.dil * 100, 1)} %.`, 'dn'); } }
+  if (it.k === 'release') return launch(A, v, it, { q: 2, s: 2, h: 2 }, [], true);
+  if (it.k === 'bomb') { if (o === 'fix') { v.cash -= d.c; v.cur.rd += d.c; for (const c of v.clk || []) if (c.k === 'node') c.s = Math.max(0, c.s - 2); chron(v, 'Sicherheitslücke geschlossen – teuer, aber sauber.', 'up'); } else { v.bomb = { at: age(v) + 30 + Math.floor(Math.random() * 20) }; chron(v, 'Die Lücke bleibt offen. Niemand soll davon erfahren …', 'dn'); } }
+  if (it.k === 'talent') { if (o === 'esop' && v.capt.founder > 0.06) { v.capt.founder -= 0.006; v.capt.esop += 0.006; chron(v, 'Lead-Entwicklerin bleibt – 0,6 % Mitarbeiteranteile.', 'up'); } else { v.slow = age(v) + 21; chron(v, 'Lead-Entwicklerin geht zum Rivalen – Entwicklung drei Wochen 30 % langsamer.', 'dn'); } }
+  if (it.k === 'partner' && o === 'yes') v.fx.push({ k: 'conv', m: 1.25, until: v.qi + 2 }, { k: 'gmcut', m: 1, until: v.qi + 2 });
+  if (it.k === 'suit') { if (o === 'settle') { v.cash -= d.c; chron(v, `Vergleich mit ${x ? x.name : 'dem Konzern'}: ${fmtE(d.c, 0)}.`, ''); } else if (Math.random() < 0.6) chron(v, `Klage von ${x ? x.name : 'dem Konzern'} abgewiesen.`, 'up'); else { v.cash -= r2(d.c * 1.8); for (const c of v.clk || []) if (c.k === 'node') c.s = Math.max(0, c.s - 3); chron(v, `Prozess verloren: ${fmtE(d.c * 1.8, 0)} und einstweilige Verfügung – Entwicklung zurückgeworfen.`, 'dn'); } }
+  if (it.k === 'poach') { const role = d.role; if (o === 'retain' && v.capt.founder > 0.06) { v.capt.founder -= 0.005; v.capt.esop += 0.005; chron(v, `${EXECS[role] ? EXECS[role].name : 'Führungskraft'} bleibt – Halteprämie in Anteilen.`, 'up'); } else if (v.execs[role]) { delete v.execs[role]; v.board = clamp(v.board - 3, 0, 100); chron(v, `${EXECS[role] ? EXECS[role].name : 'Führungskraft'} wechselt zu ${x ? x.name : 'einem Rivalen'}.`, 'dn'); } }
   if (it.k === 'launch') { const N = nodeOf(v, v.tree.findIndex(n => n && n.k === d.n), d.n) || { name: 'Produkt' };
     if (o === 'keynote') { if (Math.random() < 0.8 * (v.debt || 0)) { v.fx.push({ k: 'churn', m: 1.3, until: v.qi + 1 }); v.pmf = clamp(v.pmf - 0.05, 0, 1); chron(v, `Keynote zu ${N.name} geht schief: Bugs live auf der Bühne – Shitstorm, Abwanderung steigt.`, 'dn'); }
       else { v.fx.push({ k: 'conv', m: v.quality > 0.9 ? 1.3 : 1.15, until: v.qi + 1 }); chron(v, `Keynote-Launch von ${N.name}: Medien und Kunden ziehen mit – ${v.quality > 0.9 ? '+30' : '+15'} % Abschlüsse bis zum Board-Meeting.`, 'up'); } }
@@ -693,7 +790,7 @@ export function vIpo(A, b) {
   const v = own(A); if (!v) return 'Kein Startup.';
   if (!M.isOpen) return 'Die Börsenglocke läutet nur zu Börsenzeiten.';
   if (v.stage < 3) return `Noch nicht börsenreif: nötig sind ${fmtE(VENTURE_STAGES[3].min, 0)} ARR und ${IPO_MIN_QUARTERS} abgeschlossene Quartale.`;
-  const disc = clamp(Number(b.disc), 0, 0.2), float = clamp(Number(b.float), 0.15, 0.4), lock = [30, 60, 90].includes(Number(b.lock)) ? Number(b.lock) : 60;
+  const band = BANDS[b.band] ? b.band : null, disc = band ? BANDS[band].disc : clamp(Number(b.disc), 0, 0.2), float = clamp(Number(b.float), 0.15, 0.4), lock = [30, 60, 90].includes(Number(b.lock)) ? Number(b.lock) : 60;
   const q = vIpoQuote(v, disc, float), m = vm(v), sens = Object.assign({}, SECTOR_SENS[m.sector], { rate: m.sens.rate, home: 'eu', exp: 0.4, sc: m.sens.tar * 0.6 });
   const last4 = v.q.slice(-4), ebitA = last4.reduce((s, r) => s + r.ebit, 0) * (4 / Math.max(1, last4.length));
   const id = ticker(v.name), x = addStock({ id, name: v.name, sector: m.sector, shares: q.shares, price: q.P, beta: m.hyper ? 1.4 : 1.1, vol: m.hyper ? 0.55 : 0.42, eps: ebitA * 0.75 / q.shares, sens, player: A.uid, desc: `${m.name}: ${m.sub}. Gegründet von ${A.name}.` });
@@ -706,7 +803,14 @@ export function vIpo(A, b) {
   book(A, 'reval', r2(q.reval), `Neubewertung durch Börsengang ${v.name}`);
   setWhy(x, `Börsengang zu ${fmt(q.P, 2)} €`, 0);
   addNews(`Börsengang: ${v.name} läutet die Glocke`, 1, [id], { cat: 'ma', sub: `${fmt(float * 100, 0)} % der Aktien gehen zu ${fmt(q.P, 2)} € an die Börse. Bewertung: ${fmtE(q.P * q.shares, 0)}. Gründer ${A.name} hält ${fmt(founderPct(v) * 100 * (1 - float), 1)} % und darf bis ${new Date(v.lockUntil).toISOString().slice(8, 10)}.${new Date(v.lockUntil).toISOString().slice(5, 7)}. nicht verkaufen (Lock-up).` });
-  note(A, `Willkommen an der Börse! ${v.name} notiert als ${id} – deine Aktien liegen im Depot.`, 'tier'); ENV.event(A, 'ownipo'); ENV.dirty(A); return null;
+  // Bookbuilding: Zeichnung und erster Handelstag hängen von Preisspanne, Produktstärke, Autorität und Marktlage ab
+  const ix = M.inst.WELTIX, mkt = ix && ix.cD && ix.cD.length > 20 ? ix.price / ix.cD[ix.cD.length - 20][4] - 1 : 0;
+  const bk = bookbuild(band || (disc >= 0.12 ? 'cons' : disc >= 0.05 ? 'fair' : 'aggr'), { pmf: v.pmf, auth: v.auth, mkt, hype: 0.03 * Math.min(5, (v.rel && v.rel.n) || 0) }, Math.random);
+  if (bk.fill < 1) { const miss = r2(q.raise * (1 - bk.fill)); v.cash -= miss; }
+  x.f *= Math.exp(bk.move); x.price = x.f; x.pc = q.P; setWhy(x, `${pct(bk.move, 1)} am ersten Handelstag (${bk.label})`, bk.move); recomputeDerived();
+  v.ipoBook = { sub: Math.round(bk.sub * 100) / 100, move: Math.round(bk.move * 1000) / 1000, label: bk.label };
+  addNews(`${v.name}: ${bk.label} – ${bk.sub >= 1 ? `${fmt(bk.sub, 1)}-fach überzeichnet` : `nur ${fmt(bk.sub * 100, 0)} % gezeichnet`}`, bk.move >= 0 ? 1 : -1, [id], { cat: 'ma', eff: bk.move, sub: `Die Aktie ${bk.move >= 0 ? 'steigt' : 'fällt'} am ersten Handelstag um ${fmt(Math.abs(bk.move) * 100, 1)} %.` });
+  note(A, `Willkommen an der Börse! ${v.name} notiert als ${id} – ${bk.label}: ${bk.move >= 0 ? '+' : ''}${fmt(bk.move * 100, 1)} % am ersten Tag.`, 'tier'); ENV.event(A, 'ownipo'); ENV.dirty(A); return null;
 }
 // Quartalszahlen der börsennotierten Spieler-Firma: echte Zahlen aus der Simulation, Erwartung = eigene Guidance
 ENV.ventReport = x => {

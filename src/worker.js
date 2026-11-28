@@ -456,7 +456,9 @@ export class Exchange extends DurableObject {
       else if (t === 'vfocus') err = E.vFocus(A, { op: String(b.op || ''), t: b.t === undefined ? undefined : n(b.t), n: b.n === undefined ? undefined : String(b.n), m: b.m === 'mvp' ? 'mvp' : 'clean', i: b.i === undefined ? undefined : n(b.i), sub: b.sub === undefined ? undefined : String(b.sub), rival: b.rival === undefined ? undefined : String(b.rival) });
       else if (t === 'vslider') err = E.vSlider(A, { sR: b.sR, rR: b.rR, eff: b.eff, pl: b.pl, salary: b.salary, hyper: b.hyper === undefined ? undefined : !!b.hyper, capex: !!b.capex });
       else if (t === 'vsprint') err = E.vSprint(A, { k: String(b.k || ''), sub: b.sub === undefined ? undefined : String(b.sub), rival: b.rival === undefined ? undefined : String(b.rival) });
-      else if (t === 'vipo') err = E.vIpo(A, { disc: n(b.disc), float: n(b.float), lock: n(b.lock) });
+      else if (t === 'vipo') err = E.vIpo(A, { disc: n(b.disc), float: n(b.float), lock: n(b.lock), band: b.band === undefined ? undefined : String(b.band) });
+      else if (t === 'vlaunch') err = E.vLaunch(A, { id: n(b.id), a: b.a && typeof b.a === 'object' ? { q: n(b.a.q), s: n(b.a.s), h: n(b.a.h) } : null, r: Array.isArray(b.r) ? b.r.slice(0, 2).map(String) : [] });
+      else if (t === 'voffice') err = E.vOffice(A);
       else if (t === 'vguid') err = E.setGuidance(A, { rev: n(b.rev), eps: n(b.eps) });
       else if (t === 'vbuyback') err = E.buyback(A, n(b.amt));
       else if (t === 'vdiv') err = E.dividend(A, n(b.amt));
