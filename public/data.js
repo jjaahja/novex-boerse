@@ -518,10 +518,10 @@ export const BIZ_MODELS = {
 };
 // Phasen: ARR-Schwelle, Liquiditätsfaktor fürs Nettovermögen, Beleihungsquote, Dauer eines Startup-Quartals in Handelstagen
 export const VENTURE_STAGES = [
-  { k: 'garage', name: 'Garage & Bootstrapping', min: 0, liq: 0.60, ltv: 0, qd: 5, base: 900 },
-  { k: 'traction', name: 'Traction & Disruption', min: 100000, liq: 0.75, ltv: 0, qd: 5, base: 30000 },
-  { k: 'scale', name: 'Scale-Up & Hyperscaling', min: 10000000, liq: 0.85, ltv: 0.20, qd: 10, base: 600000 },
-  { k: 'ipo', name: 'Börsenreif', min: 60000000, liq: 0.85, ltv: 0.20, qd: 21, base: 2500000 }
+  { k: 'garage', name: 'Garage & Bootstrapping', min: 0, liq: 0.60, ltv: 0, qd: 7, base: 900 },
+  { k: 'traction', name: 'Traction & Disruption', min: 100000, liq: 0.75, ltv: 0, qd: 7, base: 30000 },
+  { k: 'scale', name: 'Scale-Up & Hyperscaling', min: 10000000, liq: 0.85, ltv: 0.20, qd: 14, base: 600000 },
+  { k: 'ipo', name: 'Börsenreif', min: 60000000, liq: 0.85, ltv: 0.20, qd: 29, base: 2500000 }
 ];
 export const VENTURE_MIN = 2500, VENTURE_SHARES = 1e8, IPO_MIN_QUARTERS = 4;
 // Führungskräfte: zwei Archetypen je Rolle; Kosten je Startup-Quartal (skaliert mit Phase) oder Anteile (ESOP)

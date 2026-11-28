@@ -8,7 +8,9 @@ export const VERSION = 2;
 export const MIN = 60000, DAY = 86400000, YR = 365 * DAY;
 export const OPEN_MIN = 8 * 60, CLOSE_MIN = 22 * 60, FUND_CUT = 17 * 60 + 30; // Handelszeit 08:00–22:00, Fonds-Annahmeschluss 17:30
 export const SESSION = CLOSE_MIN - OPEN_MIN;
-const DT = 1 / (252 * SESSION);                  // Jahre je Handelsminute
+export const TDY = 365;
+export const WK = 5 / 7;                         // Tagesraten von früher (5 Handelstage je Woche) auf 7 Handelstage umrechnen – gleiches Tempo im Kalender                        // Handelstage pro Jahr: Die Börse ist jeden Tag geöffnet (auch am Wochenende und an Feiertagen)
+const DT = 1 / (TDY * SESSION);                  // Jahre je Handelsminute
 export const PERM = 0.45, TRANS = 0.15, AMAX = 1.6, IMPACT_Y = 1.0;
 export const FEE_RATE = 0.0005, FEE_MIN = 1, KO_SPR = 0.0002;
 const C1MAX = 900, CDMAX = 400, CHMAX = 120, HOUR = 3600000; // Minuten-, Tages- und Stundenkerzen (Stunden für die Wochenansicht)
@@ -49,7 +51,7 @@ export function isHoliday(t) {
   const d = new Date(t), m = d.getUTCMonth() + 1, x = d.getUTCDate(), ds = dayStart(t), e = easter(d.getUTCFullYear());
   return (m === 12 && (x === 24 || x === 25 || x === 26 || x === 31)) || (m === 1 && x === 1) || (m === 5 && x === 1) || ds === e - 2 * DAY || ds === e + DAY;
 }
-export function isTradingDay(t) { const wd = new Date(t).getUTCDay(); return wd !== 0 && wd !== 6 && !isHoliday(t); }
+export function isTradingDay(t) { return true; } // jeden Tag 08:00–22:00 (isHoliday bleibt für Kalender-Hinweise erhalten)
 export function nextOpenFrom(t) { let d = dayStart(t); if (isTradingDay(d) && t < d + OPEN_MIN * MIN) return d + OPEN_MIN * MIN; d += DAY; while (!isTradingDay(d)) d += DAY; return d + OPEN_MIN * MIN; }
 
 const NF = {};
@@ -114,9 +116,9 @@ function solveYield(x, clean) {
 
 /* ---------- Orderbuch-Modell (Square-Root Market Impact) ---------- */
 export function bookP(x) {
-  if (x.cls === 'stock') return { s: x.spr, k: x.vol / Math.sqrt(252) * IMPACT_Y, D: Math.max(1e5, x.advPct * x.shares * x.price * x.liq) };
+  if (x.cls === 'stock') return { s: x.spr, k: x.vol / Math.sqrt(TDY) * IMPACT_Y, D: Math.max(1e5, x.advPct * x.shares * x.price * x.liq) };
   if (x.cls === 'bond') return { s: x.sprd, k: Math.max(0.0004, x.mdur * 0.0006) * IMPACT_Y, D: x.adv * x.liq };
-  if (x.cls === 'cmd') return { s: x.sprd, k: x.vol / Math.sqrt(252) * IMPACT_Y, D: x.adv * x.liq };
+  if (x.cls === 'cmd') return { s: x.sprd, k: x.vol / Math.sqrt(TDY) * IMPACT_Y, D: x.adv * x.liq };
   return { s: x.sprd, k: x.sigD * IMPACT_Y, D: x.adv * x.liq };
 }
 export function members(x) {
@@ -224,7 +226,7 @@ function buildMissing() {
   FXP.forEach((d, i) => {
     const [id, base, quote, advB, pips, vola] = d; if (has(id)) return;
     const price = M.U[base] / M.U[quote], pip = quote === 'JPY' ? 0.01 : 0.0001;
-    put({ id, cls: 'fx', name: base + '/' + quote, base, quote, adv: advB * 1e9, pips, pip, dec: quote === 'JPY' ? 3 : 5, sigD: vola / Math.sqrt(252), sprd: pips * pip / 2 / price, liq: 1, price, volA: vola, isin: isin(id, 60 + i) });
+    put({ id, cls: 'fx', name: base + '/' + quote, base, quote, adv: advB * 1e9, pips, pip, dec: quote === 'JPY' ? 3 : 5, sigD: vola / Math.sqrt(TDY), sprd: pips * pip / 2 / price, liq: 1, price, volA: vola, isin: isin(id, 60 + i) });
   });
   CMDS.forEach((d, i) => {
     const [id, name, unit, px, vol, beta, sector, advB, hs, desc] = d; if (has(id)) return;
@@ -248,14 +250,14 @@ export function createWorld(now) {
   const histEnd = (() => { let d = t0 - DAY; while (!isTradingDay(d)) d -= DAY; return d; })();
   M = { v: VERSION, t: t0 + OPEN_MIN * MIN, isOpen: true, lastClose: histEnd, lastCut: 0, eqMark: 0, nseq: 1, week: weekStart(t0), lv: 0, r: 0.0205, slope: 0.0085, U: { USD: 1, EUR: 1.0850, GBP: 1.2710, JPY: 1 / 152.4, CHF: 1.1360, AUD: 0.6540 }, inst: {}, ids: [], news: [] };
   const ids = buildMissing(); normalize(); recomputeDerived();
-  genHistory(260, histEnd, ids);
+  genHistory(365, histEnd, ids);
   run('init');
   return M;
 }
 // Neue Produkte in einen laufenden Markt einfügen: Kurshistorie auf denselben Handelstagen wie der Bestand
 function extendWorld(ids) {
   recomputeDerived();
-  genHistory(260, null, ids);
+  genHistory(365, null, ids);
   for (const id of ids) { const x = I(id); x.do = x.price; x.hi = x.price; x.lo = x.price; x.lc = x.price; }
   const nm = ids.map(id => I(id)).filter(x => x.cls !== 'bond').slice(0, 6).map(x => x.name).join(', ');
   addNews(`Neu an der NOVEX: ${ids.length} Produkte, darunter ${nm}`, 1);
@@ -267,21 +269,21 @@ function genHistory(N, lastDay, ids) {
   else ref.cD.slice(-N).forEach(k => dates.push(k[0]));
   N = dates.length;
   if (N < 2) { for (const id of ids) I(id).pc = I(id).price; return; }
-  const sd = 1 / Math.sqrt(252), pick2 = c => byCls(c).filter(x => want.has(x.id));
+  const sd = 1 / Math.sqrt(TDY), pick2 = c => byCls(c).filter(x => want.has(x.id));
   const stocks = pick2('stock'), cmds = pick2('cmd'), bonds = pick2('bond');
   const lr = {}; [...stocks, ...cmds].forEach(s => lr[s.id] = [0]);
   const cur = { EUR: [0], GBP: [0], JPY: [0], CHF: [0], AUD: [0] }, rr = [0], ss = [0]; let lv = 0;
   const jump = x => Math.random() < 1 / 20 ? (Math.random() < 0.5 ? 1 : -1) * (0.01 + Math.abs(gauss()) * 0.025) * x.vol / 0.3 : 0;
   for (let i = 1; i < N; i++) {
-    lv = clamp(lv * 0.5 + 0.24 * gauss(), -0.7, 1.6); const vm = Math.exp(lv), rm = 0.07 / 252 + SIG_M * VSH * sd * vm * heavy();
+    lv = clamp(lv * 0.5 + 0.24 * gauss(), -0.7, 1.6); const vm = Math.exp(lv), rm = 0.07 / TDY + SIG_M * VSH * sd * vm * heavy();
     const sec = {}; for (const k in SECTORS) sec[k] = SIG_S * VSH * sd * vm * gauss();
     const csec = {}; for (const k in CSECT) csec[k] = SIG_C * VSC * Math.sqrt(1.25) * sd * vm * gauss();
-    for (const s of stocks) lr[s.id].push(lr[s.id][i - 1] + s.beta * rm + sec[s.sector] + s.idv * VSH * sd * vm * heavy() - 0.5 * s.var * 1.25 * vm * vm / 252 + jump(s));
-    for (const s of cmds) lr[s.id].push(lr[s.id][i - 1] + s.beta * rm + csec[s.sector] + s.idv * VSC * Math.sqrt(1.25) * sd * vm * heavy() - 0.5 * s.var * 1.25 * vm * vm / 252 + jump(s));
+    for (const s of stocks) lr[s.id].push(lr[s.id][i - 1] + s.beta * rm + sec[s.sector] + s.idv * VSH * sd * vm * heavy() - 0.5 * s.var * 1.25 * vm * vm / TDY + jump(s));
+    for (const s of cmds) lr[s.id].push(lr[s.id][i - 1] + s.beta * rm + csec[s.sector] + s.idv * VSC * Math.sqrt(1.25) * sd * vm * heavy() - 0.5 * s.var * 1.25 * vm * vm / TDY + jump(s));
     const e = 0.05 * sd * gauss();
     cur.EUR.push(cur.EUR[i - 1] + e + 0.04 * sd * gauss()); cur.GBP.push(cur.GBP[i - 1] + e + 0.05 * sd * gauss()); cur.CHF.push(cur.CHF[i - 1] + e + 0.04 * sd * gauss());
     cur.JPY.push(cur.JPY[i - 1] + 0.09 * sd * gauss() - 0.3 * rm); cur.AUD.push(cur.AUD[i - 1] + 0.08 * sd * gauss() + 0.4 * rm);
-    rr.push(rr[i - 1] - 0.15 * rr[i - 1] / 252 + 0.009 * sd * gauss()); ss.push(ss[i - 1] - 0.3 * ss[i - 1] / 252 + 0.005 * sd * gauss());
+    rr.push(rr[i - 1] - 0.15 * rr[i - 1] / TDY + 0.009 * sd * gauss()); ss.push(ss[i - 1] - 0.3 * ss[i - 1] / TDY + 0.005 * sd * gauss());
   }
   const closes = {};
   for (const s of [...stocks, ...cmds]) { const a = lr[s.id], end = a[N - 1]; closes[s.id] = a.map(v => s.price * Math.exp(v - end)); }
@@ -480,7 +482,7 @@ function closeDay() {
 }
 function openDay() {
   const days = Math.max(1, Math.round((dayStart(M.t) - M.lastClose) / DAY));
-  const on = Math.sqrt(0.25 * days / 252), vm = Math.exp(M.lv), rm = SIG_M * VS * vm * on * heavy();
+  const on = Math.sqrt(0.25 * days / TDY), vm = Math.exp(M.lv), rm = SIG_M * VS * vm * on * heavy();
   for (const x of byCls('stock')) { let r = x.beta * rm + Math.sqrt(Math.pow(SIG_S, 2) + x.idv * x.idv) * VS * vm * on * heavy() - 0.5 * x.var * vm * vm * on * on; if (Math.random() < 0.03 * Math.min(days, 5)) r += companyNews(x); x.f *= Math.exp(r); x.tr = 0; x.liq = 1; x.price = x.f; }
   for (const x of byCls('cmd')) { let r = x.beta * rm + Math.sqrt(SIG_C * SIG_C + x.idv * x.idv) * VSC * vm * on * heavy() - 0.5 * x.var * vm * vm * on * on; if (Math.random() < 0.03 * Math.min(days, 5)) r += cmdNews(x); x.f *= Math.exp(r); x.tr = 0; x.liq = 1; x.price = x.f; }
   const e = 0.05 * on * gauss();
@@ -827,7 +829,7 @@ export function estDeriv(d) {
 export function openDeriv(A, d) {
   const u = M.inst[d.und];
   if (!isUnd(u)) return 'Ungültiger Basiswert.';
-  if (!M.isOpen) return 'Hebelprodukte sind nur zu Börsenzeiten handelbar (Mo–Fr 08:00–22:00).';
+  if (!M.isOpen) return 'Hebelprodukte sind nur zu Börsenzeiten handelbar (täglich 08:00–22:00).';
   if (A.derivs.length >= 50) return 'Maximal 50 offene Hebelpositionen.';
   const L = LIC[A.lic || 0], av = availCash(A, undefined, true); // Hebelprodukte nur mit eigenem Geld
   if (d.kind === 'ko' || d.kind === 'opt') {

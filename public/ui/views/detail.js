@@ -45,7 +45,7 @@ function bars(x, range) {
   if (range === '1T') { const t = x.c1.filter(k => k[0] >= today); return t.length > 5 ? t : x.c1.slice(-840); }
   if (range === '1W') { const h = (x.cH || []).filter(k => k[0] >= E.M.t - 7 * 864e5); if (h.length >= 8) return h; }
   const d = x.cD.concat(E.M.isOpen ? [[today, x.do, x.hi, x.lo, x.price, x.dv]] : []);
-  return range === '1W' ? d.slice(-6) : range === '1M' ? d.slice(-22) : range === '6M' ? d.slice(-126) : range === '1J' ? d.slice(-252) : d;
+  const back = { '1W': 7, '1M': 30, '6M': 182, '1J': 365 }[range]; return back ? d.filter(k => k[0] > today - back * 864e5) : d; // nach Kalendertagen (früher ohne Wochenenden gehandelt)
 }
 export function update(id) {
   const x = E.I(id), A = S.A, U = S.UI; if (!x || x.delisted) return;
@@ -157,9 +157,9 @@ export function autoRow(A, o, fp, px) {
 }
 const kvStock = (x, r, hv, range) => r('Marktkapitalisierung', fmtBig(x.shares * x.price) + ' €', 'mcap') + r('KGV', x.eps > 0 ? fmt(x.price / x.eps, 1) : 'Verlust', 'kgv') + r('Gewinn je Aktie (12 M.)', fmtE(x.eps), 'eps') + r('Dividendenrendite', fmt(x.dy * 100, 2) + ' %', 'divy') + r('Beta', fmt(x.beta, 2), 'beta') + r('Volatilität', fmt(hv * 100, 0) + ' %', 'vola') + range + r('Branche', SECTORS[x.sector]) + r('Spread', fmt(bookP(x).s * 2e4, 1) + ' Bp', 'spread');
 function kv(x) {
-  const r = (a, b, k) => `<div><span>${a} ${k ? info(k) : ''}</span><b>${b}</b></div>`, cd = x.cD.slice(-252), hi = Math.max(x.hi, ...cd.map(k => k[2])), lo = Math.min(x.lo, ...cd.map(k => k[3]));
+  const r = (a, b, k) => `<div><span>${a} ${k ? info(k) : ''}</span><b>${b}</b></div>`, cd = x.cD.filter(k => k[0] > E.M.t - 365 * 864e5), hi = Math.max(x.hi, ...cd.map(k => k[2])), lo = Math.min(x.lo, ...cd.map(k => k[3]));
   const rets = [], c30 = x.cD.slice(-31); for (let i = 1; i < c30.length; i++) rets.push(Math.log(c30[i][4] / c30[i - 1][4]));
-  const m = rets.reduce((a, b) => a + b, 0) / (rets.length || 1), hv = Math.sqrt(rets.reduce((a, b) => a + (b - m) ** 2, 0) / Math.max(1, rets.length - 1) * 252);
+  const m = rets.reduce((a, b) => a + b, 0) / (rets.length || 1), hv = Math.sqrt(rets.reduce((a, b) => a + (b - m) ** 2, 0) / Math.max(1, rets.length - 1) * E.TDY);
   const range = r('52 Wochen', `${fmt(lo, dig(x))} – ${fmt(hi, dig(x))}`, 'hilo'), ltv = E.ltvOf(x), ltvR = r('Beleihungswert (LTV)', ltv > 0 ? fmt(ltv * 100, 0) + ' %' : 'nicht beleihbar', 'ltv');
   const lvl = v => v >= 1.3 ? 'hoch' : v >= 0.7 ? 'mittel' : v > 0.2 ? 'gering' : v < -0.2 ? 'profitiert' : 'kaum';
   if (x.cls === 'stock') { const sn = E.sensOf(x), tz = sn.exp * 0.8 + sn.sc * 0.5; return r('Umsatzwachstum p. a.', x.fin ? pctS(x.fin.g, 1) : '–', 'rev') + r('Zinsempfindlichkeit', lvl(sn.rate), 'sens') + r('Zollempfindlichkeit', tz >= 0.7 ? 'hoch' : tz >= 0.4 ? 'mittel' : 'gering', 'tariff') + r('Heimatmarkt', E.REGION[sn.home] + ` · ${fmt(sn.exp * 100, 0)} % Ausland`) + ltvR + kvStock(x, r, hv, range); }

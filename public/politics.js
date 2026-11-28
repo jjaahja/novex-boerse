@@ -1,7 +1,7 @@
 // NOVEX Börse – Politik & Geopolitik: Zölle, Gegenzölle, Handelsabkommen, Konjunkturpakete, Steuerreform, Deregulierung,
 // Kartellverfahren, Exportverbote, Verteidigungsetats. Jede Storyline kündigt sich an (Gerücht → Entwurf → Entscheidung).
 // Ob sie wirklich kommt, liegt geheim in M.sec.pol; öffentlich ist nur die Markt-Einschätzung (Wahrscheinlichkeit).
-import { M, hook, byCls, addNews, setWhy, gauss, pick, clamp, pct, fmt, fDate, dayStart, MIN, recomputeDerived, bumpCmd } from './engine.js';
+import { M, hook, byCls, addNews, setWhy, gauss, pick, clamp, pct, fmt, fDate, dayStart, MIN, recomputeDerived, bumpCmd, WK } from './engine.js';
 import { POLICIES, sensOf, SECTORS, REGION } from './data.js';
 import { addTradingDays } from './events.js';
 
@@ -77,7 +77,7 @@ function candidates() {
   return out;
 }
 function schedule() {
-  if (M.sec.pol.length >= 2 || Math.random() > 0.1) return;
+  if (M.sec.pol.length >= 2 || Math.random() > 0.1 * WK) return;
   const c = candidates(); if (!c.length) return;
   let u = Math.random() * c.reduce((s, x) => s + x.w, 0), ch = c[0]; for (const x of c) { u -= x.w; if (u <= 0) { ch = x; break; } }
   const P = POLICIES[ch.i], e = { id: ++M.pol.n, i: ch.i, key: ch.key, k: P.k, by: P.by, on: P.on, sectors: P.sectors, ids: P.ids, stage: 0, priced: 0 };

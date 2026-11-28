@@ -32,7 +32,7 @@ export function quoteBid(A, x, prem, lbo) {
 // Geheime Mindestprämie, ab der die Mehrheit der Aktionäre verkauft (wachstumsstarke Firmen verlangen mehr)
 export function bidReq(x) {
   if (!M.sec.req) M.sec.req = {};
-  if (M.sec.req[x.id] === undefined) M.sec.req[x.id] = clamp(0.15 + Math.random() * 0.17 + 0.1 * Math.max(0, (x.fin ? x.fin.g : 0) - 0.1) - (x.cD.length > 200 && x.price < 0.7 * Math.max(...x.cD.slice(-252).map(k => k[2])) ? 0.05 : 0), 0.08, 0.45);
+  if (M.sec.req[x.id] === undefined) M.sec.req[x.id] = clamp(0.15 + Math.random() * 0.17 + 0.1 * Math.max(0, (x.fin ? x.fin.g : 0) - 0.1) - (x.cD.length > 200 && x.price < 0.7 * Math.max(...x.cD.slice(-365).map(k => k[2])) ? 0.05 : 0), 0.08, 0.45);
   return M.sec.req[x.id];
 }
 export function placeBid(A, b) {
@@ -111,7 +111,7 @@ function complete(A, x, b, accts, accept) {
   recomputeDerived();
   // Eigenes Unternehmen anlegen
   const f = targetFigures(x), m = f.ebit > 0 && f.rev > 0 ? clamp(f.margin, 0.02, 0.6) : 0.03, ebit = f.rev * m;
-  const co = { id: x.id, name: x.name, sector: x.sector, shares: x.shares, rev: f.rev, m, mBase: m, g: clamp(x.fin ? x.fin.g : 0.03, -0.05, 0.3), debt: b.lbo, spread: LBO_SPREAD, rate: (M.lz || 0) + LBO_SPREAD, mult: ebit > 0 ? (P * x.shares) / ebit : 10, cost: r2(own.cost + cost + fee - b.lbo), t0: M.t, next: dayStart(addTradingDays(M.t, 63)), q: [], st: null, qs: 0, neg: 0, spec: -1, P };
+  const co = { id: x.id, name: x.name, sector: x.sector, shares: x.shares, rev: f.rev, m, mBase: m, g: clamp(x.fin ? x.fin.g : 0.03, -0.05, 0.3), debt: b.lbo, spread: LBO_SPREAD, rate: (M.lz || 0) + LBO_SPREAD, mult: ebit > 0 ? (P * x.shares) / ebit : 10, cost: r2(own.cost + cost + fee - b.lbo), t0: M.t, next: dayStart(addTradingDays(M.t, 91)), q: [], st: null, qs: 0, neg: 0, spec: -1, P };
   A.pe.push(co);
   addNews(`${A.name} übernimmt ${x.name} und nimmt das Unternehmen von der Börse`, 1, [x.id], { cat: 'ma', sub: `${fmt(accept * 100, 0)} % der freien Aktionäre haben angedient. Alle übrigen Aktien werden zu ${fmt(P, 2)} € abgefunden. ${x.name} verlässt Index, ETFs und Fonds.` });
   ENV.note(A, `Übernahme geglückt! ${x.name} gehört jetzt dir – zu finden unter „Unternehmen“.`, 'tier'); ENV.event(A, 'takeover', { id: x.id }); ENV.dirty(A);
@@ -151,7 +151,7 @@ function quarter(A, co) {
   const tgt = clamp(peerMult(co.sector) * 0.65 * (1 + 2 * (co.g - 0.05)), 4, 30); co.mult += 0.25 * (tgt - co.mult);
   const val = coValue(co);
   co.q.push({ q: qLabel(M.t - 45 * DAY), t: M.t, rev: revQ, ebit: ebitQ, int: intQ, ni, div, debt: co.debt, val, m: co.m }); if (co.q.length > 12) co.q.shift();
-  co.qs++; co.next = dayStart(addTradingDays(M.t, 63));
+  co.qs++; co.next = dayStart(addTradingDays(M.t, 91));
   if (val <= 0) co.neg++; else co.neg = 0;
   if (co.neg >= 2) {
     A.pe.splice(A.pe.indexOf(co), 1);

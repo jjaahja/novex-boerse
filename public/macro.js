@@ -1,6 +1,7 @@
 // NOVEX Börse – Volkswirtschaft: BIP, Arbeitslosigkeit, Konsumklima, Geldmenge, Energie, Inflationstrend, Staatsschulden.
 // Alles hängt kausal zusammen und wirkt über Sensitivitäten auf Aktien, Devisen und Anleihen. Fortschreibung einmal je Handelstag.
-import { M, hook, byCls, gauss, clamp, dayStart } from './engine.js';
+import { M, hook, byCls, gauss, clamp, dayStart, WK } from './engine.js';
+const SK = Math.sqrt(WK);
 import { REGIMES, sensOf } from './data.js';
 
 // Grundtempo der Wirtschaft je Marktphase (BIP-Wachstum in % p. a.)
@@ -37,40 +38,40 @@ hook('open', () => {
   const reg = M.reg ? M.reg.k : 'side', lz = M.lz === undefined ? M.r : M.lz, infl = M.infl === undefined ? 2.2 : M.infl;
   const ti = tariffIndex(); m.tarImp = ti.imp; m.tarDrag = ti.drag;
   // Energie: Ölpreis gegenüber seinem gleitenden Mittel
-  const oil = M.inst.BRNT ? M.inst.BRNT.price : m.oilRef; m.energy = Math.log(oil / m.oilRef); m.oilRef += 0.02 * (oil - m.oilRef);
+  const oil = M.inst.BRNT ? M.inst.BRNT.price : m.oilRef; m.energy = Math.log(oil / m.oilRef); m.oilRef += 0.02 * WK * (oil - m.oilRef);
   // BIP: Marktphase + Konjunkturpakete − Zölle − Realzins + Konsumklima
   const real = lz * 100 - infl;
   const gdpT = (GDP_BASE[reg] ?? 1.5) + m.stim - 0.06 * ti.drag - 0.25 * (real - 0.5) + 0.04 * (m.conf - NEUTRAL.conf);
-  m.gdp = clamp(m.gdp + 0.08 * (gdpT - m.gdp) + 0.06 * gauss(), -6, 7);
+  m.gdp = clamp(m.gdp + 0.08 * WK * (gdpT - m.gdp) + 0.06 * SK * gauss(), -6, 7);
   // Arbeitslosigkeit (Okun-Gesetz): Wachstum unter Potenzial lässt sie steigen
-  m.unemp = clamp(m.unemp - 0.012 * (m.gdp - 1.3) + 0.002 * (NEUTRAL.unemp - m.unemp) + 0.015 * gauss(), 2.5, 14);
+  m.unemp = clamp(m.unemp + WK * (-0.012 * (m.gdp - 1.3) + 0.002 * (NEUTRAL.unemp - m.unemp)) + 0.015 * SK * gauss(), 2.5, 14);
   // Konsumklima: Wachstum, Preise, Jobs, Börse, Zölle
-  const ix = M.inst.WELTIX, c = ix && ix.cD.length > 21 ? ix.price / ix.cD[ix.cD.length - 21][4] - 1 : 0;
+  const ix = M.inst.WELTIX, c = ix && ix.cD.length > 30 ? ix.price / ix.cD[ix.cD.length - 30][4] - 1 : 0;
   const confT = NEUTRAL.conf + 2.5 * (m.gdp - 1.5) - 1.2 * (infl - 2) - 1.5 * (m.unemp - NEUTRAL.unemp) + 40 * c - 0.15 * ti.imp - 0.08 * ti.drag;
-  m.conf = clamp(m.conf + 0.15 * (confT - m.conf) + 0.4 * gauss(), -40, 15);
+  m.conf = clamp(m.conf + 0.15 * WK * (confT - m.conf) + 0.4 * SK * gauss(), -40, 15);
   // Geldmenge: hohe Zinsen bremsen die Kreditvergabe, Konjunkturpakete erhöhen sie
-  m.m2 = clamp(m.m2 + 0.05 * (5 - 120 * (lz - 0.02) + 1.5 * m.stim - m.m2), -4, 14);
+  m.m2 = clamp(m.m2 + 0.05 * WK * (5 - 120 * (lz - 0.02) + 1.5 * m.stim - m.m2), -4, 14);
   // Inflationstrend: Konjunktur, Geldmenge, Energie, Zölle (Grundlage der nächsten VPI-Erwartung)
   const regI = REGIMES[reg] ? REGIMES[reg].infl : 2.2;
   m.inflT = clamp(2.0 + 0.45 * (m.gdp - 1.5) + 0.12 * (m.m2 - 5) + 6 * m.energy + 0.06 * ti.imp + 0.5 * (regI - 2.2), -1.5, 11);
   // Staatsschulden: steigen mit Paketen und in Krisen, sinken langsam im Aufschwung
-  m.debt = clamp(m.debt + 0.004 * m.stim + 0.003 * (1.5 - m.gdp), 20, 200);
-  m.stim *= 0.985;
+  m.debt = clamp(m.debt + WK * (0.004 * m.stim + 0.003 * (1.5 - m.gdp)), 20, 200);
+  m.stim *= Math.pow(0.985, WK);
   // Zinsstruktur: hohe Schulden erhöhen die Laufzeitprämie
-  M.slope = clamp(M.slope + 0.05 * (0.009 + 0.0004 * (m.debt - 64) - M.slope), -0.03, 0.05);
+  M.slope = clamp(M.slope + 0.05 * WK * (0.009 + 0.0004 * (m.debt - 64) - M.slope), -0.03, 0.05);
   // Auslandszinsen: US-Zentralbank reagiert auf eigene Zölle (Inflation importiert)
   const usT = 0.035 + 0.0002 * ((M.pol && M.pol.tar && (M.pol.tar.us_eu + M.pol.tar.us_asia)) || 0) + 0.002 * (m.gdp - 1.5);
-  M.fr.USD = clamp(M.fr.USD + 0.03 * (usT - M.fr.USD) + 0.0004 * gauss(), 0, 0.09);
-  M.fr.GBP = clamp(M.fr.GBP + 0.02 * (M.fr.USD - M.fr.GBP) + 0.0003 * gauss(), 0, 0.09);
+  M.fr.USD = clamp(M.fr.USD + 0.03 * WK * (usT - M.fr.USD) + 0.0004 * SK * gauss(), 0, 0.09);
+  M.fr.GBP = clamp(M.fr.GBP + 0.02 * WK * (M.fr.USD - M.fr.GBP) + 0.0003 * SK * gauss(), 0, 0.09);
   // Devisen: Zinsdifferenz (Carry) und sicherer Hafen Franken bei schlechter Stimmung
   if (M.U) {
-    M.U.EUR *= Math.exp(0.0003 * (lz - M.fr.USD) * 100 + 0.0002 * (m.gdp - 1.5) + 0.00015 * gauss());
-    M.U.CHF *= Math.exp(-0.00015 * (m.conf - NEUTRAL.conf) / 5);
+    M.U.EUR *= Math.exp(WK * (0.0003 * (lz - M.fr.USD) * 100 + 0.0002 * (m.gdp - 1.5)) + 0.00015 * SK * gauss());
+    M.U.CHF *= Math.exp(-0.00015 * WK * (m.conf - NEUTRAL.conf) / 5);
     for (const f of byCls('fx')) f.price = M.U[f.base] / M.U[f.quote];
   }
   macroDrift(lz, infl);
   m.h.push([today, +m.gdp.toFixed(2), +m.unemp.toFixed(2), +m.conf.toFixed(1), +infl.toFixed(2), +(lz * 100).toFixed(2), +ti.imp.toFixed(1), +m.inflT.toFixed(2)]);
-  if (m.h.length > 260) m.h.splice(0, m.h.length - 260);
+  if (m.h.length > 365) m.h.splice(0, m.h.length - 365);
 });
 
 // Branchenunterschiede durch Konjunktur, Zinsen und Inflation (marktneutral: der Index bleibt unberührt, die Gewichte verschieben sich)
@@ -78,7 +79,7 @@ function macroDrift(lz, infl) {
   const m = M.mac, st = byCls('stock'); if (!st.length) return;
   const raw = st.map(x => { const s = sensOf(x); return 0.0006 * s.cyc * (m.gdp - 1.5) + 0.00025 * s.infl * (infl - 2.2) - 0.04 * s.rate * (lz - NEUTRAL.lz) + ((x.sector === 'cons' || x.sector === 'auto') ? 0.00008 * (m.conf - NEUTRAL.conf) : 0); });
   let w = 0, mu = 0; st.forEach((x, i) => { if (!x.core) return; const c = x.shares * x.price; w += c; mu += c * raw[i]; }); mu = w ? mu / w : 0;
-  st.forEach((x, i) => { const j = clamp(raw[i] - mu, -0.01, 0.01); x.f *= Math.exp(j); x.price = x.f * Math.exp(x.tr); });
+  st.forEach((x, i) => { const j = clamp((raw[i] - mu) * WK, -0.01, 0.01); x.f *= Math.exp(j); x.price = x.f * Math.exp(x.tr); });
 }
 
 // Erwartete Änderung der Gewinne durch die Konjunktur (für Quartalszahlen und eigene Unternehmen)
